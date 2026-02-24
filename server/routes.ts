@@ -274,36 +274,78 @@ OUTPUT:
 Return the complete HTML document with the CV content injected.`;
 
     console.log(`[AI] Starting OpenAI call for job ${jobId}...`);
-    const response = await openrouter.chat.completions.create({
-      model: "meta-llama/llama-3.3-70b-instruct",
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 8192,
-      temperature: 0.7,
-    });
-    console.log(`[AI] OpenAI call completed for job ${jobId}`);
-
-    let generatedHtml = response.choices[0]?.message?.content || "";
-
-    // Clean up markdown code blocks if present
-    generatedHtml = generatedHtml.replace(/```html\n?/g, "").replace(/```\n?$/g, "").trim();
-
-    // Update status: Generating PDF
-    await storage.updateGeneratedCvStatus(jobId, "processing", "Generating PDF...");
-
-    // For simplicity, save HTML as "PDF" (in production, use Playwright to render actual PDF)
-    const outputDir = path.join(process.cwd(), "client", "public", "generated");
-    await fs.mkdir(outputDir, { recursive: true });
+    console.log(`[AI] Using model: meta-llama/llama-3.3-70b-instruct`);
+    console.log(`[AI] API Base URL: ${process.env.AI_INTEGRATIONS_OPENROUTER_BASE_URL}`);
+    console.log(`[AI] API Key exists: ${!!process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY}`);
     
-    const filename = `cv-${jobId}-${Date.now()}.html`;
-    const outputPath = path.join(outputDir, filename);
-    await fs.writeFile(outputPath, generatedHtml, "utf-8");
+    try {
+      const response = await openrouter.chat.completions.create({
+        model: "meta-llama/llama-3.3-70b-instruct",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 8192,
+        temperature: 0.7,
+      });
+      console.log(`[AI] OpenAI call completed for job ${jobId}`);
+      console.log(`[AI] Response length: ${response.choices[0]?.message?.content?.length || 0} chars`);
 
-    const pdfUrl = `/generated/${filename}`;
+      let generatedHtml = response.choices[0]?.message?.content || "";
 
-    // Update status: Complete
-    await storage.updateGeneratedCvStatus(jobId, "complete", undefined, pdfUrl);
+      // Clean up markdown code blocks if present
+      generatedHtml = generatedHtml.replace(/```html\n?/g, "").replace(/```\n?$/g, "").trim();
 
-    console.log(`Successfully generated CV ${jobId}`);
+      // Update status: Generating PDF
+      await storage.updateGeneratedCvStatus(jobId, "processing", "Generating PDF...");
+
+      // For simplicity, save HTML as "PDF" (in production, use Playwright to render actual PDF)
+      const outputDir = path.join(process.cwd(), "client", "public", "generated");
+      await fs.mkdir(outputDir, { recursive: true });
+      
+      const filename = `cv-${jobId}-${Date.now()}.html`;
+      const outputPath = path.join(outputDir, filename);
+      await fs.writeFile(outputPath, generatedHtml, "utf-8");
+
+      const pdfUrl = `/generated/${filename}`;
+
+      // Update status: Complete
+      await storage.updateGeneratedCvStatus(jobId, "complete", undefined, pdfUrl);
+
+      console.log(`Successfully generated CV ${jobId}`);
+    } catch (apiError) {
+      console.error(`[AI] OpenAI API Error for job ${jobId}:`, apiError);
+      
+      // Fallback: save template without AI processing
+      console.log(`[AI] Using fallback: saving template without AI processing for job ${jobId}`);
+      
+      try {
+        const template = await storage.getTemplate(templateId);
+        if (!template) {
+          throw new Error("Template not found");
+        }
+
+        const templatePath = path.join(process.cwd(), "server", "templates", template.fileName);
+        const templateHtml = await fs.readFile(templatePath, "utf-8");
+
+        // Update status: Generating PDF
+        await storage.updateGeneratedCvStatus(jobId, "processing", "Generating PDF...");
+
+        const outputDir = path.join(process.cwd(), "client", "public", "generated");
+        await fs.mkdir(outputDir, { recursive: true });
+        
+        const filename = `cv-${jobId}-${Date.now()}.html`;
+        const outputPath = path.join(outputDir, filename);
+        await fs.writeFile(outputPath, templateHtml, "utf-8");
+
+        const pdfUrl = `/generated/${filename}`;
+
+        // Update status: Complete
+        await storage.updateGeneratedCvStatus(jobId, "complete", undefined, pdfUrl);
+
+        console.log(`Successfully generated CV ${jobId} (fallback mode)`);
+      } catch (fallbackError) {
+        console.error(`[AI] Fallback also failed for job ${jobId}:`, fallbackError);
+        throw apiError; // Throw original error
+      }
+    }
   } catch (error) {
     console.error("DETAILED AI ERROR:", error);
     console.error(`[AI] Error stack:`, error instanceof Error ? error.stack : 'No stack available');
