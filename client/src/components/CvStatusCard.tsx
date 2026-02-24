@@ -2,12 +2,15 @@ import { usePollingJob, useDeleteResume } from "@/hooks/use-generate";
 import { useDeleteResume as useGlobalDeleteResume } from "@/hooks/use-cvs";
 import { FileText, Loader2, CheckCircle2, AlertCircle, Download, Trash2, Calendar } from "lucide-react";
 import { format } from "date-fns";
+import { useState } from "react";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import type { GeneratedCvResponse } from "@shared/routes";
 
 export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
   // Poll if status is pending/processing
   const { data: polledJob } = usePollingJob(cv.id, cv.status);
   const { mutate: deleteResume, isPending: isDeleting } = useGlobalDeleteResume();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
   const displayData = polledJob || cv;
   const isProcessing = displayData.status === "pending" || displayData.status === "processing";
@@ -18,13 +21,17 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
   const templateName = displayData.template?.name || cv.template?.name || "Template";
 
   const handleDelete = () => {
-    if (confirm("Are you sure you want to delete this resume?")) {
-      deleteResume(cv.id);
-    }
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    deleteResume(cv.id);
+    setIsDeleteDialogOpen(false);
   };
 
   return (
-    <div className="glass-card rounded-2xl overflow-hidden group relative flex flex-col">
+    <>
+      <div className="glass-card rounded-2xl overflow-hidden group relative flex flex-col">
       {/* Image Preview Area */}
       <div className="relative aspect-[1/1.414] bg-secondary/30 w-full overflow-hidden border-b border-border/50">
         {templateScreenshot ? (
@@ -115,5 +122,14 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
         )}
       </div>
     </div>
+    
+    <DeleteConfirmDialog
+      isOpen={isDeleteDialogOpen}
+      onClose={() => setIsDeleteDialogOpen(false)}
+      onConfirm={confirmDelete}
+      isDeleting={isDeleting}
+      itemName="resume"
+    />
+    </>
   );
 }
