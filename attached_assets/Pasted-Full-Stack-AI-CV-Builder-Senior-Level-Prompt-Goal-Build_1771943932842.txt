@@ -1,0 +1,68 @@
+Full-Stack AI CV Builder: Senior Level Prompt
+Goal: Build a production-ready SaaS application for generating resumes using AI.
+
+1. Tech Stack:
+
+Frontend: React + TypeScript (Vite), Tailwind CSS, Framer Motion (animations), Lucide Icons.
+
+Backend: FastAPI (Python), Authlib (Google OAuth2), Playwright (for A4 PDF rendering).
+
+AI: Groq SDK (Model: Llama-3-70b/80b) with a provider-agnostic service (ready for OpenAI/Claude).
+
+Database: Replit PostgreSQL with SQLAlchemy.
+
+Code Quality: ESLint for TS, Ruff for Python, strict typing.
+
+2. Architecture & Pages:
+
+Navigation: Modern sidebar or navbar with "Gallery" and "My Resumes".
+
+Gallery Page (Home): - A responsive grid of template cards (using screenshots from /static/screenshots).
+
+Hover Effect: On hover, a "Use Template" button appears with a smooth fade-in.
+
+Action: Clicking "Use" opens a Modal.
+
+Generation Modal:
+
+Input for Google Docs URL.
+
+"Generate" button.
+
+Loading State: - While generating, show an A4-shaped Skeleton Loader.
+
+Display step-by-step progress: "Fetching Document...", "AI Formatting...", "Generating PDF...".
+
+Result View: - Once done, display the generated CV centered on the screen.
+
+Floating Action Bar: A prominent "Download PDF" button and a "Print" button.
+
+"My Resumes" Page:
+
+A private gallery for the logged-in user.
+
+Displays all previously generated CVs (stored in DB).
+
+Each item has a preview, the date of creation, and a "Download" button.
+
+3. Backend & AI Logic:
+
+Auth: Google OAuth2 login is mandatory. Create a User and CVHistory table in the DB.
+
+AI Injection:
+
+Fetch text from Google Docs API.
+
+Read the selected HTML/CSS template from /html-templates.
+
+Prompt for Groq: "Analyze the provided raw CV text and inject it into the HTML template. Keep all <style> tags intact. Ensure the content fits perfectly on one A4 page. Return ONLY the final HTML code."
+
+PDF Generation: Use Playwright to render the HTML in a headless browser (viewport A4: 794px x 1123px) and save it as a PDF buffer/file.
+
+4. Visual Requirements (UX/UI):
+
+Aesthetic: Clean, professional SaaS look (Glassmorphism elements, soft shadows, rounded corners).
+
+Responsiveness: Perfect display on desktop and tablets.
+
+Interactions: Use framer-motion for page transitions and modal pops.
