@@ -30,7 +30,11 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
 
   // Redirect to CV view when generation is complete
   useEffect(() => {
+    console.log("[GenerateModal] jobStatus:", jobStatus);
+    console.log("[GenerateModal] jobId:", jobId);
+    
     if (jobStatus?.status === "complete" && jobStatus.id) {
+      console.log("[GenerateModal] Redirecting to CV view:", `/cv/${jobStatus.id}`);
       toast({
         title: "CV Generated Successfully! 🎉",
         description: "Your CV has been generated and is ready to view.",

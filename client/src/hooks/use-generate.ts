@@ -59,12 +59,14 @@ export function usePollingJob(jobId: number, initialStatus: string) {
   return useQuery({
     queryKey: [api.generate.status.path, jobId],
     queryFn: async () => {
+      console.log(`[usePollingJob] Polling status for job ${jobId}`);
       const url = buildUrl(api.generate.status.path, { jobId });
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch job status");
       
       const data = await res.json();
       const parsed = parseWithLogging(api.generate.status.responses[200], data, "generate.status");
+      console.log(`[usePollingJob] Job ${jobId} status:`, parsed.status);
       
       // If we just completed, invalidate the main resumes list to ensure everything is in sync
       if (parsed.status === "complete" || parsed.status === "failed") {
@@ -76,6 +78,7 @@ export function usePollingJob(jobId: number, initialStatus: string) {
     // Poll every 2 seconds if status is still pending or processing
     refetchInterval: (query) => {
       const currentStatus = query.state.data?.status || initialStatus;
+      console.log(`[usePollingJob] Job ${jobId} current status:`, currentStatus, "isPolling:", currentStatus === "pending" || currentStatus === "processing");
       if (currentStatus === "pending" || currentStatus === "processing") {
         return 2000;
       }

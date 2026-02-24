@@ -123,7 +123,18 @@ export default function CvViewPage() {
   }, [id, toast]);
 
   const handleDownloadPDF = () => {
-    window.print();
+    if (cvData?.pdfUrl) {
+      // Create a temporary link element to trigger download
+      const link = document.createElement('a');
+      link.href = cvData.pdfUrl;
+      link.download = `cv-${cvData.id}.html`; // Set filename
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      // Fallback to print if no PDF URL available
+      window.print();
+    }
   };
 
   const handleGoBack = () => {
@@ -175,7 +186,7 @@ export default function CvViewPage() {
           className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg shadow-lg hover:shadow-xl transition-shadow"
         >
           <Download className="w-4 h-4" />
-          Download PDF
+          Download CV
         </button>
       </div>
 

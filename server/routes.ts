@@ -104,7 +104,9 @@ export async function registerRoutes(
       });
 
       // Start async generation (don't await)
-      generateCvAsync(cv.id, templateId, cvText, sourceInfo);
+      generateCvAsync(cv.id, templateId, cvText, sourceInfo).catch(err => {
+        console.error("[ASYNC] generateCvAsync crashed immediately:", err);
+      });
 
       res.status(202).json({ jobId: cv.id });
     } catch (err) {
@@ -233,6 +235,7 @@ async function seedTemplates() {
 }
 
 async function generateCvAsync(jobId: number, templateId: number, cvText: string, sourceInfo?: string) {
+  console.log(`[ASYNC] Starting generateCvAsync for job ${jobId}`);
   try {
     // Update status: Fetching Document
     await storage.updateGeneratedCvStatus(jobId, "processing", "Processing Document...");
