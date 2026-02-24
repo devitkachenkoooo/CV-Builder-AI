@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV - Emily Chen</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;600;700&display=swap');
+
+        :root {
+            --bg-dark: #050720;
+            --accent-blue: #3498db;
+            --text-white: #ffffff;
+            --text-muted: #bdc3c7;
+            --pill-bg: #1a2a40;
+            --font-main: 'Public Sans', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: #000;
+            color: var(--text-white);
+            line-height: 1.5;
+            display: flex;
+            justify-content: center;
+            padding: 40px 0;
+        }
+
+        .container {
+            background-color: var(--bg-dark);
+            width: 210mm;
+            min-height: 297mm;
+            padding: 60px 80px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            gap: 40px;
+            margin-bottom: 50px;
+        }
+
+        .header-left {
+            width: 40%;
+        }
+
+        .header-left h1 {
+            font-size: 38px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .contact-info {
+            font-size: 14px;
+            color: var(--text-white);
+        }
+
+        .contact-info div {
+            margin-bottom: 8px;
+        }
+
+        .header-right {
+            width: 60%;
+            font-size: 15px;
+            color: var(--text-white);
+            text-align: justify;
+        }
+
+        section {
+            margin-bottom: 40px;
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .section-underline {
+            height: 4px;
+            background-color: var(--accent-blue);
+            width: 60px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .item {
+            margin-bottom: 25px;
+        }
+
+        .item h3 {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .item .role {
+            font-size: 15px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .item .meta {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .pill-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .pill {
+            background-color: var(--pill-bg);
+            color: var(--text-white);
+            padding: 10px 22px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            border: 1px solid rgba(52, 152, 219, 0.3);
+        }
+
+        @media print {
+            body {
+                padding: 0;
+                background: none;
+            }
+
+            .container {
+                box-shadow: none;
+                width: 100%;
+                margin: 0;
+                -webkit-print-color-adjust: exact;
+            }
+
+            header,
+            section,
+            .pill {
+                -webkit-print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <h1>Emily Chen</h1>
+                <div class="contact-info">
+                    <div>123 Main Street, New York, NY 10001</div>
+                    <div>(123) 456-7890</div>
+                    <div>emilychen@example.com</div>
+                </div>
+            </div>
+            <div class="header-right">
+                <p>Results-driven software engineer with 5+ years of experience in developing scalable and efficient software solutions. Proven track record of delivering high-quality projects on time and on budget. Skilled in a range of programming languages, including Java, Python, and JavaScript.</p>
+            </div>
+        </header>
+
+        <section id="experience">
+            <h2>PROFESSIONAL EXPERIENCE</h2>
+            <div class="section-underline"></div>
+
+            <div class="item">
+                <h3>Senior Software Engineer, ABC Corporation</h3>
+                <p class="role">Lead developer on multiple projects, responsible for designing and implementing software solutions</p>
+                <p class="meta">01/2018 – present | New York, NY</p>
+            </div>
+
+            <div class="item">
+                <h3>Software Engineer, DEF Startups</h3>
+                <p class="role">Developed and maintained multiple software applications using Java and Python</p>
+                <p class="meta">06/2015 – 12/2017 | San Francisco, CA</p>
+            </div>
+        </section>
+
+        <section id="education">
+            <h2>EDUCATION</h2>
+            <div class="section-underline"></div>
+            <div class="item">
+                <h3>Bachelor of Science in Computer Science</h3>
+                <p class="role">Stanford University</p>
+                <p class="meta">09/2011 – 06/2015</p>
+            </div>
+        </section>
+
+        <section id="languages">
+            <h2>LANGUAGES</h2>
+            <div class="section-underline"></div>
+            <div class="pill-container">
+                <div class="pill">English</div>
+                <div class="pill">Mandarin</div>
+                <div class="pill">Spanish</div>
+            </div>
+        </section>
+
+        <section id="skills">
+            <h2>SKILLS</h2>
+            <div class="section-underline"></div>
+            <div class="pill-container">
+                <div class="pill">Java</div>
+                <div class="pill">Python</div>
+                <div class="pill">JavaScript</div>
+                <div class="pill">HTML/CSS</div>
+                <div class="pill">Agile Development</div>
+                <div class="pill">Cloud Computing</div>
+            </div>
+        </section>
+    </div>
+</body>
+
+</html>
