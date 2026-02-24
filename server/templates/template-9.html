@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV - Andrew O'Sullivan (Modern Red)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+        :root {
+            --accent-red: #e74c3c;
+            --header-bg: #eee;
+            --text-main: #333;
+            --text-secondary: #666;
+            --bg-body: #fff;
+            --font-main: 'Roboto', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: #f4f4f4;
+            color: var(--text-main);
+            line-height: 1.4;
+            display: flex;
+            justify-content: center;
+            padding: 40px 0;
+        }
+
+        .container {
+            background-color: var(--bg-body);
+            width: 210mm;
+            min-height: 297mm;
+            padding: 60px 70px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+
+        header h1 {
+            font-size: 44px;
+            font-weight: 700;
+            color: var(--accent-red);
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+        }
+
+        .contact-row {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            font-size: 13.5px;
+            color: var(--text-main);
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        section {
+            margin-bottom: 25px;
+        }
+
+        h2 {
+            background-color: var(--header-bg);
+            padding: 6px 0;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: capitalize;
+            letter-spacing: 1.5px;
+            margin-bottom: 15px;
+        }
+
+        .profile-text {
+            font-size: 14px;
+            text-align: justify;
+            margin-bottom: 10px;
+        }
+
+        .item {
+            margin-bottom: 15px;
+        }
+
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 4px;
+        }
+
+        .item-title {
+            font-weight: 700;
+            font-size: 14.5px;
+        }
+
+        .item-title span {
+            font-weight: 400;
+            font-style: italic;
+            color: var(--text-secondary);
+        }
+
+        .item-right {
+            font-size: 13px;
+            text-align: right;
+            color: var(--text-main);
+        }
+
+        ul {
+            list-style: none;
+            padding-left: 15px;
+        }
+
+        li {
+            position: relative;
+            font-size: 13.5px;
+            margin-bottom: 3px;
+            padding-left: 15px;
+        }
+
+        li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #000;
+        }
+
+        .skills-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            column-gap: 50px;
+        }
+
+        .skill-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .skill-name {
+            font-size: 13.5px;
+            width: 140px;
+        }
+
+        .progress-bar {
+            flex-grow: 1;
+            height: 6px;
+            background-color: #f1f1f1;
+            border-radius: 3px;
+            overflow: hidden;
+            background-image: linear-gradient(to right, #f1f1f1, #fbdada);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--accent-red);
+        }
+
+        .awards-item {
+            margin-bottom: 8px;
+        }
+
+        .award-title {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .award-subtitle {
+            font-style: italic;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        @media print {
+            body {
+                padding: 0;
+                background: none;
+            }
+
+            .container {
+                box-shadow: none;
+                width: 100%;
+                margin: 0;
+            }
+
+            h2 {
+                -webkit-print-color-adjust: exact;
+                background-color: var(--header-bg) !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Andrew O'Sullivan</h1>
+            <div class="contact-row">
+                <div class="contact-item">📍 4 Noel Street, London W1F 8GB England</div>
+                <div class="contact-item">✉ andrew@sulli.com</div>
+                <div class="contact-item">📞 +01 11111155</div>
+            </div>
+        </header>
+
+        <section id="profile">
+            <h2>Profile</h2>
+            <p class="profile-text">
+                Experienced Product Manager with a proven track record in the development and management of products
+                throughout their lifecycle. Passionate, creative, and results-oriented. Skilled in team leadership and
+                collaboration with cross-functional teams. Enthusiastic about designing innovative solutions that
+                enhance customer satisfaction.
+            </p>
+        </section>
+
+        <section id="experience">
+            <h2>Professional Experience</h2>
+
+            <div class="item">
+                <div class="item-row">
+                    <p class="item-title">Product Manager, <span>Technite Gmbh</span></p>
+                    <div class="item-right">
+                        <div>08/2018 – 07/2023</div>
+                        <div>Berlin, Germany</div>
+                    </div>
+                </div>
+                <ul>
+                    <li>Led a cross-functional team of 10 people in the development of a new product line, resulting in
+                        a 20% increase in revenue</li>
+                    <li>Conducted market analysis and competitive studies to identify new product opportunities and
+                        expand the product portfolio</li>
+                </ul>
+            </div>
+
+            <div class="item">
+                <div class="item-row">
+                    <p class="item-title">Product Specialist, <span>Solutions Inc</span></p>
+                    <div class="item-right">
+                        <div>04/2015 – 07/2018</div>
+                        <div>Munich, Germany</div>
+                    </div>
+                </div>
+                <ul>
+                    <li>Developed and implemented a product strategy for the European market, resulting in a 25% revenue
+                        growth</li>
+                    <li>Conducted training sessions and presentations for customers and sales teams to enhance product
+                        knowledge</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="education">
+            <h2>Education</h2>
+            <div class="item">
+                <div class="item-row">
+                    <p class="item-title">Master of Business Administration (MBA), <span>University</span></p>
+                    <div class="item-right">
+                        <div>08/2013 – 07/2015</div>
+                        <div>Munic, Germany</div>
+                    </div>
+                </div>
+            </div>
+            <div class="item">
+                <div class="item-row">
+                    <p class="item-title">Bachelor of Engineering in Information Technology, <span>Technical
+                            University</span></p>
+                    <div class="item-right">
+                        <div>09/2009 – 07/2013</div>
+                        <div>Vienna, Austria</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="skills">
+            <h2>Skills</h2>
+            <div class="skills-grid">
+                <div>
+                    <div class="skill-item">
+                        <span class="skill-name">Product development strategy</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 85%;"></div>
+                        </div>
+                    </div>
+                    <div class="skill-item">
+                        <span class="skill-name">Customer needs analysis</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="skill-item">
+                        <span class="skill-name">Data analysis</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 75%;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="skill-item">
+                        <span class="skill-name">Project management</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 90%;"></div>
+                        </div>
+                    </div>
+                    <div class="skill-item">
+                        <span class="skill-name">Agile methods and Scrum</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 80%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="languages">
+            <h2>Languages</h2>
+            <div class="skills-grid">
+                <div class="skill-item">
+                    <span class="skill-name">German</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 100%;"></div>
+                    </div>
+                </div>
+                <div class="skill-item">
+                    <span class="skill-name">Spanish</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 60%;"></div>
+                    </div>
+                </div>
+                <div class="skill-item">
+                    <span class="skill-name">English</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 90%;"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="awards">
+            <h2>Awards</h2>
+            <div class="awards-item">
+                <p class="award-title">Innovation Award, <span>The Tech GmbH</span></p>
+            </div>
+            <div class="awards-item">
+                <p class="award-title">Product Manager of the Year, <span>Delta Solutions</span></p>
+            </div>
+        </section>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV - Isabella Montoya</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap');
+
+        :root {
+            --accent-green: #27ae60;
+            --text-main: #333;
+            --text-secondary: #555;
+            --bg-body: #fff;
+            --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: #f0f0f0;
+            color: var(--text-main);
+            line-height: 1.5;
+            display: flex;
+            justify-content: center;
+            padding: 40px 0;
+        }
+
+        .container {
+            background-color: var(--bg-body);
+            width: 210mm;
+            min-height: 297mm;
+            padding: 60px 80px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        header {
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--accent-green);
+            display: inline-block;
+            margin-right: 15px;
+        }
+
+        header .title {
+            font-size: 24px;
+            font-style: italic;
+            color: var(--accent-green);
+            font-weight: 400;
+        }
+
+        .contact-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 40px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        section {
+            margin-bottom: 35px;
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent-green);
+            text-transform: capitalize;
+            border-bottom: 2px solid var(--accent-green);
+            width: fit-content;
+            margin-bottom: 20px;
+            padding-bottom: 3px;
+        }
+
+        .split-layout {
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            gap: 40px;
+            margin-bottom: 25px;
+        }
+
+        .meta-col {
+            font-size: 13.5px;
+            color: var(--text-main);
+        }
+
+        .meta-col div {
+            margin-bottom: 4px;
+        }
+
+        .content-col h3 {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .content-col h3 span {
+            font-weight: 400;
+            font-style: italic;
+            color: var(--text-secondary);
+        }
+
+        .content-col p {
+            font-size: 13.5px;
+            margin-bottom: 10px;
+            text-align: justify;
+        }
+
+        .skills-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .skills-grid ul {
+            list-style: none;
+        }
+
+        .skills-grid li {
+            font-size: 13.5px;
+            margin-bottom: 5px;
+            position: relative;
+            padding-left: 15px;
+        }
+
+        .skills-grid li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: var(--text-main);
+        }
+
+        @media print {
+            body {
+                padding: 0;
+                background: none;
+            }
+
+            .container {
+                box-shadow: none;
+                width: 100%;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div style="display: flex; align-items: baseline; margin-bottom: 15px;">
+                <h1>Isabella Montoya</h1>
+                <span class="title">Game Designer</span>
+            </div>
+            <div class="contact-grid">
+                <div class="contact-item">✉ isabella.montoya.dev@email.com</div>
+                <div class="contact-item">📞 +54 9 11 5555 1234</div>
+                <div class="contact-item">📍 Buenos Aires, Argentina</div>
+                <div class="contact-item">in linkedin.com/in/isabellamontoya</div>
+            </div>
+        </header>
+
+        <section id="experience">
+            <h2>Professional Experience</h2>
+
+            <div class="split-layout">
+                <div class="meta-col">
+                    <div>Dec 2021 – Feb 2022</div>
+                    <div>Remote</div>
+                </div>
+                <div class="content-col">
+                    <h3>Junior Gameplay Programmer, <span>Nebula Studios</span></h3>
+                    <p>Reviewed the game 'Cosmic Drift', resolved minor UI bugs, and introduced new gameplay features in
+                        Unity for a planned content patch.</p>
+                </div>
+            </div>
+
+            <div class="split-layout">
+                <div class="meta-col">
+                    <div>Dec 2021 – Oct 2022</div>
+                    <div>Buenos Aires, Argentina</div>
+                </div>
+                <div class="content-col">
+                    <h3>Associate Producer & Operations Coordinator, <span>PixelForge Interactive</span></h3>
+                    <p>Oversaw studio finances, including budgeting, revenue tracking, and expense reporting, to develop
+                        annual financial forecasts. Coordinated project schedules and served as the primary contact for
+                        developers, publishing partners, and key stakeholders. Led QA testing efforts and conducted
+                        market research for new opportunities.</p>
+                </div>
+            </div>
+
+            <div class="split-layout">
+                <div class="meta-col">
+                    <div>Mar 2023 – Mar 2024</div>
+                    <div>Remote</div>
+                </div>
+                <div class="content-col">
+                    <h3>Game Designer, <span>Chameleon Games</span></h3>
+                    <p>Conceptualized core project pillars, authored Game Design Documents (GDDs), designed and
+                        prototyped game levels, balanced gameplay systems and character stats, and performed regular bug
+                        testing.</p>
+                </div>
+            </div>
+
+            <div class="split-layout">
+                <div class="meta-col">
+                    <div>Jul 2024 – Dec 2024</div>
+                    <div>Remote</div>
+                </div>
+                <div class="content-col">
+                    <h3>Systems Designer, <span>Mythos Entertainment</span></h3>
+                    <p>Iterated on and implemented core MMORPG systems, balanced economic and combat data, and designed
+                        urban environments. Worked closely with art and engineering teams, improved building mechanics,
+                        and integrated player feedback to refine the user experience.</p>
+                </div>
+            </div>
+
+            <div class="split-layout">
+                <div class="meta-col">
+                    <div>Apr 2025 – Oct 2025</div>
+                    <div>Remote</div>
+                </div>
+                <div class="content-col">
+                    <h3>Live Ops Designer & QA Analyst, <span>Quantum Realm Studios</span></h3>
+                    <p>Developed and balanced character abilities and combat mechanics using iterative playtesting and
+                        feedback. Automated Google Sheets data pipelines and managed all LiveOps data, ensuring design
+                        specs matched server configurations for smooth, timely seasonal updates.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="education">
+            <h2>Education</h2>
+            <div class="split-layout">
+                <div class="meta-col">
+                    <div>Mar 2016 – Apr 2024</div>
+                    <div>Argentina</div>
+                </div>
+                <div class="content-col">
+                    <h3>Bachelor of Science in Game Design and Interactive Media, <span>Universidad Nacional de La
+                            Plata</span></h3>
+                </div>
+            </div>
+        </section>
+
+        <section id="skills">
+            <h2>Skills</h2>
+            <div class="skills-grid">
+                <ul>
+                    <li>C#, C++, Java, Python</li>
+                </ul>
+                <ul>
+                    <li>Unity, Unreal Engine 4/5</li>
+                </ul>
+                <ul>
+                    <li>Figma, Miro, Jira</li>
+                </ul>
+            </div>
+        </section>
+    </div>
+</body>
+
+</html>

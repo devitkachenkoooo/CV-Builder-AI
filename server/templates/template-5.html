@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV - Catherine Bale</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --accent-black: #000;
+            --text-main: #333;
+            --text-secondary: #666;
+            --bg-body: #fff;
+            --font-main: 'Poppins', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: #f8f8f8;
+            color: var(--text-main);
+            line-height: 1.4;
+            display: flex;
+            justify-content: center;
+            padding: 40px 0;
+        }
+
+        .container {
+            background-color: var(--bg-body);
+            width: 210mm;
+            min-height: 297mm;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        header {
+            background-color: #0c3d42;
+            background-image: linear-gradient(45deg, #0c3d42 25%, #0a3337 25%, #0a3337 50%, #0c3d42 50%, #0c3d42 75%, #0a3337 75%, #0a3337 100%);
+            background-size: 40px 40px;
+            color: #fff;
+            padding: 50px 70px;
+        }
+
+        header h1 {
+            font-size: 38px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        header .title {
+            font-size: 22px;
+            font-style: italic;
+            opacity: 0.9;
+            margin-bottom: 25px;
+        }
+
+        .contact-row {
+            display: flex;
+            gap: 25px;
+            font-size: 14px;
+            flex-wrap: wrap;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        main {
+            padding: 50px 70px;
+        }
+
+        section {
+            margin-bottom: 35px;
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-transform: capitalize;
+        }
+
+        .section-line {
+            height: 4px;
+            background-color: var(--accent-black);
+            width: 60px;
+            margin-bottom: 15px;
+        }
+
+        .summary {
+            font-size: 13.5px;
+            color: var(--text-main);
+            margin-bottom: 15px;
+        }
+
+        .exp-item,
+        .edu-item {
+            margin-bottom: 20px;
+        }
+
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 3px;
+        }
+
+        .item-title {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .item-title span {
+            font-weight: 500;
+            font-style: italic;
+            color: var(--text-secondary);
+        }
+
+        .item-meta {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .item-desc {
+            font-size: 13px;
+        }
+
+        .pill-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .pill {
+            background-color: #000;
+            color: #fff;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .skills-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px 60px;
+        }
+
+        .skill-item {
+            margin-bottom: 15px;
+        }
+
+        .skill-name {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background-color: #eee;
+            width: 100%;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--accent-black);
+        }
+
+        .skill-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 5px;
+            line-height: 1.3;
+        }
+
+        @media print {
+            body {
+                padding: 0;
+                background: none;
+            }
+
+            .container {
+                box-shadow: none;
+                width: 100%;
+            }
+
+            header {
+                -webkit-print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Catherine Bale</h1>
+            <p class="title">Marketing Assistant</p>
+            <div class="contact-row">
+                <div class="contact-item">📍 22611 Pacific Coast Hwy, Malibu California 9022 USA</div>
+                <div class="contact-item">📞 +1+541+754-3010</div>
+                <div class="contact-item">✉ c.bale@bale.com</div>
+                <div class="contact-item"> bale2345</div>
+            </div>
+        </header>
+
+        <main>
+            <section id="profile">
+                <h2>Profile</h2>
+                <div class="section-line"></div>
+                <p class="summary">
+                    To obtain a challenging marketing position with a reputable company where I can utilize my marketing
+                    skills and experience to drive business growth.
+                </p>
+            </section>
+
+            <section id="experience">
+                <h2>Professional Experience</h2>
+                <div class="section-line"></div>
+
+                <div class="exp-item">
+                    <div class="item-row">
+                        <p class="item-title">Acme Corporation, <span>Marketing Manager</span></p>
+                        <p class="item-meta">2019 – present | Milwaukee</p>
+                    </div>
+                    <p class="item-desc">Developed and executed marketing strategies to increase brand awareness and
+                        drive sales</p>
+                </div>
+
+                <div class="exp-item">
+                    <div class="item-row">
+                        <p class="item-title">Global Industries, <span>Marketing Coordinator</span></p>
+                        <p class="item-meta">2017 – 2019 | Grand Island</p>
+                    </div>
+                    <p class="item-desc">Assisted in the development and execution of marketing campaigns to promote
+                        products and services</p>
+                </div>
+            </section>
+
+            <section id="education">
+                <h2>Education</h2>
+                <div class="section-line"></div>
+                <div class="edu-item">
+                    <div class="item-row">
+                        <p class="item-title">Business Marketing, <span>University of Wisconsin</span></p>
+                        <p class="item-meta">2014 – 2017 | Milwaukee</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="certificates">
+                <h2>Certificates</h2>
+                <div class="section-line"></div>
+                <div class="pill-grid">
+                    <div class="pill">Google Analytics Certified</div>
+                    <div class="pill">HubSpot Inbound Marketing Certified</div>
+                </div>
+            </section>
+
+            <section id="languages">
+                <h2>Languages</h2>
+                <div class="section-line"></div>
+                <div class="pill-grid">
+                    <div class="pill">English (C2)</div>
+                    <div class="pill">Spanish (C2)</div>
+                </div>
+            </section>
+
+            <section id="skills">
+                <h2>Skills</h2>
+                <div class="section-line"></div>
+                <div class="skills-grid">
+                    <div class="skill-item">
+                        <p class="skill-name">Market research</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 85%;"></div>
+                        </div>
+                        <p class="skill-desc">Strong marketing skills with experience in developing marketing
+                            strategies, conducting market research, and executing successful marketing campaigns</p>
+                    </div>
+                    <div class="skill-item">
+                        <p class="skill-name">Analytical thinking</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 90%;"></div>
+                        </div>
+                        <p class="skill-desc">Analytical thinking with experience in analyzing data and market trends to
+                            identify opportunities and make informed decisions</p>
+                    </div>
+                    <div class="skill-item">
+                        <p class="skill-name">Project management</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 80%;"></div>
+                        </div>
+                        <p class="skill-desc">Project management skills with experience in managing multiple projects
+                            and prioritizing tasks effectively.</p>
+                    </div>
+                    <div class="skill-item">
+                        <p class="skill-name">Tools</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 75%;"></div>
+                        </div>
+                        <p class="skill-desc">Proficiency in software tools such as Microsoft Office, Google Analytics,
+                            and social media platforms</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+
+</html>
