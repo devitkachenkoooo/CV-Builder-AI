@@ -145,16 +145,16 @@ async function seedTemplates() {
   console.log("Seeding CV templates...");
 
   const templates = [
-    { name: "Classic Minimalist", fileName: "template-1.html", screenshotUrl: "/images/templates/template-1.png", description: "Clean and professional layout with traditional styling" },
-    { name: "Modern Professional", fileName: "template-2.html", screenshotUrl: "/images/templates/template-2.png", description: "Contemporary design with clear sections" },
-    { name: "Tech Developer", fileName: "template-3.html", screenshotUrl: "/images/templates/template-3.png", description: "Perfect for software engineers and developers" },
-    { name: "Creative Designer", fileName: "template-4.html", screenshotUrl: "/images/templates/template-4.png", description: "Stylish design for creative professionals" },
-    { name: "Executive Bold", fileName: "template-5.html", screenshotUrl: "/images/templates/template-5.png", description: "Bold and impactful for senior positions" },
-    { name: "Elegant Profile", fileName: "template-6.html", screenshotUrl: "/images/templates/template-6.png", description: "Elegant with profile photo section" },
-    { name: "Fresh Graduate", fileName: "template-7.html", screenshotUrl: "/images/templates/template-7.png", description: "Great for entry-level positions" },
-    { name: "Game Industry", fileName: "template-8.html", screenshotUrl: "/images/templates/template-8.png", description: "Tailored for game industry professionals" },
-    { name: "Modern Accent", fileName: "template-9.html", screenshotUrl: "/images/templates/template-9.png", description: "Modern with accent colors" },
-    { name: "Dark Professional", fileName: "template-10.html", screenshotUrl: "/images/templates/template-10.png", description: "Professional dark theme design" },
+    { name: "Classic Minimalist", fileName: "template-1_1771944300652.html", screenshotUrl: "/images/templates/template-1.png", description: "Clean and professional layout with traditional styling" },
+    { name: "Modern Professional", fileName: "template-2_1771944300653.html", screenshotUrl: "/images/templates/template-2.png", description: "Contemporary design with clear sections" },
+    { name: "Tech Developer", fileName: "template-3_1771944300653.html", screenshotUrl: "/images/templates/template-3.png", description: "Perfect for software engineers and developers" },
+    { name: "Creative Designer", fileName: "template-4_1771944300654.html", screenshotUrl: "/images/templates/template-4.png", description: "Stylish design for creative professionals" },
+    { name: "Executive Bold", fileName: "template-5_1771944300654.html", screenshotUrl: "/images/templates/template-5.png", description: "Bold and impactful for senior positions" },
+    { name: "Elegant Profile", fileName: "template-6_1771944300655.html", screenshotUrl: "/images/templates/template-6.png", description: "Elegant with profile photo section" },
+    { name: "Fresh Graduate", fileName: "template-7_1771944300655.html", screenshotUrl: "/images/templates/template-7.png", description: "Great for entry-level positions" },
+    { name: "Game Industry", fileName: "template-8_1771944300656.html", screenshotUrl: "/images/templates/template-8.png", description: "Tailored for game industry professionals" },
+    { name: "Modern Accent", fileName: "template-9_1771944300656.html", screenshotUrl: "/images/templates/template-9.png", description: "Modern with accent colors" },
+    { name: "Dark Professional", fileName: "template-10_1771944300656.html", screenshotUrl: "/images/templates/template-10.png", description: "Professional dark theme design" },
   ];
 
   for (const template of templates) {
