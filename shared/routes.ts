@@ -1,12 +1,15 @@
 import { z } from 'zod';
 import { 
   insertGeneratedCvSchema,
-  type CvTemplate,
-  type GeneratedCv,
-  type GenerateCvRequest,
-  type JobStatusResponse,
-  type GeneratedCvResponse
+  CvTemplate,
+  GeneratedCv,
+  GenerateCvRequest,
+  JobStatusResponse,
+  GeneratedCvResponse
 } from './schema';
+
+// Re-export types for convenience
+export type { CvTemplate, GeneratedCvResponse };
 
 // ============================================
 // SHARED ERROR SCHEMAS

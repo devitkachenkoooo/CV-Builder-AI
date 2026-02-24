@@ -75,7 +75,7 @@ export async function registerRoutes(
   // Get generation status
   app.get(api.generate.status.path, isAuthenticated, async (req, res) => {
     try {
-      const jobId = parseInt(req.params.jobId);
+      const jobId = parseInt(req.params.jobId as string);
       const cv = await storage.getGeneratedCvWithTemplate(jobId);
 
       if (!cv) {
@@ -145,16 +145,16 @@ async function seedTemplates() {
   console.log("Seeding CV templates...");
 
   const templates = [
-    { name: "Classic Minimalist", fileName: "template-1.html", screenshotUrl: "/images/templates/Знімок_екрана_2026-02-24_140827_1771944348840.png", description: "Clean and professional layout with traditional styling" },
-    { name: "Modern Professional", fileName: "template-2.html", screenshotUrl: "/images/templates/Знімок_екрана_2026-02-24_141131_1771944348840.png", description: "Contemporary design with clear sections" },
-    { name: "Tech Developer", fileName: "template-3.html", screenshotUrl: "/images/templates/Знімок_екрана_2026-02-24_141210_1771944348841.png", description: "Perfect for software engineers and developers" },
-    { name: "Creative Designer", fileName: "template-4.html", screenshotUrl: "/images/templates/Знімок_екрана_2026-02-24_141257_1771944348841.png", description: "Stylish design for creative professionals" },
-    { name: "Executive Bold", fileName: "template-5.html", screenshotUrl: "/images/templates/Знімок_екрана_2026-02-24_141323_1771944363470.png", description: "Bold and impactful for senior positions" },
-    { name: "Elegant Profile", fileName: "template-6.html", screenshotUrl: "/images/templates/Знімок_екрана_2026-02-24_141505_1771944363470.png", description: "Elegant with profile photo section" },
-    { name: "Fresh Graduate", fileName: "template-7.html", screenshotUrl: "/images/templates/Знімок_екрана_2026-02-24_141532_1771944363471.png", description: "Great for entry-level positions" },
-    { name: "Game Industry", fileName: "template-8.html", screenshotUrl: "/images/templates/Знімок_екрана_2026-02-24_141613_1771944363471.png", description: "Tailored for game industry professionals" },
-    { name: "Modern Accent", fileName: "template-9.html", screenshotUrl: "/images/templates/template-9.html", description: "Modern with accent colors" },
-    { name: "Dark Professional", fileName: "template-10.html", screenshotUrl: "/images/templates/template-10.html", description: "Professional dark theme design" },
+    { name: "Classic Minimalist", fileName: "template-1.html", screenshotUrl: "/images/templates/template-1.png", description: "Clean and professional layout with traditional styling" },
+    { name: "Modern Professional", fileName: "template-2.html", screenshotUrl: "/images/templates/template-2.png", description: "Contemporary design with clear sections" },
+    { name: "Tech Developer", fileName: "template-3.html", screenshotUrl: "/images/templates/template-3.png", description: "Perfect for software engineers and developers" },
+    { name: "Creative Designer", fileName: "template-4.html", screenshotUrl: "/images/templates/template-4.png", description: "Stylish design for creative professionals" },
+    { name: "Executive Bold", fileName: "template-5.html", screenshotUrl: "/images/templates/template-5.png", description: "Bold and impactful for senior positions" },
+    { name: "Elegant Profile", fileName: "template-6.html", screenshotUrl: "/images/templates/template-6.png", description: "Elegant with profile photo section" },
+    { name: "Fresh Graduate", fileName: "template-7.html", screenshotUrl: "/images/templates/template-7.png", description: "Great for entry-level positions" },
+    { name: "Game Industry", fileName: "template-8.html", screenshotUrl: "/images/templates/template-8.png", description: "Tailored for game industry professionals" },
+    { name: "Modern Accent", fileName: "template-9.html", screenshotUrl: "/images/templates/template-9.png", description: "Modern with accent colors" },
+    { name: "Dark Professional", fileName: "template-10.html", screenshotUrl: "/images/templates/template-10.png", description: "Professional dark theme design" },
   ];
 
   for (const template of templates) {

@@ -75,3 +75,31 @@ export function usePollingJob(jobId: number, initialStatus: string) {
     enabled: isPolling,
   });
 }
+
+// Hook for deleting a resume
+export function useDeleteResume() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildUrl(api.resumes.delete.path, { id });
+      const res = await fetch(url, {
+        method: api.resumes.delete.method,
+        credentials: "include",
+      });
+      
+      if (!res.ok) {
+        if (res.status === 404) {
+          throw new Error("Resume not found");
+        }
+        throw new Error("Failed to delete resume");
+      }
+      
+      return;
+    },
+    onSuccess: () => {
+      // Invalidate the resumes list to remove the deleted item
+      queryClient.invalidateQueries({ queryKey: [api.resumes.list.path] });
+    }
+  });
+}
