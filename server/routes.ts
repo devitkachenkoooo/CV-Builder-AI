@@ -157,6 +157,27 @@ export async function registerRoutes(
     }
   });
 
+  // Get individual CV for viewing
+  app.get("/api/resumes/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      const cv = await storage.getGeneratedCvWithTemplate(id);
+      if (!cv) {
+        return res.status(404).json({ message: 'CV not found' });
+      }
+      if (cv.userId !== userId) {
+        return res.status(403).json({ message: 'Forbidden' });
+      }
+
+      res.json(cv);
+    } catch (error) {
+      console.error("Error fetching CV:", error);
+      res.status(500).json({ message: "Failed to fetch CV" });
+    }
+  });
+
   // Delete a resume
   app.delete(api.resumes.delete.path, isAuthenticated, async (req: any, res) => {
     try {

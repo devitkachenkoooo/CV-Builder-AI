@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Sparkles, Loader2, FileText, AlertCircle } from "lucide-react";
-import { useGenerateCv } from "@/hooks/use-generate";
+import { useGenerateCv, usePollingJob } from "@/hooks/use-generate";
 import { useToast } from "@/hooks/use-toast";
 import { Dropzone } from "@/components/ui/dropzone";
 import { validateDocxFile } from "@/lib/file-validation";
@@ -17,11 +17,92 @@ interface GenerateModalProps {
 export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [jobId, setJobId] = useState<number | null>(null);
   const { mutate: generateCv, isPending } = useGenerateCv();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
+  // Set up polling when we have a jobId
+  const { data: jobStatus } = usePollingJob(
+    jobId!, 
+    jobId ? "pending" : "complete"
+  );
+
+  // Redirect to CV view when generation is complete
+  useEffect(() => {
+    if (jobStatus?.status === "complete" && jobStatus.id) {
+      toast({
+        title: "CV Generated Successfully! 🎉",
+        description: "Your CV has been generated and is ready to view.",
+      });
+      setLocation(`/cv/${jobStatus.id}`);
+      setJobId(null);
+      onClose();
+    } else if (jobStatus?.status === "failed") {
+      toast({
+        title: "Generation Failed",
+        description: jobStatus.errorMessage || "Failed to generate CV. Please try again.",
+        variant: "destructive",
+      });
+      setJobId(null);
+    }
+  }, [jobStatus, toast, setLocation, onClose]);
+
   if (!template || !isOpen) return null;
+
+  // Show generation progress screen
+  if (jobId && jobStatus) {
+    return (
+      <AnimatePresence>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+          />
+
+          {/* Progress Content */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            className="relative w-full max-w-md bg-card rounded-2xl shadow-2xl border border-border/50 overflow-hidden p-8 text-center"
+          >
+            <div className="w-16 h-16 mx-auto mb-6 relative">
+              <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping"></div>
+              <div className="relative w-16 h-16 bg-primary rounded-full flex items-center justify-center">
+                <Sparkles className="w-8 h-8 text-primary-foreground animate-pulse" />
+              </div>
+            </div>
+            
+            <h2 className="text-2xl font-bold text-foreground mb-2">
+              {jobStatus.status === "processing" ? "Formatting Your CV" : "Starting Generation"}
+            </h2>
+            
+            <p className="text-muted-foreground mb-6">
+              {jobStatus.progress || "Our AI is working its magic..."}
+            </p>
+            
+            <div className="w-full bg-secondary rounded-full h-2 mb-4">
+              <div 
+                className="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
+                style={{ 
+                  width: jobStatus.status === "processing" ? "60%" : "30%",
+                  animation: "pulse 2s infinite"
+                }}
+              ></div>
+            </div>
+            
+            <p className="text-xs text-muted-foreground">
+              This usually takes 30-60 seconds. You'll be redirected automatically when complete.
+            </p>
+          </motion.div>
+        </div>
+      </AnimatePresence>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,14 +133,14 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
       generateCv(
         { templateId: template.id, file: selectedFile },
         {
-          onSuccess: () => {
+          onSuccess: (response) => {
             toast({
               title: "Generation Started! 🎉",
-              description: "Your CV is being formatted by our AI.",
+              description: "Your CV is being formatted by our AI. You'll be redirected automatically when it's ready.",
             });
-            onClose();
+            setJobId(response.jobId);
             setSelectedFile(null);
-            setLocation("/my-resumes");
+            // Don't close modal yet - wait for generation to complete
           },
           onError: (err) => {
             toast({

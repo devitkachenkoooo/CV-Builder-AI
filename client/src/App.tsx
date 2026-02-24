@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import LandingPage from "@/pages/LandingPage";
 import GalleryPage from "@/pages/GalleryPage";
 import MyResumesPage from "@/pages/MyResumesPage";
+import CvViewPage from "@/pages/CvViewPage";
 import { Loader2 } from "lucide-react";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -53,6 +54,10 @@ function Router() {
       {/* Protected Routes */}
       <Route path="/my-resumes">
         {() => <ProtectedRoute component={MyResumesPage} />}
+      </Route>
+      
+      <Route path="/cv/:id">
+        {() => <ProtectedRoute component={CvViewPage} />}
       </Route>
       
       <Route component={NotFound} />
