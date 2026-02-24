@@ -24,8 +24,8 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
 
   // Set up polling when we have a jobId
   const { data: jobStatus } = usePollingJob(
-    jobId!, 
-    jobId ? "pending" : "complete"
+    jobId || 0, // Pass 0 when no jobId, hook will be disabled
+    "pending" // Always start with "pending" when we have a jobId
   );
 
   // Redirect to CV view when generation is complete
@@ -33,7 +33,7 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
     console.log("[GenerateModal] jobStatus:", jobStatus);
     console.log("[GenerateModal] jobId:", jobId);
     
-    if (jobStatus?.status === "complete" && jobStatus.id) {
+    if (jobId && jobStatus?.status === "complete" && jobStatus.id) {
       console.log("[GenerateModal] Redirecting to CV view:", `/cv/${jobStatus.id}`);
       toast({
         title: "CV Generated Successfully! 🎉",
@@ -50,7 +50,7 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
       });
       setJobId(null);
     }
-  }, [jobStatus, toast, setLocation, onClose]);
+  }, [jobStatus, jobId, toast, setLocation, onClose]);
 
   if (!template || !isOpen) return null;
 
