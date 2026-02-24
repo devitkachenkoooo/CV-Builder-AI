@@ -3,10 +3,19 @@ import {
   insertGeneratedCvSchema,
   CvTemplate,
   GeneratedCv,
-  GenerateCvRequest,
   JobStatusResponse,
   GeneratedCvResponse
 } from './schema';
+
+// File upload validation schema
+export const docxFileSchema = z.object({
+  name: z.string().min(1, "File name is required"),
+  size: z.number().max(5 * 1024 * 1024, "File size must be less than 5MB"), // 5MB limit
+  type: z.string().refine((type) => type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document", {
+    message: "Only .docx files are allowed"
+  }),
+  lastModified: z.number()
+}).passthrough(); // Allow additional File properties
 
 // Re-export types for convenience
 export type { CvTemplate, GeneratedCvResponse };
@@ -48,8 +57,8 @@ export const api = {
       method: 'POST' as const,
       path: '/api/generate' as const,
       input: z.object({
-        templateId: z.number(),
-        googleDocsUrl: z.string().url(),
+        templateId: z.number().int().positive("Template ID must be a positive integer"),
+        file: docxFileSchema,
       }),
       responses: {
         202: z.object({ jobId: z.number() }),

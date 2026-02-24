@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, buildUrl, type GenerateCvInput } from "@shared/routes";
+import { api, buildUrl } from "@shared/routes";
 import { z } from "zod";
 
 function parseWithLogging<T>(schema: z.ZodSchema<T>, data: unknown, label: string): T {
@@ -11,16 +11,25 @@ function parseWithLogging<T>(schema: z.ZodSchema<T>, data: unknown, label: strin
   return result.data;
 }
 
+// Input type for file upload
+type GenerateCvInput = {
+  templateId: number;
+  file: File;
+};
+
 export function useGenerateCv() {
   const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async (data: GenerateCvInput) => {
-      const validated = api.generate.start.input.parse(data);
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', data.file);
+      formData.append('templateId', data.templateId.toString());
+      
       const res = await fetch(api.generate.start.path, {
         method: api.generate.start.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(validated),
+        body: formData,
         credentials: "include",
       });
       

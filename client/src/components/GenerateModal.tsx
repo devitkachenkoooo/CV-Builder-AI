@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Link as LinkIcon, Sparkles, Loader2, FileText } from "lucide-react";
+import { X, Sparkles, Loader2, FileText, AlertCircle } from "lucide-react";
 import { useGenerateCv } from "@/hooks/use-generate";
 import { useToast } from "@/hooks/use-toast";
+import { Dropzone } from "@/components/ui/dropzone";
+import { validateDocxFile } from "@/lib/file-validation";
 import type { CvTemplate } from "@shared/routes";
 
 interface GenerateModalProps {
@@ -13,46 +15,78 @@ interface GenerateModalProps {
 }
 
 export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps) {
-  const [googleDocsUrl, setGoogleDocsUrl] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
   const { mutate: generateCv, isPending } = useGenerateCv();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
   if (!template || !isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!googleDocsUrl.includes("docs.google.com")) {
+    if (!selectedFile) {
       toast({
-        title: "Invalid URL",
-        description: "Please provide a valid Google Docs URL.",
+        title: "File Required",
+        description: "Please select a .docx file to upload.",
         variant: "destructive",
       });
       return;
     }
 
-    generateCv(
-      { templateId: template.id, googleDocsUrl },
-      {
-        onSuccess: () => {
-          toast({
-            title: "Generation Started! 🎉",
-            description: "Your CV is being formatted by our AI.",
-          });
-          onClose();
-          setGoogleDocsUrl("");
-          setLocation("/my-resumes");
-        },
-        onError: (err) => {
-          toast({
-            title: "Error",
-            description: err.message,
-            variant: "destructive",
-          });
+    setIsValidating(true);
+    
+    try {
+      // Add minimum timeout for better UX (avoid flickering)
+      const timeoutPromise = new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('templateId', template.id.toString());
+      
+      await Promise.all([timeoutPromise]);
+      
+      // If validation passes, proceed with generation
+      generateCv(
+        { templateId: template.id, file: selectedFile },
+        {
+          onSuccess: () => {
+            toast({
+              title: "Generation Started! 🎉",
+              description: "Your CV is being formatted by our AI.",
+            });
+            onClose();
+            setSelectedFile(null);
+            setLocation("/my-resumes");
+          },
+          onError: (err) => {
+            toast({
+              title: "Error",
+              description: err.message,
+              variant: "destructive",
+            });
+          }
         }
-      }
-    );
+      );
+    } catch (error) {
+      toast({
+        title: "Upload Error",
+        description: "Failed to upload file. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleFileSelect = (file: File) => {
+    setSelectedFile(file);
+  };
+
+  const handleFileRemove = () => {
+    setSelectedFile(null);
   };
 
   return (
@@ -104,49 +138,49 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
             <div className="mb-8">
               <h2 className="font-display font-bold text-2xl mb-2 text-foreground">Import Content</h2>
               <p className="text-muted-foreground text-sm">
-                Paste your unformatted resume or raw content from Google Docs. Our AI will automatically extract and format it beautifully into your chosen template.
+                Upload your CV in .docx format. Our AI will automatically extract and format it beautifully into your chosen template.
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <label htmlFor="docsUrl" className="block text-sm font-medium text-foreground">
-                  Google Docs URL
+                <label htmlFor="file-upload" className="block text-sm font-medium text-foreground">
+                  Upload CV Document
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground">
-                    <LinkIcon className="w-4 h-4" />
-                  </div>
-                  <input
-                    id="docsUrl"
-                    type="url"
-                    value={googleDocsUrl}
-                    onChange={(e) => setGoogleDocsUrl(e.target.value)}
-                    required
-                    disabled={isPending}
-                    placeholder="https://docs.google.com/document/d/..."
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-background border-2 border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all duration-200"
-                  />
-                </div>
+                
+                <Dropzone
+                  onFileSelect={handleFileSelect}
+                  selectedFile={selectedFile}
+                  onFileRemove={handleFileRemove}
+                  disabled={isPending || isValidating}
+                />
+                
                 <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground bg-primary/5 p-2 rounded-lg border border-primary/10">
                   <FileText className="w-3 h-3 text-primary" />
-                  <span>Make sure your document is set to <strong>"Anyone with the link can view"</strong>.</span>
+                  <span>Upload your CV in .docx format. Maximum file size: 5MB.</span>
                 </div>
+                
+                {selectedFile && (
+                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground bg-blue-50 dark:bg-blue-950/20 p-2 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <AlertCircle className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                    <span>File will be processed and formatted by our AI.</span>
+                  </div>
+                )}
               </div>
 
               <div className="pt-4">
                 <button
                   type="submit"
-                  disabled={isPending || !googleDocsUrl}
+                  disabled={isPending || isValidating || !selectedFile}
                   className="w-full relative flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-white bg-gradient-to-r from-primary to-accent shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 active:shadow-md disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none transition-all duration-200 overflow-hidden group"
                 >
                   {/* Subtle shine effect */}
                   <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12"></div>
                   
-                  {isPending ? (
+                  {isPending || isValidating ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Starting Magic...
+                      {isValidating ? "Processing File..." : "Starting Magic..."}
                     </>
                   ) : (
                     <>

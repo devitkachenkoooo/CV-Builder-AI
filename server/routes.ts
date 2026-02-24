@@ -4,9 +4,27 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+import { processUploadedFile } from "./lib/file-processor";
+import multer from "multer";
 import OpenAI from "openai";
 import fs from "fs/promises";
 import path from "path";
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept only .docx files
+    if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .docx files are allowed'));
+    }
+  }
+});
 
 // OpenRouter client using Replit AI Integrations (includes Groq/Llama models)
 const openrouter = new OpenAI({
@@ -42,22 +60,51 @@ export async function registerRoutes(
   });
 
   // Start CV generation
-  app.post(api.generate.start.path, isAuthenticated, async (req: any, res) => {
+  app.post(api.generate.start.path, isAuthenticated, upload.single('file'), async (req: any, res) => {
     try {
-      const input = api.generate.start.input.parse(req.body);
       const userId = req.user.claims.sub;
+      
+      // Handle file upload
+      if (!req.file) {
+        return res.status(400).json({
+          message: "File is required",
+          field: "file"
+        });
+      }
+
+      // Process uploaded file
+      const fileResult = await processUploadedFile(req.file);
+      
+      if (!fileResult.success) {
+        return res.status(400).json({
+          message: fileResult.error || "Failed to process file",
+          field: "file"
+        });
+      }
+      
+      const cvText = fileResult.text;
+      const sourceInfo = `Uploaded file: ${req.file.originalname}`;
+
+      // Parse template ID
+      const templateId = parseInt(req.body.templateId);
+      if (isNaN(templateId) || templateId <= 0) {
+        return res.status(400).json({
+          message: "Invalid template ID",
+          field: "templateId"
+        });
+      }
 
       // Create CV generation job
       const cv = await storage.createGeneratedCv({
         userId,
-        templateId: input.templateId,
+        templateId,
         status: "pending",
         progress: "Initializing...",
-        googleDocsUrl: input.googleDocsUrl,
+        googleDocsUrl: null,
       });
 
       // Start async generation (don't await)
-      generateCvAsync(cv.id, input.templateId, input.googleDocsUrl);
+      generateCvAsync(cv.id, templateId, cvText, sourceInfo);
 
       res.status(202).json({ jobId: cv.id });
     } catch (err) {
@@ -164,15 +211,10 @@ async function seedTemplates() {
   console.log(`Seeded ${templates.length} CV templates`);
 }
 
-async function generateCvAsync(jobId: number, templateId: number, googleDocsUrl: string) {
+async function generateCvAsync(jobId: number, templateId: number, cvText: string, sourceInfo?: string) {
   try {
     // Update status: Fetching Document
-    await storage.updateGeneratedCvStatus(jobId, "processing", "Fetching Document...");
-
-    // Note: For simplicity, we'll simulate fetching. Real implementation would use Google Docs API
-    // For now, we'll use the URL as a placeholder and let AI know to use sample data
-    const cvText = `Please extract and format professional CV information from this Google Docs URL: ${googleDocsUrl}. 
-    Use realistic sample data if the URL is not accessible.`;
+    await storage.updateGeneratedCvStatus(jobId, "processing", "Processing Document...");
 
     // Update status: AI Formatting
     await storage.updateGeneratedCvStatus(jobId, "processing", "AI Formatting...");
