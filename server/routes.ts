@@ -270,12 +270,14 @@ INSTRUCTIONS:
 OUTPUT:
 Return the complete HTML document with the CV content injected.`;
 
+    console.log(`[AI] Starting OpenAI call for job ${jobId}...`);
     const response = await openrouter.chat.completions.create({
       model: "meta-llama/llama-3.3-70b-instruct",
       messages: [{ role: "user", content: prompt }],
       max_tokens: 8192,
       temperature: 0.7,
     });
+    console.log(`[AI] OpenAI call completed for job ${jobId}`);
 
     let generatedHtml = response.choices[0]?.message?.content || "";
 
@@ -300,8 +302,16 @@ Return the complete HTML document with the CV content injected.`;
 
     console.log(`Successfully generated CV ${jobId}`);
   } catch (error) {
-    console.error(`Error generating CV ${jobId}:`, error);
+    console.error("DETAILED AI ERROR:", error);
+    console.error(`[AI] Error stack:`, error instanceof Error ? error.stack : 'No stack available');
     const errorMessage = error instanceof Error ? error.message : "Generation failed";
-    await storage.updateGeneratedCvStatus(jobId, "failed", undefined, undefined, errorMessage);
+    
+    // Update database with error status - use "error" to match frontend expectations
+    try {
+      await storage.updateGeneratedCvStatus(jobId, "failed", undefined, undefined, errorMessage);
+      console.log(`[AI] Updated job ${jobId} status to failed with error: ${errorMessage}`);
+    } catch (dbError) {
+      console.error("[AI] CRITICAL: Failed to update database with error status:", dbError);
+    }
   }
 }
