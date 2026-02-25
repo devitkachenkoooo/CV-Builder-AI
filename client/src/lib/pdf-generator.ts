@@ -124,25 +124,26 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             doc.querySelector('.resume') ||
             doc.body;
 
-          if (!captureElement || !(captureElement instanceof HTMLElement)) {
+          if (!captureElement || (captureElement as any).nodeType !== 1) {
             throw new Error('Could not find a valid content element to capture');
           }
 
-          console.log('[PDF] Found capture element:', captureElement.className || 'body');
+          const target = captureElement as HTMLElement;
+          console.log('[PDF] Found capture element:', target.className || 'body');
 
           // 1. Calculate dimensions
-          const contentHeight = captureElement.offsetHeight;
+          const contentHeight = target.offsetHeight;
           const a4HeightPx = 1123;
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
 
           console.log(`[PDF] Content height: ${contentHeight}px, calculated pages: ${numPages}`);
 
           // 2. Setup styles
-          captureElement.style.minHeight = `${numPages * a4HeightPx}px`;
-          captureElement.style.width = '210mm';
-          captureElement.style.margin = '0';
-          captureElement.style.boxShadow = 'none';
-          captureElement.style.border = 'none';
+          target.style.minHeight = `${numPages * a4HeightPx}px`;
+          target.style.width = '210mm';
+          target.style.margin = '0';
+          target.style.boxShadow = 'none';
+          target.style.border = 'none';
 
           const computedStyle = iframe.contentWindow?.getComputedStyle(captureElement);
           const bgColor = computedStyle?.backgroundColor || '#ffffff';
