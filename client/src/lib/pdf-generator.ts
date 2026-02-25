@@ -1,145 +1,101 @@
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
-interface PDFOptions {
+interface PdfFromUrlOptions {
+  url: string;
   filename?: string;
-  elementId: string;
-  hideElements?: string[];
+  windowWidth?: number;
+  contentWidthMm?: number;
 }
 
-export async function generatePDF({ 
-  filename = 'resume.pdf', 
-  elementId, 
-  hideElements = ['.no-print', '.print-hidden'] 
-}: PDFOptions): Promise<void> {
-  try {
-    // Get the element to convert
-    const element = document.getElementById(elementId);
-    if (!element) {
-      throw new Error(`Element with id "${elementId}" not found`);
+interface PdfFromElementOptions {
+  element: HTMLElement;
+  filename?: string;
+  windowWidth?: number;
+  contentWidthMm?: number;
+}
+
+function createOffscreenContainer(): HTMLDivElement {
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.left = '-100000px';
+  container.style.top = '0';
+  container.style.width = '800px';
+  container.style.background = '#fff';
+  container.style.color = '#000';
+  return container;
+}
+
+async function renderElementToPdf(options: PdfFromElementOptions): Promise<void> {
+  const {
+    element,
+    filename = 'resume.pdf',
+    windowWidth = 800,
+    contentWidthMm = 190,
+  } = options;
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  await new Promise<void>((resolve, reject) => {
+    try {
+      doc.html(element, {
+        x: 10,
+        y: 10,
+        width: contentWidthMm,
+        windowWidth,
+        autoPaging: 'text',
+        callback: () => {
+          doc.save(filename);
+          resolve();
+        },
+      });
+    } catch (e) {
+      reject(e);
     }
+  });
+}
 
-    // If it's an iframe, get its content
-    let targetElement = element;
-    const iframe = element.querySelector('iframe');
-    
-    if (iframe) {
-      // Wait for iframe to load and get its content
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-      if (iframeDoc) {
-        targetElement = iframeDoc.body || iframeDoc.documentElement;
-      }
-    }
+export async function generatePdfFromElement(options: PdfFromElementOptions): Promise<void> {
+  await renderElementToPdf(options);
+}
 
-    // Hide elements that shouldn't appear in PDF
-    const elementsToHide = document.querySelectorAll(hideElements.join(','));
-    const originalDisplays: string[] = [];
-    
-    elementsToHide.forEach((el, index) => {
-      originalDisplays[index] = (el as HTMLElement).style.display;
-      (el as HTMLElement).style.display = 'none';
-    });
+export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<void> {
+  const {
+    url,
+    filename = 'resume.pdf',
+    windowWidth = 800,
+    contentWidthMm = 190,
+  } = options;
 
-    // Show loading state
-    const loadingToast = document.createElement('div');
-    loadingToast.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2';
-    loadingToast.innerHTML = `
-      <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-      <span>Generating PDF...</span>
-    `;
-    document.body.appendChild(loadingToast);
-
-    // Generate canvas from HTML
-    const canvas = await html2canvas(targetElement, {
-      scale: 2, // Higher quality
-      useCORS: true,
-      allowTaint: true,
-      windowWidth: 800, // A4 width approximation
-      backgroundColor: '#ffffff',
-      logging: false,
-      height: targetElement.scrollHeight,
-      width: targetElement.scrollWidth,
-    });
-
-    // Restore hidden elements
-    elementsToHide.forEach((el, index) => {
-      (el as HTMLElement).style.display = originalDisplays[index];
-    });
-
-    // Remove loading toast
-    if (document.body.contains(loadingToast)) {
-      document.body.removeChild(loadingToast);
-    }
-
-    // Create PDF with A4 dimensions
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
-
-    // A4 dimensions: 210mm x 297mm
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    
-    // Calculate image dimensions to fit A4
-    const imgWidth = canvas.width;
-    const imgHeight = canvas.height;
-    const ratio = Math.min(pdfWidth / imgWidth * 0.95, pdfHeight / imgHeight * 0.95);
-    
-    const imgX = (pdfWidth - imgWidth * ratio) / 2;
-    const imgY = 10; // 10mm top margin
-
-    // Add image to PDF
-    pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
-
-    // Save the PDF
-    pdf.save(filename);
-    
-    console.log(`[PDF] Successfully generated: ${filename}`);
-  } catch (error) {
-    console.error('[PDF] Error generating PDF:', error);
-    throw error;
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch HTML for PDF: ${res.status}`);
   }
-}
 
-// Alternative function for direct HTML to PDF (text-based)
-export async function generateTextPDF({ 
-  filename = 'resume.pdf', 
-  elementId 
-}: { filename?: string; elementId: string }): Promise<void> {
+  const html = await res.text();
+  const parsed = new DOMParser().parseFromString(html, 'text/html');
+
+  const container = createOffscreenContainer();
+
+  // Copy styles from the template into the container
+  const styleEls = parsed.querySelectorAll('style, link[rel="stylesheet"]');
+  styleEls.forEach((node) => {
+    container.appendChild(node.cloneNode(true));
+  });
+
+  // Body content
+  const bodyWrapper = document.createElement('div');
+  bodyWrapper.innerHTML = parsed.body?.innerHTML || html;
+  container.appendChild(bodyWrapper);
+
+  document.body.appendChild(container);
   try {
-    const element = document.getElementById(elementId);
-    if (!element) {
-      throw new Error(`Element with id "${elementId}" not found`);
-    }
-
-    // Create PDF with A4 dimensions
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
+    await renderElementToPdf({
+      element: container,
+      filename,
+      windowWidth,
+      contentWidthMm,
     });
-
-    // Get HTML content
-    const htmlContent = element.innerHTML;
-    
-    // Add HTML content to PDF
-    pdf.html(htmlContent, {
-      callback: function(doc) {
-        doc.save(filename);
-      },
-      x: 10,
-      y: 10,
-      width: 190, // A4 width minus margins
-      windowWidth: 800,
-      autoPaging: 'text',
-    });
-    
-    console.log(`[PDF] Successfully generated text-based PDF: ${filename}`);
-  } catch (error) {
-    console.error('[PDF] Error generating text-based PDF:', error);
-    throw error;
+  } finally {
+    container.remove();
   }
 }

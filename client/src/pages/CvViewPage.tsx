@@ -5,7 +5,7 @@ import { ArrowLeft, Download, Loader2, Mail, Phone, Linkedin, MapPin, Calendar, 
 import { useToast } from "@/hooks/use-toast";
 import { api, buildUrl } from "@shared/routes";
 import { GeneratedCvResponse } from "@shared/schema";
-import { generatePDF } from "@/lib/pdf-generator";
+import { generatePdfFromUrl } from "@/lib/pdf-generator";
 
 interface CvData {
   personalInfo: {
@@ -81,11 +81,11 @@ export default function CvViewPage() {
     try {
       setIsGeneratingPdf(true);
       
-      // Generate PDF using jsPDF + html2canvas
-      await generatePDF({
+      await generatePdfFromUrl({
+        url: pdfUrl,
         filename: `cv-${cvData.id}.pdf`,
-        elementId: 'cv-content',
-        hideElements: ['.no-print', '.print-hidden']
+        windowWidth: 800,
+        contentWidthMm: 190,
       });
       
       toast({
@@ -103,18 +103,6 @@ export default function CvViewPage() {
       setIsGeneratingPdf(false);
     }
   };
-
-  // Listen for PDF generation messages from parent window
-  useEffect(() => {
-    const handleMessage = async (event: MessageEvent) => {
-      if (event.data.type === 'GENERATE_PDF') {
-        await handleDownloadPDF();
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
 
   const handleGoBack = () => {
     setLocation("/my-resumes");
