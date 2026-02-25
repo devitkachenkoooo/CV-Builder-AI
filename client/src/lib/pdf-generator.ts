@@ -106,6 +106,10 @@ function createPdfModal(html: string): void {
     try {
       progress.textContent = 'Preparing document...';
       
+      // Дебагінг: перевіряємо HTML
+      console.log('PDF HTML content length:', html.length);
+      console.log('PDF HTML preview:', html.substring(0, 200) + '...');
+      
       // Створюємо тимчасовий div для PDF
       const tempDiv = document.createElement('div');
       tempDiv.style.cssText = `
@@ -118,9 +122,19 @@ function createPdfModal(html: string): void {
         overflow: visible;
         visibility: visible;
         opacity: 1;
+        padding: 20px;
+        box-sizing: border-box;
       `;
       tempDiv.innerHTML = html;
       document.body.appendChild(tempDiv);
+
+      // Дебагінг: перевіряємо розміри контенту
+      console.log('TempDiv dimensions:', {
+        scrollWidth: tempDiv.scrollWidth,
+        scrollHeight: tempDiv.scrollHeight,
+        offsetWidth: tempDiv.offsetWidth,
+        offsetHeight: tempDiv.offsetHeight
+      });
 
       progress.textContent = 'Rendering content...';
       
@@ -140,7 +154,7 @@ function createPdfModal(html: string): void {
           letterRendering: true,
           windowWidth: 800,
           backgroundColor: '#ffffff',
-          logging: false,
+          logging: true, // Включаємо логування для дебагінгу
           height: tempDiv.scrollHeight,
           width: tempDiv.scrollWidth,
           scrollX: 0,
@@ -148,6 +162,8 @@ function createPdfModal(html: string): void {
         },
         jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
       };
+
+      console.log('PDF options:', options);
 
       // Генерація PDF
       await html2pdf().set(options).from(tempDiv).save();
@@ -239,9 +255,24 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
   }
 
   try {
+    console.log('Fetching PDF content from URL:', url);
+    
     // Fetch HTML content from URL
     const response = await fetch(url);
+    console.log('Fetch response status:', response.status);
+    console.log('Fetch response headers:', response.headers);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+    }
+    
     const html = await response.text();
+    console.log('Fetched HTML length:', html.length);
+    console.log('Fetched HTML preview:', html.substring(0, 300) + '...');
+    
+    if (!html || html.trim().length === 0) {
+      throw new Error('Empty HTML content received');
+    }
     
     // Створюємо модальне вікно генерації
     createPdfModal(html);
