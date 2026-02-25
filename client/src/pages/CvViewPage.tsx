@@ -83,8 +83,8 @@ export default function CvViewPage() {
     if (!cvData?.id || !pdfUrl) {
       console.error('Missing cvData.id or pdfUrl:', { cvDataId: cvData?.id, pdfUrl });
       toast({
-        title: "PDF Generation Failed",
-        description: "CV data not loaded. Please try again.",
+        title: "Помилка завантаження",
+        description: "Дані CV не завантажено. Спробуйте ще раз.",
         variant: "destructive",
       });
       return;
@@ -103,14 +103,14 @@ export default function CvViewPage() {
       });
       
       toast({
-        title: "PDF Generated! 🎉",
-        description: "Your CV has been downloaded successfully.",
+        title: "PDF згенеровано! 🎉",
+        description: "Ваше CV успішно завантажено.",
       });
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast({
-        title: "PDF Generation Failed",
-        description: "Failed to generate PDF. Please try again.",
+        title: "Помилка генерації PDF",
+        description: "Не вдалося згенерувати PDF. Спробуйте ще раз.",
         variant: "destructive",
       });
     } finally {
@@ -127,7 +127,7 @@ export default function CvViewPage() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading your CV...</p>
+          <p className="text-muted-foreground">Завантаження вашого CV...</p>
         </div>
       </div>
     );
@@ -137,14 +137,14 @@ export default function CvViewPage() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center max-w-md">
-          <h1 className="text-2xl font-bold text-foreground mb-4">CV Not Found</h1>
-          <p className="text-muted-foreground mb-6">{error || "The CV you're looking for doesn't exist or couldn't be loaded."}</p>
+          <h1 className="text-2xl font-bold text-foreground mb-4">CV не знайдено</h1>
+          <p className="text-muted-foreground mb-6">{error || "CV, яке ви шукаєте, не існує або не вдалося завантажити."}</p>
           <button
             onClick={handleGoBack}
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to My Resumes
+            Назад до моїх CV
           </button>
         </div>
       </div>
@@ -157,16 +157,16 @@ export default function CvViewPage() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center max-w-md">
           <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-foreground mb-4">CV Still Generating</h1>
+          <h1 className="text-2xl font-bold text-foreground mb-4">CV все ще генерується</h1>
           <p className="text-muted-foreground mb-6">
-            Your CV is being generated. Current status: {cvData.status}
+            Ваше CV генерується. Поточний статус: {cvData.status}
           </p>
           <button
             onClick={handleGoBack}
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to My Resumes
+            Назад до моїх CV
           </button>
         </div>
       </div>
@@ -182,7 +182,7 @@ export default function CvViewPage() {
           className="flex items-center gap-2 px-4 py-2 bg-white border border-border rounded-lg shadow-lg hover:shadow-xl transition-shadow"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back
+          Назад
         </button>
         <button
           onClick={handleDownloadPDF}
@@ -192,12 +192,12 @@ export default function CvViewPage() {
           {isGeneratingPdf ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Generating PDF...
+              Генерація PDF...
             </>
           ) : (
             <>
               <Download className="w-4 h-4" />
-              Download PDF
+              Завантажити PDF
             </>
           )}
         </button>

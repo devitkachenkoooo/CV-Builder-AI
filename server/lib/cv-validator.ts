@@ -26,27 +26,26 @@ export async function validateCVContent(cvText: string): Promise<ValidationResul
   try {
     console.log('[VALIDATION] Starting CV content analysis...');
     
-    const prompt = `You are a CV content quality analyzer. Analyze the provided CV text and determine if it's appropriate and complete for generating a professional CV.
+    const prompt = `You are a CV content validator. Analyze the provided text and determine if it contains appropriate professional content for a CV.
 
 CV TEXT TO ANALYZE:
 ${cvText}
 
-ANALYSIS CRITERIA:
-1. Content completeness (name, contact info, experience, education, skills)
-2. Professional appropriateness (no offensive content, no random text, no codes/indices)
-3. Information quality (realistic professional details, not gibberish)
-4. Structure and readability
+VALIDATION CRITERIA:
+1. Check for inappropriate content (profanity, offensive language, random text, codes, indices)
+2. Check for minimum professional information (some personal/professional details)
+3. Check for gibberish or meaningless content
 
 RESPONSE FORMAT (JSON only):
 {
   "isValid": boolean,
   "quality": "excellent" | "good" | "fair" | "poor",
   "confidence": number (0-1),
-  "message": string (user-friendly explanation),
-  "suggestions": [string] (improvement suggestions),
+  "message": string (simple user-friendly explanation),
+  "suggestions": [string] (optional improvement suggestions),
   "issues": [
     {
-      "type": "missing_info" | "inappropriate_content" | "format_issue" | "quality_issue",
+      "type": "inappropriate_content" | "missing_info" | "quality_issue",
       "severity": "low" | "medium" | "high",
       "description": string,
       "suggestion": string
@@ -54,33 +53,8 @@ RESPONSE FORMAT (JSON only):
   ]
 }
 
-EXAMPLE RESPONSES:
-Good CV:
-{
-  "isValid": true,
-  "quality": "good",
-  "confidence": 0.85,
-  "message": "Ваші дані виглядають чудово! Маю всю необхідну інформацію для створення професійного CV.",
-  "suggestions": ["Можна додати більше деталей про досвід роботи"],
-  "issues": []
-}
-
-Poor CV:
-{
-  "isValid": false,
-  "quality": "poor",
-  "confidence": 0.95,
-  "message": "На жаль, надані дані містять неприйнятний контент або недостатньо інформації.",
-  "suggestions": ["Будь ласка, надайте повну професійну інформацію"],
-  "issues": [
-    {
-      "type": "inappropriate_content",
-      "severity": "high",
-      "description": "Виявлено непрофесійний контент",
-      "suggestion": "Замініть inappropriate content на професійну інформацію"
-    }
-  ]
-}
+If content is inappropriate, set isValid to false and message to something like "У файлі міститься неприпустимий контент".
+If content is appropriate but minimal, set isValid to true with lower quality.
 
 Analyze the CV and respond with JSON only.`;
 

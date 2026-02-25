@@ -69,7 +69,7 @@ export async function registerRoutes(
       // Handle file upload
       if (!req.file) {
         return res.status(400).json({
-          message: "File is required",
+          message: "❌ Файл не завантажено! Будь ласка, виберіть файл .docx для створення CV.",
           field: "file"
         });
       }
@@ -78,8 +78,23 @@ export async function registerRoutes(
       const fileResult = await processUploadedFile(req.file);
       
       if (!fileResult.success) {
+        let errorMessage = fileResult.error || "Failed to process file";
+        
+        // Add user-friendly messages for common errors
+        if (errorMessage.includes("File must have .docx extension")) {
+          errorMessage = "❌ Невірний формат файлу! Будь ласка, завантажте файл у форматі .docx (Microsoft Word).";
+        } else if (errorMessage.includes("Invalid MIME type")) {
+          errorMessage = "❌ Невірний тип файлу! Файл повинен бути документом Microsoft Word (.docx).";
+        } else if (errorMessage.includes("File too large")) {
+          errorMessage = "❌ Файл занадто великий! Максимальний розмір: 5MB.";
+        } else if (errorMessage.includes("Empty file")) {
+          errorMessage = "❌ Файл порожній! Будь ласка, виберіть файл з вмістом.";
+        } else if (errorMessage.includes("Failed to extract text")) {
+          errorMessage = "❌ Не вдалося прочитати вміст файлу! Перевірте, що файл не пошкоджений.";
+        }
+        
         return res.status(400).json({
-          message: fileResult.error || "Failed to process file",
+          message: errorMessage,
           field: "file"
         });
       }
@@ -91,7 +106,7 @@ export async function registerRoutes(
       const templateId = parseInt(req.body.templateId);
       if (isNaN(templateId) || templateId <= 0) {
         return res.status(400).json({
-          message: "Invalid template ID",
+          message: "❌ Невірний ID шаблону! Будь ласка, виберіть правильний шаблон CV.",
           field: "templateId"
         });
       }
@@ -374,7 +389,7 @@ Return the complete HTML document with the CV content injected.`;
       const pdfUrl = `/generated/${filename}`;
 
       // Update status: Complete
-      await storage.updateGeneratedCvStatus(jobId, "complete", undefined, pdfUrl);
+      await storage.updateGeneratedCvStatus(jobId, "complete", "✅ CV успішно створено! Готово до перегляду.", pdfUrl);
 
       console.log(`Successfully generated CV ${jobId} as HTML`);
     } catch (apiError) {
@@ -407,7 +422,7 @@ Return the complete HTML document with the CV content injected.`;
         const pdfUrl = `/generated/${filename}`;
 
         // Update status: Complete
-        await storage.updateGeneratedCvStatus(jobId, "complete", undefined, pdfUrl);
+        await storage.updateGeneratedCvStatus(jobId, "complete", "⚠️ CV створено в базовому режимі (AI недоступний).", pdfUrl);
 
         console.log(`Successfully generated CV ${jobId} (fallback mode)`);
       } catch (fallbackError) {

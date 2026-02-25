@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { usePollingJob } from "@/hooks/use-generate";
-import { FileText, Loader2, CheckCircle2, AlertCircle, Calendar, Eye } from "lucide-react";
+import { FileText, Loader2, CheckCircle2, AlertCircle, Calendar, Eye, Download, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 import type { GeneratedCvResponse } from "@shared/routes";
 
 // Function to get progress width based on progress text
@@ -26,6 +28,41 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
   const isProcessing = displayData.status === "pending" || displayData.status === "processing";
   const isFailed = displayData.status === "failed";
   const isComplete = displayData.status === "complete";
+
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
+
+  const handleDelete = async () => {
+    if (!confirm('Ви впевнені, що хочете видалити це CV?')) {
+      return;
+    }
+    
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/resumes/${cv.id}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "CV видалено",
+          description: "CV успішно видалено з вашого списку",
+        });
+        // Оновити сторінку або перенаправити
+        window.location.reload();
+      } else {
+        throw new Error('Failed to delete CV');
+      }
+    } catch (error) {
+      toast({
+        title: "Помилка видалення",
+        description: "Не вдалося видалити CV. Спробуйте ще раз",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const templateScreenshot = displayData.template?.screenshotUrl || cv.template?.screenshotUrl;
   const templateName = displayData.template?.name || cv.template?.name || "Template";
@@ -67,9 +104,9 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
           {isFailed && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-destructive/10 backdrop-blur-sm p-6 text-center">
               <AlertCircle className="w-12 h-12 text-destructive mb-3" />
-              <h4 className="font-display font-bold text-destructive mb-1">Generation Failed</h4>
-              <p className="text-xs text-destructive/80 font-medium px-4">
-                {displayData.errorMessage || "Something went wrong during processing."}
+              <h4 className="font-display font-bold text-destructive mb-1">Помилка генерації</h4>
+              <p className="text-xs text-destructive/80 font-medium px-4 break-words">
+                {displayData.errorMessage || "Щось пішло не так під час обробки."}
               </p>
             </div>
           )}
@@ -79,9 +116,25 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
               <div className="text-center">
                 <CheckCircle2 className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                <p className="text-sm font-medium text-foreground">Ready to view</p>
+                <p className="text-sm font-medium text-foreground">Готово до перегляду</p>
               </div>
             </div>
+          )}
+
+          {/* Delete Button - Always visible for non-processing CVs */}
+          {!isProcessing && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDelete();
+              }}
+              disabled={isDeleting}
+              className="absolute top-3 left-3 p-2 bg-destructive hover:bg-destructive/90 text-white rounded-full shadow-lg transition-all duration-200 hover:scale-110 hover:shadow-xl z-10 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Видалити CV"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
           )}
         </div>
 
@@ -106,7 +159,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
             {isComplete && (
               <div className="flex items-center gap-1.5 text-xs text-primary mt-2">
                 <Eye className="w-3.5 h-3.5" />
-                Click to view CV
+                Натисніть для перегляду CV
               </div>
             )}
           </div>
