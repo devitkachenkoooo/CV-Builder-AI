@@ -53,7 +53,7 @@ export function useGenerateCv() {
 
 // Hook for polling an individual CV's status
 export function usePollingJob(jobId: number, initialStatus: string) {
-  const isPolling = initialStatus === "pending" || initialStatus === "processing";
+  const isPolling = (initialStatus === "pending" || initialStatus === "processing") && jobId > 0;
   const queryClient = useQueryClient();
 
   return useQuery({
@@ -84,7 +84,7 @@ export function usePollingJob(jobId: number, initialStatus: string) {
       }
       return false;
     },
-    enabled: isPolling && !!jobId && jobId > 0, // Only enable if we're polling AND have a valid jobId
+    enabled: isPolling, // Only enable if we're polling AND have a valid jobId
   });
 }
 
