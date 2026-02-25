@@ -67,56 +67,57 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
   const templateName = displayData.template?.name || cv.template?.name || "Template";
 
   return (
-    <>
-      {/* Delete Button - Always visible for non-processing CVs */}
-      {!isProcessing && (
-        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <AlertDialogTrigger asChild>
-            <button
-              disabled={isDeleting}
-              className="absolute top-3 left-3 p-2 bg-destructive hover:bg-destructive/90 text-white rounded-full shadow-lg transition-all duration-200 hover:scale-110 hover:shadow-xl z-10 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Видалити CV"
-              onClick={(e) => e.preventDefault()}
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Видалити CV?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Ви впевнені, що хочете видалити це CV? Цю дію неможливо скасувати.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel asChild>
-                <button className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80">
-                  Скасувати
-                </button>
-              </AlertDialogCancel>
-              <AlertDialogAction asChild>
-                <button
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 disabled:opacity-50"
-                >
-                  {isDeleting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      Видалення...
-                    </>
-                  ) : (
-                    "Видалити"
-                  )}
-                </button>
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
-
-      <Link href={`/cv/${cv.id}`} className="block group">
-        <div className="glass-card rounded-2xl overflow-hidden group relative flex flex-col cursor-pointer hover:shadow-xl transition-all duration-300">
+    <Link href={`/cv/${cv.id}`} className="block group">
+      <div className="glass-card rounded-2xl overflow-hidden group relative flex flex-col cursor-pointer hover:shadow-xl transition-all duration-300">
+        {/* Delete Button - Always visible for non-processing CVs */}
+        {!isProcessing && (
+          <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            <AlertDialogTrigger asChild>
+              <button
+                disabled={isDeleting}
+                className="absolute top-3 left-3 p-2 bg-destructive hover:bg-destructive/90 text-white rounded-full shadow-lg transition-all duration-200 hover:scale-110 hover:shadow-xl z-10 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Видалити CV"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Видалити CV?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Ви впевнені, що хочете видалити це CV? Цю дію неможливо скасувати.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel asChild>
+                  <button className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80">
+                    Скасувати
+                  </button>
+                </AlertDialogCancel>
+                <AlertDialogAction asChild>
+                  <button
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 disabled:opacity-50"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        Видалення...
+                      </>
+                    ) : (
+                      "Видалити"
+                    )}
+                  </button>
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
           {/* Delete Button Overlay - Prevent click events when delete dialog is open */}
           {!isProcessing && isDeleteDialogOpen && (
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-20 flex items-center justify-center">
@@ -225,7 +226,6 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
           )}
         </div>
       </div>
-      </Link>
-    </>
+    </Link>
   );
 }
