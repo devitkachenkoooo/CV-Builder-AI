@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowLeft, Download, Loader2, Mail, Phone, Linkedin, MapPin, Calendar, Award, Briefcase, GraduationCap, User } from "lucide-react";
+import { ArrowLeft, Download, Loader2, Mail, Phone, Linkedin, MapPin, Calendar, Award, Briefcase, GraduationCap, User, FileText, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { api, buildUrl } from "@shared/routes";
 import { GeneratedCvResponse } from "@shared/schema";
@@ -174,66 +174,149 @@ export default function CvViewPage() {
   }
 
   return (
-    <>
-      {/* Floating Action Bar */}
-      <div className="fixed top-4 right-4 z-50 flex gap-2 print:hidden">
-        <button
-          onClick={handleGoBack}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-border rounded-lg shadow-lg hover:shadow-xl transition-shadow"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Назад
-        </button>
-        <button
-          onClick={handleDownloadPDF}
-          disabled={isGeneratingPdf}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg shadow-lg hover:shadow-xl transition-shadow disabled:opacity-50"
-        >
-          {isGeneratingPdf ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Генерація PDF...
-            </>
-          ) : (
-            <>
-              <Download className="w-4 h-4" />
-              Завантажити PDF
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* Main Content */}
-      <div className="min-h-screen bg-slate-50 py-4 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          {/* A4 Document Container */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white shadow-xl rounded-lg overflow-hidden print:shadow-none print:rounded-none"
-            style={{ 
-              minHeight: '297mm',
-              width: '100%',
-              maxWidth: '210mm' // A4 width constraint
-            }}
-          >
-            {pdfUrl ? (
-              <div id="cv-content" className="w-full p-16">
-                <iframe
-                  src={pdfUrl}
-                  className="w-full h-screen"
-                  style={{ minHeight: '842px' }}
-                  title="Generated CV HTML"
-                />
+    <div className="min-h-screen bg-gray-100">
+      {/* Modern Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-40 print:hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleGoBack}
+                className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="font-medium">Назад</span>
+              </button>
+              <div className="hidden sm:block h-6 w-px bg-gray-300" />
+              <div className="hidden sm:block">
+                <h1 className="text-lg font-semibold text-gray-900">Переглядач CV</h1>
+                <p className="text-sm text-gray-500">{cvData.template?.name || 'Professional CV'}</p>
               </div>
-            ) : (
-              <div className="p-8 text-center">
-                <p className="text-muted-foreground">CV not available</p>
-              </div>
-            )}
-          </motion.div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleDownloadPDF}
+                disabled={isGeneratingPdf}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              >
+                {isGeneratingPdf ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="hidden sm:inline">Генерація...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    <span className="hidden sm:inline">Завантажити PDF</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      </header>
+
+      {/* CV Viewer Container */}
+      <main className="py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* CV Frame */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+            className="bg-white rounded-xl shadow-2xl overflow-hidden"
+          >
+            {/* Toolbar */}
+            <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-red-500" />
+                <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                <div className="w-3 h-3 rounded-full bg-green-500" />
+              </div>
+              <div className="text-sm text-gray-500 font-medium">
+                A4 Format (210 × 297 mm)
+              </div>
+            </div>
+
+            {/* CV Content - Horizontal Scroll Container */}
+            <div className="overflow-x-auto bg-gray-100 p-8">
+              <div className="flex justify-center min-w-full">
+                <div 
+                  className="bg-white shadow-lg"
+                  style={{ 
+                    width: '210mm',
+                    minWidth: '210mm',
+                    height: '297mm',
+                    minHeight: '297mm'
+                  }}
+                >
+                  {pdfUrl ? (
+                    <iframe
+                      src={pdfUrl}
+                      className="w-full h-full border-0"
+                      style={{ 
+                        width: '210mm',
+                        height: '297mm'
+                      }}
+                      title="Generated CV HTML"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <FileText className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">CV не доступне</h3>
+                        <p className="text-gray-500">Файл CV ще не згенеровано або виникла помилка</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Info Section */}
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-blue-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900">Формат</h3>
+              </div>
+              <p className="text-gray-600 text-sm">Стандарт A4, готовий до друку</p>
+            </div>
+            
+            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900">Статус</h3>
+              </div>
+              <p className="text-gray-600 text-sm">Згенеровано успішно</p>
+            </div>
+            
+            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-purple-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900">Створено</h3>
+              </div>
+              <p className="text-gray-600 text-sm">
+                {new Date(cvData.createdAt).toLocaleDateString('uk-UA', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric'
+                })}
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
 
       {/* Print Optimization Styles */}
       <style dangerouslySetInnerHTML={{
@@ -249,15 +332,15 @@ export default function CvViewPage() {
               display: none !important;
             }
             
-            .bg-slate-50 {
+            .bg-gray-100 {
               background: white !important;
             }
             
-            .shadow-xl {
+            .shadow-2xl {
               box-shadow: none !important;
             }
             
-            .rounded-lg {
+            .rounded-xl {
               border-radius: 0 !important;
             }
             
@@ -268,6 +351,6 @@ export default function CvViewPage() {
           }
         `
       }} />
-    </>
+    </div>
   );
 }

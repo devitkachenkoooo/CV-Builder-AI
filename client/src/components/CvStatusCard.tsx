@@ -76,6 +76,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
               disabled={isDeleting}
               className="absolute top-3 left-3 p-2 bg-destructive hover:bg-destructive/90 text-white rounded-full shadow-lg transition-all duration-200 hover:scale-110 hover:shadow-xl z-10 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Видалити CV"
+              onClick={(e) => e.preventDefault()}
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -176,52 +177,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
             </div>
           )}
 
-          {/* Delete Button - Always visible for non-processing CVs */}
-          {!isProcessing && (
-            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-              <AlertDialogTrigger asChild>
-                <button
-                  disabled={isDeleting}
-                  className="absolute top-3 left-3 p-2 bg-destructive hover:bg-destructive/90 text-white rounded-full shadow-lg transition-all duration-200 hover:scale-110 hover:shadow-xl z-10 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Видалити CV"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Видалити CV?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Ви впевнені, що хочете видалити це CV? Цю дію неможливо скасувати.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel asChild>
-                    <button className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80">
-                      Скасувати
-                    </button>
-                  </AlertDialogCancel>
-                  <AlertDialogAction asChild>
-                    <button
-                      onClick={handleDelete}
-                      disabled={isDeleting}
-                      className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 disabled:opacity-50"
-                    >
-                      {isDeleting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                          Видалення...
-                        </>
-                      ) : (
-                        "Видалити"
-                      )}
-                    </button>
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-        </div>
+                  </div>
 
         {/* Info Area */}
         <div className="p-5 flex-1 flex flex-col justify-between bg-card">
