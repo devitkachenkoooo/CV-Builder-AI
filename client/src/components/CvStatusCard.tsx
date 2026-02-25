@@ -29,7 +29,6 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
   const { mutate: deleteResume, isPending: isDeleting } = useGlobalDeleteResume();
   const { toast } = useToast();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   
   const displayData = polledJob || cv;
   const isProcessing = displayData.status === "pending" || displayData.status === "processing";
@@ -39,39 +38,26 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
   const templateScreenshot = displayData.template?.screenshotUrl || cv.template?.screenshotUrl;
   const templateName = displayData.template?.name || cv.template?.name || "Template";
 
-  const handleDownload = async (e: React.MouseEvent) => {
+  const handleDownload = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
     if (!displayData.pdfUrl) return;
     
-    try {
-      setIsGeneratingPdf(true);
-      
-      // Open CV in new tab and generate PDF
-      const newWindow = window.open(`/cv/${cv.id}`, '_blank');
-      
-      // Wait for the page to load, then generate PDF
-      setTimeout(() => {
-        if (newWindow) {
-          newWindow.postMessage({ type: 'GENERATE_PDF', filename: `cv-${cv.id}.pdf` }, '*');
-        }
-      }, 2000);
-      
-      toast({
-        title: "PDF Generation Started! 🎉",
-        description: "Your CV is being converted to PDF...",
-      });
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast({
-        title: "PDF Generation Failed",
-        description: "Failed to generate PDF. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGeneratingPdf(false);
-    }
+    // Open CV in new tab and generate PDF
+    const newWindow = window.open(`/cv/${cv.id}`, '_blank');
+    
+    // Wait for the page to load, then generate PDF
+    setTimeout(() => {
+      if (newWindow) {
+        newWindow.postMessage({ type: 'GENERATE_PDF', filename: `cv-${cv.id}.pdf` }, '*');
+      }
+    }, 2000);
+    
+    toast({
+      title: "PDF Generation Started! 🎉",
+      description: "Your CV is being converted to PDF...",
+    });
   };
 
   const handleDelete = () => {
@@ -132,15 +118,10 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center gap-3">
               <button
                 onClick={handleDownload}
-                disabled={isGeneratingPdf}
-                className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center shadow-lg hover:scale-110 hover:bg-primary/90 transition-transform disabled:opacity-50"
-                title={isGeneratingPdf ? "Generating PDF..." : "Download PDF"}
+                className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center shadow-lg hover:scale-110 hover:bg-primary/90 transition-transform"
+                title="Download PDF"
               >
-                {isGeneratingPdf ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Download className="w-5 h-5" />
-                )}
+                <Download className="w-5 h-5" />
               </button>
               <button
                 onClick={(e) => {
