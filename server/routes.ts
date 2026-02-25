@@ -10,93 +10,6 @@ import OpenAI from "openai";
 import fs from "fs/promises";
 import fsSync from "fs";
 import path from "path";
-import puppeteer from "puppeteer";
-
-// Function to convert HTML to PDF
-async function convertHtmlToPdf(html: string, outputPath: string): Promise<void> {
-  console.log("[PDF] Starting HTML to PDF conversion");
-  
-  let browser;
-  try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-gpu'
-      ]
-    });
-    
-    const page = await browser.newPage();
-    
-    // Set viewport to A4 size
-    await page.setViewport({ width: 794, height: 1123 });
-    
-    // Add CSS for better PDF formatting
-    const enhancedHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          @page {
-            size: A4;
-            margin: 10mm;
-          }
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 100%;
-            margin: 0;
-            padding: 20px;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-          @media print {
-            body { padding: 0; }
-          }
-        </style>
-      </head>
-      <body>
-        ${html}
-      </body>
-      </html>
-    `;
-    
-    // Set content and wait for it to load
-    await page.setContent(enhancedHtml, { waitUntil: 'networkidle0' });
-    
-    // Generate PDF with A4 size and better settings
-    await page.pdf({
-      path: outputPath,
-      format: 'A4',
-      printBackground: true,
-      margin: {
-        top: '10mm',
-        right: '10mm',
-        bottom: '10mm',
-        left: '10mm'
-      },
-      preferCSSPageSize: true,
-      scale: 0.8 // Scale down slightly to fit content better
-    });
-    
-    console.log(`[PDF] Successfully generated PDF: ${outputPath}`);
-  } catch (error) {
-    console.error("[PDF] Error converting HTML to PDF:", error);
-    throw error;
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
-  }
-}
 
 // Configure multer for file uploads
 const upload = multer({
@@ -283,22 +196,15 @@ export async function registerRoutes(
         return res.status(403).json({ message: 'Forbidden' });
       }
 
-      // Delete generated HTML and PDF files
+      // Delete generated HTML file
       if (cv.pdfUrl) {
         try {
           const htmlPath = path.join(process.cwd(), "client", "public", cv.pdfUrl);
-          const pdfPath = path.join(process.cwd(), "client", "public", cv.pdfUrl.replace('.html', '.pdf'));
           
           // Delete HTML file
           if (fsSync.existsSync(htmlPath)) {
             await fs.unlink(htmlPath);
             console.log(`[DELETE] Removed HTML file: ${htmlPath}`);
-          }
-          
-          // Delete PDF file
-          if (fsSync.existsSync(pdfPath)) {
-            await fs.unlink(pdfPath);
-            console.log(`[DELETE] Removed PDF file: ${pdfPath}`);
           }
         } catch (fileError) {
           console.error(`[DELETE] Error deleting file ${cv.pdfUrl}:`, fileError);
@@ -312,40 +218,6 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting resume:", error);
       res.status(500).json({ message: "Failed to delete resume" });
-    }
-  });
-
-  // Generate PDF on demand
-  app.get("/api/resumes/:id/pdf", isAuthenticated, async (req: any, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
-
-      // Verify ownership
-      const cv = await storage.getGeneratedCv(id);
-      if (!cv) {
-        return res.status(404).json({ message: 'CV not found' });
-      }
-      if (cv.userId !== userId) {
-        return res.status(403).json({ message: 'Forbidden' });
-      }
-
-      if (!cv.pdfUrl) {
-        return res.status(404).json({ message: 'PDF file not found' });
-      }
-
-      // Read the PDF file and send it
-      const pdfPath = path.join(process.cwd(), "client", "public", cv.pdfUrl);
-      const pdfBuffer = await fs.readFile(pdfPath);
-      
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="cv-${id}.pdf"`);
-      res.send(pdfBuffer);
-      
-      console.log(`[PDF] Sent existing PDF for CV ${id}`);
-    } catch (error) {
-      console.error("Error sending PDF:", error);
-      res.status(500).json({ message: "Failed to send PDF" });
     }
   });
 
@@ -449,30 +321,23 @@ Return the complete HTML document with the CV content injected.`;
       // Update status: AI formatting
       await storage.updateGeneratedCvStatus(jobId, "processing", "AI formatting CV...");
 
-      // Save HTML and PDF files
+      // Save HTML file only
       const outputDir = path.join(process.cwd(), "client", "public", "generated");
       await fs.mkdir(outputDir, { recursive: true });
       
-      const baseFilename = `cv-${jobId}-${Date.now()}`;
-      const htmlFilename = `${baseFilename}.html`;
-      const pdfFilename = `${baseFilename}.pdf`;
-      
-      const htmlPath = path.join(outputDir, htmlFilename);
-      const pdfPath = path.join(outputDir, pdfFilename);
+      const filename = `cv-${jobId}-${Date.now()}.html`;
+      const outputPath = path.join(outputDir, filename);
       
       // Save HTML file
-      await fs.writeFile(htmlPath, generatedHtml, "utf-8");
-      
-      // Generate PDF file
-      await convertHtmlToPdf(generatedHtml, pdfPath);
+      await fs.writeFile(outputPath, generatedHtml, "utf-8");
 
-      // Store both URLs (HTML for viewing, PDF for download)
-      const pdfUrl = `/generated/${pdfFilename}`;
+      // Store HTML URL
+      const pdfUrl = `/generated/${filename}`;
 
       // Update status: Complete
       await storage.updateGeneratedCvStatus(jobId, "complete", undefined, pdfUrl);
 
-      console.log(`Successfully generated CV ${jobId} as HTML and PDF`);
+      console.log(`Successfully generated CV ${jobId} as HTML`);
     } catch (apiError) {
       console.error(`[AI] OpenAI API Error for job ${jobId}:`, apiError);
       
@@ -488,26 +353,19 @@ Return the complete HTML document with the CV content injected.`;
         const templatePath = path.join(process.cwd(), "server", "templates", template.fileName);
         const templateHtml = await fs.readFile(templatePath, "utf-8");
 
-        // Update status: Generating PDF
-        await storage.updateGeneratedCvStatus(jobId, "processing", "Generating PDF...");
+        // Update status: Generating HTML
+        await storage.updateGeneratedCvStatus(jobId, "processing", "Generating HTML...");
 
         const outputDir = path.join(process.cwd(), "client", "public", "generated");
         await fs.mkdir(outputDir, { recursive: true });
         
-        const baseFilename = `cv-${jobId}-${Date.now()}`;
-        const htmlFilename = `${baseFilename}.html`;
-        const pdfFilename = `${baseFilename}.pdf`;
-        
-        const htmlPath = path.join(outputDir, htmlFilename);
-        const pdfPath = path.join(outputDir, pdfFilename);
+        const filename = `cv-${jobId}-${Date.now()}.html`;
+        const outputPath = path.join(outputDir, filename);
         
         // Save HTML file
-        await fs.writeFile(htmlPath, templateHtml, "utf-8");
-        
-        // Generate PDF file
-        await convertHtmlToPdf(templateHtml, pdfPath);
+        await fs.writeFile(outputPath, templateHtml, "utf-8");
 
-        const pdfUrl = `/generated/${pdfFilename}`;
+        const pdfUrl = `/generated/${filename}`;
 
         // Update status: Complete
         await storage.updateGeneratedCvStatus(jobId, "complete", undefined, pdfUrl);

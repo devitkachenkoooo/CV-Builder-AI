@@ -41,20 +41,13 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
     e.preventDefault();
     e.stopPropagation();
     
-    if (displayData.pdfUrl) {
-      // Create a temporary link element to trigger download
-      const link = document.createElement('a');
-      link.href = `/api/resumes/${cv.id}/pdf`;
-      link.download = `cv-${cv.id}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      toast({
-        title: "PDF Downloaded! 🎉",
-        description: "Your CV has been downloaded.",
-      });
-    }
+    // Open CV in new tab for printing
+    window.open(`/cv/${cv.id}`, '_blank');
+    
+    toast({
+      title: "CV Opened! 🎉",
+      description: "Use browser's Print function to save as PDF.",
+    });
   };
 
   const handleDelete = () => {
@@ -116,7 +109,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
               <button
                 onClick={handleDownload}
                 className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center shadow-lg hover:scale-110 hover:bg-primary/90 transition-transform"
-                title="Download PDF"
+                title="Print to PDF"
               >
                 <Download className="w-5 h-5" />
               </button>

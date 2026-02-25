@@ -80,20 +80,13 @@ export default function CvViewPage() {
   }, [id, toast]);
 
   const handleDownloadPDF = () => {
-    if (cvData?.id) {
-      // Create a temporary link element to trigger download
-      const link = document.createElement('a');
-      link.href = `/api/resumes/${cvData.id}/pdf`;
-      link.download = `cv-${cvData.id}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      toast({
-        title: "PDF Downloaded! 🎉",
-        description: "Your CV has been downloaded.",
-      });
-    }
+    // Trigger browser print dialog
+    window.print();
+    
+    toast({
+      title: "Print Dialog Opened! 🎉",
+      description: "Choose 'Save as PDF' to download your CV.",
+    });
   };
 
   const handleGoBack = () => {
@@ -167,7 +160,7 @@ export default function CvViewPage() {
           className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg shadow-lg hover:shadow-xl transition-shadow"
         >
           <Download className="w-4 h-4" />
-          Download PDF
+          Print to PDF
         </button>
       </div>
 
@@ -182,12 +175,35 @@ export default function CvViewPage() {
             style={{ minHeight: '297mm' }}
           >
             {pdfUrl ? (
-              <iframe
-                src={pdfUrl}
-                className="w-full h-screen"
-                style={{ minHeight: '842px' }}
-                title="Generated CV HTML"
-              />
+              <>
+                <style>{`
+                  @media print {
+                    body * {
+                      visibility: hidden;
+                    }
+                    .print-container, .print-container * {
+                      visibility: visible;
+                    }
+                    .print-container {
+                      position: absolute;
+                      left: 0;
+                      top: 0;
+                      width: 100%;
+                    }
+                    .no-print {
+                      display: none !important;
+                    }
+                  }
+                `}</style>
+                <div className="print-container">
+                  <iframe
+                    src={pdfUrl}
+                    className="w-full h-screen"
+                    style={{ minHeight: '842px' }}
+                    title="Generated CV HTML"
+                  />
+                </div>
+              </>
             ) : (
               <div className="p-8 text-center">
                 <p className="text-muted-foreground">CV not available</p>
