@@ -171,27 +171,67 @@ function createPdfModal(html: string): void {
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       
       console.log('Using jsPDF method');
+      console.log('TempDiv content before PDF:', tempDiv.innerHTML.substring(0, 500));
+      console.log('TempDiv computed styles:', window.getComputedStyle(tempDiv));
       
-      await new Promise<void>((resolve, reject) => {
-        try {
-          doc.html(tempDiv, {
-            x: 10,
-            y: 10,
-            width: 190,
-            windowWidth: 800,
-            autoPaging: 'text',
-            callback: function(doc) {
-              console.log('jsPDF callback executed');
-              doc.save('resume.pdf');
-              console.log('PDF saved successfully with jsPDF');
-              resolve();
-            },
-          });
-        } catch (e) {
-          console.error('jsPDF error:', e);
-          reject(e);
-        }
-      });
+      // Спробуємо спочатку html2canvas, потім jsPDF
+      progress.textContent = 'Capturing content with html2canvas...';
+      
+      try {
+        // Імпортуємо html2canvas динамічно
+        const html2canvas = (await import('html2canvas')).default;
+        
+        const canvas = await html2canvas(tempDiv, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          width: tempDiv.scrollWidth,
+          height: tempDiv.scrollHeight,
+          logging: true,
+        });
+        
+        console.log('Canvas created successfully');
+        console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
+        
+        progress.textContent = 'Adding canvas to PDF...';
+        
+        const imgData = canvas.toDataURL('image/png');
+        const pdfWidth = doc.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        
+        doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        doc.save('resume.pdf');
+        
+        console.log('PDF saved successfully with html2canvas + jsPDF');
+        
+      } catch (canvasError) {
+        console.warn('html2canvas failed, trying jsPDF.html():', canvasError);
+        
+        progress.textContent = 'Trying jsPDF.html() method...';
+        
+        await new Promise<void>((resolve, reject) => {
+          try {
+            doc.html(tempDiv, {
+              x: 10,
+              y: 10,
+              width: 190,
+              windowWidth: 800,
+              autoPaging: 'text',
+              callback: function(doc) {
+                console.log('jsPDF callback executed');
+                console.log('PDF created successfully');
+                doc.save('resume.pdf');
+                console.log('PDF saved successfully with jsPDF');
+                resolve();
+              },
+            });
+          } catch (e) {
+            console.error('jsPDF error:', e);
+            reject(e);
+          }
+        });
+      }
       
       // Cleanup
       tempDiv.remove();
