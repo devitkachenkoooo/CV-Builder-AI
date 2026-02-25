@@ -117,7 +117,7 @@ function createPdfModal(html: string): void {
     height: 100vh;
     border: none;
     z-index: 999998;
-    background: white;
+    background: #f3f4f6;
     padding: 0 !important;
     margin: 0 !important;
   `;
@@ -154,10 +154,13 @@ function createPdfModal(html: string): void {
         const iframeBody = iframeDoc.body;
         console.log('Iframe body content length:', iframeBody?.innerHTML?.length || 0);
         
-        // Перевіряємо поточні стилі в body
-        const computedStyle = window.getComputedStyle(iframeBody);
-        console.log('Iframe body margin:', computedStyle?.margin);
-        console.log('Iframe body padding:', computedStyle?.padding);
+        // Прибираємо padding з body в iframe
+        if (iframeBody) {
+          iframeBody.style.padding = '0';
+          iframeBody.style.margin = '0';
+          iframeBody.style.backgroundColor = 'transparent';
+          console.log('Removed padding and margin from iframe body');
+        }
         
         if (!iframeBody || iframeBody.innerHTML.length === 0) {
           console.error('Iframe body is empty');
@@ -219,15 +222,25 @@ function createPdfModal(html: string): void {
             html2canvas: { 
               scale: 2, 
               useCORS: true, 
-              allowTaint: true, // Дозволяємо контент з інших доменів
+              allowTaint: true,
               letterRendering: true,
               backgroundColor: 'rgba(255, 255, 255, 0)', // Прозорий фон
               logging: false,
-              ignoreElements: ['canvas', 'svg'], // Ігноруємо canvas та svg елементи
+              ignoreElements: ['canvas', 'svg'],
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
           }).save().then(() => {
-                console.log('PDF saved successfully, cleaning up');
+              console.log('PDF saved successfully, cleaning up');
+              progress.textContent = 'PDF downloaded successfully!';
+
+              // Cleanup після успішного збереження
+              setTimeout(() => {
+                iframe.remove();
+                modal.remove();
+                style.remove();
+              }, 1000);
+            }).catch((error: any) => {
+              console.error('PDF generation error:', error);
                 progress.textContent = 'PDF downloaded successfully!';
                 
                 // Cleanup після успішного збереження
