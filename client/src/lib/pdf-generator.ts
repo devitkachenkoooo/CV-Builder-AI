@@ -1,11 +1,11 @@
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import html2pdf from 'html2pdf.js';
 
 interface PdfFromUrlOptions {
   url: string;
   filename?: string;
   windowWidth?: number;
   contentWidthMm?: number;
+  onLoadingChange?: (loading: boolean) => void; // Callback для кнопки
 }
 
 interface PdfFromElementOptions {
@@ -13,6 +13,7 @@ interface PdfFromElementOptions {
   filename?: string;
   windowWidth?: number;
   contentWidthMm?: number;
+  onLoadingChange?: (loading: boolean) => void; // Callback для кнопки
 }
 
 function createOffscreenContainer(): HTMLDivElement {
@@ -32,7 +33,7 @@ function createOffscreenContainer(): HTMLDivElement {
   return container;
 }
 
-async function renderElementToPdf(options: PdfFromElementOptions): Promise<void> {
+async function renderElementToPdf(options: Omit<PdfFromElementOptions, 'onLoadingChange'>): Promise<void> {
   const {
     element,
     filename = 'resume.pdf',
@@ -40,25 +41,24 @@ async function renderElementToPdf(options: PdfFromElementOptions): Promise<void>
     contentWidthMm = 190,
   } = options;
 
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  // Налаштування html2pdf.js для можливості виділення тексту
+  const pdfOptions = {
+    margin: 10,
+    filename,
+    image: { type: 'jpeg' as const, quality: 0.98 },
+    html2canvas: { 
+      scale: 2, 
+      useCORS: true, 
+      letterRendering: true,
+      windowWidth,
+      backgroundColor: '#ffffff',
+      logging: false,
+    },
+    jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
+  };
 
-  await new Promise<void>((resolve, reject) => {
-    try {
-      doc.html(element, {
-        x: 10,
-        y: 10,
-        width: contentWidthMm,
-        windowWidth,
-        autoPaging: 'text',
-        callback: () => {
-          doc.save(filename);
-          resolve();
-        },
-      });
-    } catch (e) {
-      reject(e);
-    }
-  });
+  // Генерація PDF з можливістю виділення тексту
+  await html2pdf().set(pdfOptions).from(element).save();
 }
 
 async function renderHtmlToPdf(html: string, filename?: string, windowWidth?: number, contentWidthMm?: number): Promise<void> {
@@ -66,48 +66,72 @@ async function renderHtmlToPdf(html: string, filename?: string, windowWidth?: nu
   const defaultWindowWidth = windowWidth || 800;
   const defaultContentWidthMm = contentWidthMm || 190;
 
+  // Створюємо тимчасовий div, «видимий» для браузера, але не для юзера
   const tempDiv = document.createElement('div');
   tempDiv.style.position = 'fixed';
   tempDiv.style.left = '-9999px';
-  tempDiv.style.top = '0';
   tempDiv.style.width = '800px';
   tempDiv.style.height = 'auto';
   tempDiv.style.background = 'white';
   tempDiv.style.color = 'black';
   tempDiv.style.overflow = 'visible';
   tempDiv.style.visibility = 'visible';
-  tempDiv.style.pointerEvents = 'none';
-  tempDiv.style.zIndex = '9999';
   tempDiv.style.opacity = '1';
   tempDiv.innerHTML = html;
 
   document.body.appendChild(tempDiv);
 
+  // Чекаємо 500мс, щоб стилі підвантажилися
   await new Promise<void>(resolve => setTimeout(resolve, 500));
 
-  const canvas = await html2canvas(tempDiv, {
-    scale: 2,
-    useCORS: true,
-    allowTaint: true,
-    windowWidth: defaultWindowWidth,
-    backgroundColor: '#ffffff',
-    logging: false,
-    height: tempDiv.scrollHeight,
-    width: tempDiv.scrollWidth,
-    scrollX: 0,
-    scrollY: 0,
-  });
+  // Налаштування html2pdf.js для можливості виділення тексту
+  const options = {
+    margin: 10,
+    filename: defaultFilename,
+    image: { type: 'jpeg' as const, quality: 0.98 },
+    html2canvas: { 
+      scale: 2, 
+      useCORS: true, 
+      letterRendering: true,
+      windowWidth: defaultWindowWidth,
+      backgroundColor: '#ffffff',
+      logging: false,
+      height: tempDiv.scrollHeight,
+      width: tempDiv.scrollWidth,
+      scrollX: 0,
+      scrollY: 0,
+    },
+    jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
+  };
 
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const img = canvas.toDataURL('image/png');
-  doc.addImage(img, 'PNG', 0, 0, defaultContentWidthMm, (defaultContentWidthMm / canvas.width) * canvas.height);
-  doc.save(defaultFilename);
-
-  tempDiv.remove();
+  try {
+    // Генерація PDF з можливістю виділення тексту
+    await html2pdf().set(options).from(tempDiv).save();
+  } finally {
+    // Cleanup: видаляємо tempDiv після збереження
+    tempDiv.remove();
+  }
 }
 
 export async function generatePdfFromElement(options: PdfFromElementOptions): Promise<void> {
-  await renderElementToPdf(options);
+  const { onLoadingChange, ...pdfOptions } = options;
+  
+  // Показуємо лоадер тільки на кнопці через callback
+  if (onLoadingChange) {
+    onLoadingChange(true);
+  }
+
+  try {
+    await renderElementToPdf(pdfOptions);
+  } catch (error) {
+    console.error('Error generating PDF from element:', error);
+    throw error;
+  } finally {
+    // Прибираємо лоадер з кнопки
+    if (onLoadingChange) {
+      onLoadingChange(false);
+    }
+  }
 }
 
 export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<void> {
@@ -116,16 +140,13 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
     filename = 'resume.pdf',
     windowWidth = 800,
     contentWidthMm = 190,
+    onLoadingChange,
   } = options;
 
-  // Show loading indicator
-  const loadingToast = document.createElement('div');
-  loadingToast.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2';
-  loadingToast.innerHTML = `
-    <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-    <span>Generating PDF...</span>
-  `;
-  document.body.appendChild(loadingToast);
+  // Показуємо лоадер тільки на кнопці через callback
+  if (onLoadingChange) {
+    onLoadingChange(true);
+  }
 
   try {
     // Fetch HTML content from URL
@@ -137,6 +158,9 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
     console.error('Error generating PDF from URL:', error);
     throw error;
   } finally {
-    loadingToast.remove();
+    // Прибираємо лоадер з кнопки
+    if (onLoadingChange) {
+      onLoadingChange(false);
+    }
   }
 }
