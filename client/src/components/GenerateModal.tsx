@@ -55,35 +55,15 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
       console.log("[GenerateModal] Would redirect to:", `/cv/${jobStatus.id}`);
       console.log("[GenerateModal] jobId:", jobId, "jobStatus.id:", jobStatus.id);
       
-      toast({
-        title: "CV Generated Successfully! 🎉",
-        description: "Your CV has been generated and is ready to view.",
-      });
-      
-      // Add delay before closing modal to see what happens
-      setTimeout(() => {
-        console.log("[GenerateModal] ⏰ 5 seconds passed - checking status before closing");
-        console.log("[GenerateModal] Current jobId before closing:", jobId);
-        console.log("[GenerateModal] Current jobStatus before closing:", jobStatus);
-        
-        // Close modal and reset state after delay
-        setTimeout(() => {
-          console.log("[GenerateModal] Closing modal and resetting jobId");
-          setJobId(null);
-          handleClose();
-        }, 1000);
-      }, 5000); // 5 second delay to see what happens
+      // Don't do anything else - just log
+      console.log("[GenerateModal] 🔍 Keeping modal open to see what happens");
     } else {
       console.log("[GenerateModal] CONDITION NOT MET - jobId:", jobId, "status:", jobStatus?.status, "id:", jobStatus?.id);
     }
     
     if (jobStatus?.status === "failed") {
       console.log("[GenerateModal] Generation failed - showing error");
-      toast({
-        title: "Generation Failed",
-        description: jobStatus.errorMessage || "Failed to generate CV. Please try again.",
-        variant: "destructive",
-      });
+      console.log("[GenerateModal] Error message:", jobStatus.errorMessage);
       setJobId(null);
     }
   }, [jobStatus, jobId, toast, setLocation, onClose]);
