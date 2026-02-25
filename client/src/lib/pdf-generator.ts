@@ -118,6 +118,8 @@ function createPdfModal(html: string): void {
     border: none;
     z-index: 999998;
     background: white;
+    padding: 0 !important;
+    margin: 0 !important;
   `;
   
   console.log('Creating iframe for PDF generation');
@@ -217,9 +219,11 @@ function createPdfModal(html: string): void {
             html2canvas: { 
               scale: 2, 
               useCORS: true, 
+              allowTaint: true, // Дозволяємо контент з інших доменів
               letterRendering: true,
-              backgroundColor: '#ffffff',
+              backgroundColor: 'rgba(255, 255, 255, 0)', // Прозорий фон
               logging: false,
+              ignoreElements: ['canvas', 'svg'], // Ігноруємо canvas та svg елементи
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
           }).save().then(() => {

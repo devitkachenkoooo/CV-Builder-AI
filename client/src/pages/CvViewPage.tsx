@@ -214,7 +214,7 @@ export default function CvViewPage() {
             style={{ minHeight: '297mm' }}
           >
             {pdfUrl ? (
-              <div id="cv-content" className="w-full p-8">
+              <div id="cv-content" className="w-full p-16">
                 <iframe
                   src={pdfUrl}
                   className="w-full h-screen"
