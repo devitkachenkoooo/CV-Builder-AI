@@ -25,12 +25,14 @@
 
         body {
             font-family: var(--font-main);
-            background-color: #000;
+            background-color: transparent;
             color: var(--text-white);
             line-height: 1.5;
             display: flex;
             justify-content: center;
-            padding: 40px 0;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
         }
 
         .container {
@@ -38,7 +40,8 @@
             width: 210mm;
             min-height: 297mm;
             padding: 60px 80px;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            box-sizing: border-box;
+            box-shadow: none;
         }
 
         header {

@@ -121,51 +121,52 @@ function createPdfModal(html: string): void {
     padding: 0 !important;
     margin: 0 !important;
   `;
-  
+
   console.log('Creating iframe for PDF generation');
-  
+
   // Встановлюємо HTML контент в iframe
   document.body.appendChild(iframe);
-  
+
   iframe.onload = () => {
     console.log('Iframe loaded, setting up content');
-    
+
     try {
       const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
       if (!iframeDoc) {
         throw new Error('Cannot access iframe document');
       }
-      
+
       console.log('Writing HTML to iframe, HTML length:', html.length);
       console.log('HTML preview:', html.substring(0, 200) + '...');
-      
+
       iframeDoc.open();
       iframeDoc.write(html);
       iframeDoc.close();
-      
+
       console.log('HTML written to iframe successfully');
-      
+
       // Чекаємо завантаження стилів
       setTimeout(() => {
         console.log('Starting PDF generation after style loading');
         progress.textContent = 'Generating PDF file...';
-        
+
         // Перевіряємо чи є контент в iframe
         const iframeBody = iframeDoc.body;
         console.log('Iframe body content length:', iframeBody?.innerHTML?.length || 0);
-        
+
         // Прибираємо padding з body в iframe
         if (iframeBody) {
           iframeBody.style.padding = '0';
           iframeBody.style.margin = '0';
           iframeBody.style.backgroundColor = 'transparent';
-          console.log('Removed padding and margin from iframe body');
+          iframeBody.style.overflow = 'hidden';
+          console.log('Removed padding, margin and set overflow:hidden on iframe body');
         }
-        
+
         if (!iframeBody || iframeBody.innerHTML.length === 0) {
           console.error('Iframe body is empty');
           progress.textContent = 'No content to generate PDF';
-          
+
           // Cleanup on error
           setTimeout(() => {
             iframe.remove();
@@ -174,11 +175,11 @@ function createPdfModal(html: string): void {
           }, 2000);
           return;
         }
-        
+
         // Використовуємо html2pdf.js в iframe
         const script = iframeDoc.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-        
+
         script.onerror = () => {
           console.error('Failed to load html2pdf.js script');
           progress.textContent = 'Failed to load PDF library';
@@ -189,60 +190,63 @@ function createPdfModal(html: string): void {
             style.remove();
           }, 2000);
         };
-        
+
         script.onload = () => {
           console.log('html2pdf.js loaded successfully');
           console.log('Checking html2pdf availability in iframe:', 'html2pdf' in (iframe.contentWindow || {}));
-          
+
           if (iframe.contentWindow && 'html2pdf' in iframe.contentWindow) {
             console.log('Starting PDF generation with html2pdf');
             progress.textContent = 'Generating PDF file...';
-            
+
             // Створюємо контейнер для CV контенту
-            const cvContainer = iframeDoc.querySelector('.cv-container') || 
-                               iframeDoc.querySelector('.resume') || 
-                               iframeDoc.querySelector('[data-cv]') ||
-                               iframeDoc.body;
-            
+            const cvContainer = iframeDoc.querySelector('.cv-container') ||
+              iframeDoc.querySelector('.resume') ||
+              iframeDoc.querySelector('[data-cv]') ||
+              iframeDoc.body;
+
             console.log('CV container found:', !!cvContainer);
             console.log('CV container tag:', cvContainer?.tagName);
             console.log('CV container classes:', cvContainer?.className);
-            
-            if (!cvContainer) {
-              console.error('CV container not found, using body as fallback');
-            }
-            
-            const targetElement = cvContainer || iframeDoc.body;
-            
+
+            const targetElement = (cvContainer || iframeDoc.body) as HTMLElement;
+
+            // Critical: Ensure the target element has NO extra width or margins
+            targetElement.style.width = '210mm';
+            targetElement.style.margin = '0';
+            targetElement.style.padding = '0';
+            targetElement.style.boxSizing = 'border-box';
+
             try {
               (iframe.contentWindow as any).html2pdf().from(targetElement).set({
-            margin: 0, // Прибираємо відступ, оскільки він є на сторінці CV
-            filename: 'resume.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { 
-              scale: 2, 
-              useCORS: true, 
-              allowTaint: true,
-              letterRendering: true,
-              backgroundColor: 'rgba(255, 255, 255, 0)', // Прозорий фон
-              logging: false,
-              ignoreElements: ['canvas', 'svg'],
-            },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-          }).save().then(() => {
-              console.log('PDF saved successfully, cleaning up');
-              progress.textContent = 'PDF downloaded successfully!';
-
-              // Cleanup після успішного збереження
-              setTimeout(() => {
-                iframe.remove();
-                modal.remove();
-                style.remove();
-              }, 1000);
-            }).catch((error: any) => {
-              console.error('PDF generation error:', error);
+                margin: 0,
+                filename: 'resume.pdf',
+                image: { type: 'jpeg', quality: 1.0 },
+                html2canvas: {
+                  scale: 2,
+                  useCORS: true,
+                  allowTaint: true,
+                  letterRendering: true,
+                  backgroundColor: '#ffffff',
+                  logging: false,
+                  width: 793.7, // Exact width for A4 at 96 DPI
+                  windowWidth: 793.7,
+                },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
+              }).save().then(() => {
+                console.log('PDF saved successfully, cleaning up');
                 progress.textContent = 'PDF downloaded successfully!';
-                
+
+                // Cleanup після успішного збереження
+                setTimeout(() => {
+                  iframe.remove();
+                  modal.remove();
+                  style.remove();
+                }, 1000);
+              }).catch((error: any) => {
+                console.error('PDF generation error:', error);
+                progress.textContent = 'PDF downloaded successfully!';
+
                 // Cleanup після успішного збереження
                 setTimeout(() => {
                   iframe.remove();
@@ -252,7 +256,7 @@ function createPdfModal(html: string): void {
               }).catch((error: any) => {
                 console.error('PDF generation error:', error);
                 progress.textContent = 'PDF generation failed';
-                
+
                 // Cleanup on error
                 setTimeout(() => {
                   iframe.remove();
@@ -263,7 +267,7 @@ function createPdfModal(html: string): void {
             } catch (genError) {
               console.error('Error during PDF generation:', genError);
               progress.textContent = 'PDF generation failed';
-              
+
               // Cleanup on error
               setTimeout(() => {
                 iframe.remove();
@@ -274,7 +278,7 @@ function createPdfModal(html: string): void {
           } else {
             console.error('html2pdf not available in iframe after loading');
             progress.textContent = 'PDF library not available';
-            
+
             // Cleanup on error
             setTimeout(() => {
               iframe.remove();
@@ -283,24 +287,24 @@ function createPdfModal(html: string): void {
             }, 2000);
           }
         };
-        
+
         console.log('Appending html2pdf.js script to iframe head');
         iframeDoc.head.appendChild(script);
-        
+
         // Fallback: якщо html2pdf не завантажиться через 10 секунд
         setTimeout(() => {
           const contentWindow = iframe.contentWindow;
           if (contentWindow && !('html2pdf' in contentWindow)) {
             console.error('html2pdf.js failed to load within timeout');
             progress.textContent = 'PDF generation failed - trying alternative';
-            
+
             // Простий fallback - відкриваємо HTML в новій вкладці
             const newWindow = window.open();
             if (newWindow) {
               newWindow.document.write(html);
               newWindow.document.close();
               progress.textContent = 'Opened CV in new tab - print to PDF';
-              
+
               setTimeout(() => {
                 iframe.remove();
                 modal.remove();
@@ -320,7 +324,7 @@ function createPdfModal(html: string): void {
     } catch (error) {
       console.error('Iframe setup error:', error);
       progress.textContent = 'Failed to setup PDF generation';
-      
+
       // Cleanup on error
       setTimeout(() => {
         iframe.remove();
@@ -329,11 +333,11 @@ function createPdfModal(html: string): void {
       }, 2000);
     }
   };
-  
+
   iframe.onerror = () => {
     console.error('Iframe failed to load');
     progress.textContent = 'Failed to load PDF generator';
-    
+
     // Cleanup on error
     setTimeout(() => {
       iframe.remove();
@@ -341,7 +345,7 @@ function createPdfModal(html: string): void {
       style.remove();
     }, 2000);
   };
-  
+
   // Встановлюємо src для iframe
   console.log('Setting iframe src to about:blank');
   iframe.src = 'about:blank';
@@ -349,7 +353,7 @@ function createPdfModal(html: string): void {
 
 export async function generatePdfFromElement(options: PdfFromElementOptions): Promise<void> {
   const { element, onLoadingChange } = options;
-  
+
   // Показуємо лоадер на кнопці
   if (onLoadingChange) {
     onLoadingChange(true);
@@ -358,12 +362,12 @@ export async function generatePdfFromElement(options: PdfFromElementOptions): Pr
   try {
     // Отримуємо HTML з елемента
     const html = element.outerHTML;
-    
+
     // Створюємо модальне вікно генерації і чекаємо на завершення
     await new Promise<void>((resolve, reject) => {
       // Створюємо модальне вікно
       createPdfModal(html);
-      
+
       // Слухаємо коли модальне вікно закриється (означає завершення)
       const checkModal = setInterval(() => {
         const modal = document.getElementById('pdf-generation-modal');
@@ -372,14 +376,14 @@ export async function generatePdfFromElement(options: PdfFromElementOptions): Pr
           resolve();
         }
       }, 500);
-      
+
       // Таймаут на випадок проблем
       setTimeout(() => {
         clearInterval(checkModal);
         reject(new Error('PDF generation timeout'));
       }, 30000); // 30 секунд
     });
-    
+
   } catch (error) {
     console.error('Error generating PDF from element:', error);
     throw error;
@@ -401,29 +405,29 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
 
   try {
     console.log('Fetching PDF content from URL:', url);
-    
+
     // Fetch HTML content from URL
     const response = await fetch(url);
     console.log('Fetch response status:', response.status);
     console.log('Fetch response headers:', response.headers);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
     }
-    
+
     const html = await response.text();
     console.log('Fetched HTML length:', html.length);
     console.log('Fetched HTML preview:', html.substring(0, 300) + '...');
-    
+
     if (!html || html.trim().length === 0) {
       throw new Error('Empty HTML content received');
     }
-    
+
     // Створюємо модальне вікно генерації і чекаємо на завершення
     await new Promise<void>((resolve, reject) => {
       // Створюємо модальне вікно
       createPdfModal(html);
-      
+
       // Слухаємо коли модальне вікно закриється (означає завершення)
       const checkModal = setInterval(() => {
         const modal = document.getElementById('pdf-generation-modal');
@@ -432,14 +436,14 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
           resolve();
         }
       }, 500);
-      
+
       // Таймаут на випадок проблем
       setTimeout(() => {
         clearInterval(checkModal);
         reject(new Error('PDF generation timeout'));
       }, 30000); // 30 секунд
     });
-    
+
   } catch (error) {
     console.error('Error generating PDF from URL:', error);
     throw error;

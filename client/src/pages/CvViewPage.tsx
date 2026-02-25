@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { ArrowLeft, Download, Loader2, Mail, Phone, Linkedin, MapPin, Calendar, Award, Briefcase, GraduationCap, User, FileText, CheckCircle } from "lucide-react";
@@ -43,6 +43,61 @@ export default function CvViewPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [iframeHeight, setIframeHeight] = useState('297mm');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const updateScale = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.offsetWidth;
+        // 210mm is approximately 794px at 96 DPI
+        const cvWidthPx = 794;
+        const padding = 32; // Total horizontal padding in the container
+        const availableWidth = containerWidth - padding;
+
+        if (availableWidth < cvWidthPx) {
+          setScale(availableWidth / cvWidthPx);
+        } else {
+          setScale(1);
+        }
+      }
+    };
+
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    // Also update scale after a short delay to ensure layout is ready
+    const timer = setTimeout(updateScale, 100);
+
+    return () => {
+      window.removeEventListener('resize', updateScale);
+      clearTimeout(timer);
+    };
+  }, []);
+
+  const handleIframeLoad = (e: React.SyntheticEvent<HTMLIFrameElement>) => {
+    const iframe = e.currentTarget;
+    try {
+      if (iframe.contentWindow) {
+        // Give it a small delay for content to render
+        setTimeout(() => {
+          if (iframe.contentWindow) {
+            const body = iframe.contentWindow.document.body;
+            const html = iframe.contentWindow.document.documentElement;
+            const height = Math.max(
+              body.scrollHeight, body.offsetHeight,
+              html.clientHeight, html.scrollHeight, html.offsetHeight
+            );
+            setIframeHeight(`${height}px`);
+          }
+        }, 100);
+      }
+    } catch (err) {
+      console.error("Could not access iframe content for height calculation:", err);
+      // Fallback to default A4 height if cross-origin or other error
+      setIframeHeight('297mm');
+    }
+  };
 
   useEffect(() => {
     const fetchCvData = async () => {
@@ -51,7 +106,7 @@ export default function CvViewPage() {
       try {
         setIsLoading(true);
         const response = await fetch(`/api/resumes/${id}`);
-        
+
         if (!response.ok) {
           if (response.status === 404) {
             setError("CV not found");
@@ -79,7 +134,7 @@ export default function CvViewPage() {
     console.log('CvViewPage handleDownloadPDF called');
     console.log('cvData:', cvData);
     console.log('pdfUrl:', pdfUrl);
-    
+
     if (!cvData?.id || !pdfUrl) {
       console.error('Missing cvData.id or pdfUrl:', { cvDataId: cvData?.id, pdfUrl });
       toast({
@@ -89,10 +144,10 @@ export default function CvViewPage() {
       });
       return;
     }
-    
+
     try {
       setIsGeneratingPdf(true);
-      
+
       console.log('Calling generatePdfFromUrl with:', pdfUrl);
 
       await generatePdfFromUrl({
@@ -101,7 +156,7 @@ export default function CvViewPage() {
         windowWidth: 800,
         contentWidthMm: 190,
       });
-      
+
       toast({
         title: "PDF згенеровано! 🎉",
         description: "Ваше CV успішно завантажено.",
@@ -193,7 +248,7 @@ export default function CvViewPage() {
                 <p className="text-sm text-gray-500">{cvData.template?.name || 'Professional CV'}</p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <button
                 onClick={handleDownloadPDF}
@@ -239,31 +294,44 @@ export default function CvViewPage() {
               </div>
             </div>
 
-            {/* CV Content - Horizontal Scroll Container */}
-            <div className="overflow-x-auto bg-gray-100 p-8">
-              <div className="flex justify-center min-w-full">
-                <div 
-                  className="bg-white shadow-lg"
-                  style={{ 
+            {/* CV Content - Scale Container */}
+            <div
+              ref={containerRef}
+              className="bg-gray-100 p-4 sm:p-8 flex justify-center overflow-hidden"
+              style={{ minHeight: '500px' }}
+            >
+              <div
+                className="transition-transform duration-200 ease-out"
+                style={{
+                  transform: `scale(${scale})`,
+                  transformOrigin: 'top center',
+                  width: '210mm',
+                  height: `calc(${iframeHeight} * ${scale})`,
+                }}
+              >
+                <div
+                  className="bg-white shadow-lg relative"
+                  style={{
                     width: '210mm',
                     minWidth: '210mm',
-                    height: '297mm',
+                    height: iframeHeight,
                     minHeight: '297mm'
                   }}
                 >
                   {pdfUrl ? (
                     <iframe
                       src={pdfUrl}
-                      className="w-full h-full border-0"
-                      style={{ 
+                      onLoad={handleIframeLoad}
+                      className="w-full h-full border-0 absolute top-0 left-0"
+                      style={{
                         width: '210mm',
-                        height: '297mm'
+                        height: iframeHeight
                       }}
                       title="Generated CV HTML"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <div className="text-center">
+                    <div className="w-full h-full flex items-center justify-center bg-white">
+                      <div className="text-center p-8">
                         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                           <FileText className="w-8 h-8 text-gray-400" />
                         </div>
@@ -288,7 +356,7 @@ export default function CvViewPage() {
               </div>
               <p className="text-gray-600 text-sm">Стандарт A4, готовий до друку</p>
             </div>
-            
+
             <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
@@ -298,7 +366,7 @@ export default function CvViewPage() {
               </div>
               <p className="text-gray-600 text-sm">Згенеровано успішно</p>
             </div>
-            
+
             <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
