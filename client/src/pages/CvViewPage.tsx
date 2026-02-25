@@ -204,14 +204,18 @@ export default function CvViewPage() {
       </div>
 
       {/* Main Content */}
-      <div className="min-h-screen bg-slate-50 py-8 px-4">
+      <div className="min-h-screen bg-slate-50 py-4 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           {/* A4 Document Container */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white shadow-xl rounded-lg overflow-hidden"
-            style={{ minHeight: '297mm' }}
+            className="bg-white shadow-xl rounded-lg overflow-hidden print:shadow-none print:rounded-none"
+            style={{ 
+              minHeight: '297mm',
+              width: '100%',
+              maxWidth: '210mm' // A4 width constraint
+            }}
           >
             {pdfUrl ? (
               <div id="cv-content" className="w-full p-16">
