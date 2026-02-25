@@ -273,6 +273,55 @@ export async function registerRoutes(
     }
   });
 
+  // Generate PDF on demand
+  app.get("/api/resumes/:id/pdf", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      // Verify ownership
+      const cv = await storage.getGeneratedCv(id);
+      if (!cv) {
+        return res.status(404).json({ message: 'CV not found' });
+      }
+      if (cv.userId !== userId) {
+        return res.status(403).json({ message: 'Forbidden' });
+      }
+
+      if (!cv.pdfUrl) {
+        return res.status(404).json({ message: 'PDF file not found' });
+      }
+
+      // Read the HTML file
+      const htmlPath = path.join(process.cwd(), "client", "public", cv.pdfUrl);
+      const htmlContent = await fs.readFile(htmlPath, "utf-8");
+
+      // Convert HTML to PDF
+      const outputDir = path.join(process.cwd(), "client", "public", "generated");
+      await fs.mkdir(outputDir, { recursive: true });
+      
+      const pdfFilename = `cv-${id}-${Date.now()}.pdf`;
+      const pdfPath = path.join(outputDir, pdfFilename);
+      
+      await convertHtmlToPdf(htmlContent, pdfPath);
+
+      // Send PDF file
+      const pdfBuffer = await fs.readFile(pdfPath);
+      
+      // Clean up temporary PDF file
+      await fs.unlink(pdfPath);
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="cv-${id}.pdf"`);
+      res.send(pdfBuffer);
+      
+      console.log(`[PDF] Generated and sent PDF for CV ${id}`);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      res.status(500).json({ message: "Failed to generate PDF" });
+    }
+  });
+
   return httpServer;
 }
 
@@ -366,21 +415,20 @@ Return the complete HTML document with the CV content injected.`;
       // Update status: Generating PDF
       await storage.updateGeneratedCvStatus(jobId, "processing", "Generating PDF...");
 
-      // Convert HTML to PDF using Puppeteer
+      // Save HTML file (for viewing and PDF generation)
       const outputDir = path.join(process.cwd(), "client", "public", "generated");
       await fs.mkdir(outputDir, { recursive: true });
       
-      const filename = `cv-${jobId}-${Date.now()}.pdf`;
+      const filename = `cv-${jobId}-${Date.now()}.html`;
       const outputPath = path.join(outputDir, filename);
-      
-      await convertHtmlToPdf(generatedHtml, outputPath);
+      await fs.writeFile(outputPath, generatedHtml, "utf-8");
 
       const pdfUrl = `/generated/${filename}`;
 
       // Update status: Complete
       await storage.updateGeneratedCvStatus(jobId, "complete", undefined, pdfUrl);
 
-      console.log(`Successfully generated CV ${jobId} as PDF`);
+      console.log(`Successfully generated CV ${jobId} as HTML`);
     } catch (apiError) {
       console.error(`[AI] OpenAI API Error for job ${jobId}:`, apiError);
       
@@ -402,10 +450,9 @@ Return the complete HTML document with the CV content injected.`;
         const outputDir = path.join(process.cwd(), "client", "public", "generated");
         await fs.mkdir(outputDir, { recursive: true });
         
-        const filename = `cv-${jobId}-${Date.now()}.pdf`;
+        const filename = `cv-${jobId}-${Date.now()}.html`;
         const outputPath = path.join(outputDir, filename);
-        
-        await convertHtmlToPdf(templateHtml, outputPath);
+        await fs.writeFile(outputPath, templateHtml, "utf-8");
 
         const pdfUrl = `/generated/${filename}`;
 

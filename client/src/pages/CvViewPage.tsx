@@ -184,7 +184,7 @@ export default function CvViewPage() {
                 src={pdfUrl}
                 className="w-full h-screen"
                 style={{ minHeight: '842px' }}
-                title="Generated CV PDF"
+                title="Generated CV HTML"
               />
             ) : (
               <div className="p-8 text-center">
