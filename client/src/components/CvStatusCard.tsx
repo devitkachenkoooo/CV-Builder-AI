@@ -10,21 +10,21 @@ import type { GeneratedCvResponse } from "@shared/routes";
 // Function to get progress width based on progress text
 function getProgressWidth(progress?: string | null): string {
   if (!progress) return "25%";
-  
+
   const progressLower = progress.toLowerCase();
   if (progressLower.includes("starting")) return "10%";
   if (progressLower.includes("analyzing")) return "30%";
   if (progressLower.includes("formatting")) return "60%";
   if (progressLower.includes("finalizing")) return "85%";
   if (progressLower.includes("generating pdf")) return "90%";
-  
+
   return "50%"; // Default for unknown progress
 }
 
 export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
   // Poll if status is pending/processing
   const { data: polledJob } = usePollingJob(cv.id, cv.status);
-  
+
   const displayData = polledJob || cv;
   const isProcessing = displayData.status === "pending" || displayData.status === "processing";
   const isFailed = displayData.status === "failed";
@@ -40,7 +40,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
       const response = await fetch(`/api/resumes/${cv.id}`, {
         method: 'DELETE',
       });
-      
+
       if (response.ok) {
         toast({
           title: "CV видалено",
@@ -136,12 +136,12 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
 
           <div className="relative aspect-[1/1.414] bg-secondary/30 w-full overflow-hidden border-b border-border/50">
             {templateScreenshot ? (
-              <img 
-                src={templateScreenshot} 
+              <img
+                src={templateScreenshot}
                 alt={templateName}
                 className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${isProcessing ? 'opacity-30 grayscale' : ''}`}
-                onError={(e: React.SyntheticEvent<HTMLImageElement>) => { 
-                  e.currentTarget.src = 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400&q=80' 
+                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                  e.currentTarget.src = 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400&q=80'
                 }}
               />
             ) : (
@@ -192,11 +192,10 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
               <div className="flex justify-between items-start mb-2">
                 <h3 className="font-display font-bold text-foreground line-clamp-1">{templateName}</h3>
                 {/* Status Badge */}
-                <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                  isProcessing ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' :
-                  isComplete ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' :
-                  'bg-red-500/10 text-red-600 border border-red-500/20'
-                }`}>
+                <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${isProcessing ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' :
+                    isComplete ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' :
+                      'bg-red-500/10 text-red-600 border border-red-500/20'
+                  }`}>
                   {displayData.status}
                 </div>
               </div>
@@ -215,9 +214,9 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
             {/* Progress Bar (if processing) */}
             {isProcessing && (
               <div className="mt-4 w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-primary rounded-full transition-all duration-1000 ease-out animate-[pulse_2s_ease-in-out_infinite]"
-                  style={{ 
+                  style={{
                     width: getProgressWidth(displayData.progress)
                   }}
                 ></div>
@@ -234,6 +233,5 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
         </div>
       </Link>
     </>
-  );
   );
 }
