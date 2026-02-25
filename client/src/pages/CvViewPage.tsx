@@ -109,12 +109,34 @@ export default function CvViewPage() {
     );
   }
 
-  if (error || !parsedCvData) {
+  if (error || !cvData) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center max-w-md">
           <h1 className="text-2xl font-bold text-foreground mb-4">CV Not Found</h1>
           <p className="text-muted-foreground mb-6">{error || "The CV you're looking for doesn't exist or couldn't be loaded."}</p>
+          <button
+            onClick={handleGoBack}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to My Resumes
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if CV is still being generated
+  if (cvData.status !== "complete") {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-foreground mb-4">CV Still Generating</h1>
+          <p className="text-muted-foreground mb-6">
+            Your CV is being generated. Current status: {cvData.status}
+          </p>
           <button
             onClick={handleGoBack}
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"

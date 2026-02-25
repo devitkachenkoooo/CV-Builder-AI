@@ -8,6 +8,7 @@ import { processUploadedFile } from "./lib/file-processor";
 import multer from "multer";
 import OpenAI from "openai";
 import fs from "fs/promises";
+import fsSync from "fs";
 import path from "path";
 
 // Configure multer for file uploads
@@ -195,7 +196,26 @@ export async function registerRoutes(
         return res.status(403).json({ message: 'Forbidden' });
       }
 
+      // Delete the generated HTML file if it exists
+      if (cv.pdfUrl) {
+        try {
+          const filePath = path.join(process.cwd(), "client", "public", cv.pdfUrl);
+          console.log(`[DELETE] Attempting to delete file: ${filePath}`);
+          
+          if (fsSync.existsSync(filePath)) {
+            await fs.unlink(filePath);
+            console.log(`[DELETE] Successfully deleted file: ${filePath}`);
+          } else {
+            console.log(`[DELETE] File does not exist: ${filePath}`);
+          }
+        } catch (fileError) {
+          console.error(`[DELETE] Error deleting file ${cv.pdfUrl}:`, fileError);
+          // Continue with database deletion even if file deletion fails
+        }
+      }
+
       await storage.deleteGeneratedCv(id);
+      console.log(`[DELETE] Successfully deleted CV ${id} from database`);
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting resume:", error);
