@@ -76,17 +76,7 @@ export default function CvViewPage() {
   }, [id, toast]);
 
   const handleDownloadPDF = async () => {
-    if (!cvData || !pdfUrl) {
-      console.error('Missing cvData or pdfUrl:', { cvData, pdfUrl });
-      toast({
-        title: "PDF Generation Failed",
-        description: "CV data not loaded. Please try again.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    console.log('Generating PDF from URL:', pdfUrl);
+    if (!cvData?.id || !pdfUrl) return;
     
     try {
       setIsGeneratingPdf(true);

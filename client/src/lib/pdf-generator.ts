@@ -27,7 +27,7 @@ function createPdfModal(html: string): void {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 1);
+    background: rgba(0, 0, 0, 0.9);
     z-index: 999999;
     display: flex;
     align-items: center;
@@ -39,8 +39,10 @@ function createPdfModal(html: string): void {
   const modalContent = document.createElement('div');
   modalContent.style.cssText = `
     background: white;
-    border-radius: 12px;
     padding: 40px;
+    border-radius: 12px;
+    text-align: center;
+    color: white;
     max-width: 400px;
     width: 90%;
     text-align: center;
@@ -59,7 +61,42 @@ function createPdfModal(html: string): void {
     margin: 0 auto 20px;
   `;
 
-  // Додаємо CSS анімацію
+  // Створюємо текстові елементи
+  const title = document.createElement('h2');
+  title.textContent = 'Generating PDF';
+  title.style.cssText = `
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0 0 10px;
+    color: #1f2937;
+  `;
+
+  const subtitle = document.createElement('p');
+  subtitle.textContent = 'Please wait while we create your resume...';
+  subtitle.style.cssText = `
+    font-size: 16px;
+    color: #6b7280;
+    margin: 0 0 20px;
+  `;
+
+  const progress = document.createElement('p');
+  progress.textContent = 'Preparing document...';
+  progress.style.cssText = `
+    font-size: 14px;
+    color: #3b82f6;
+    margin: 0;
+    font-weight: 500;
+  `;
+
+  // Додаємо елементи до контенту
+  modalContent.appendChild(spinner);
+  modalContent.appendChild(title);
+  modalContent.appendChild(subtitle);
+  modalContent.appendChild(progress);
+  modal.appendChild(modalContent);
+  document.body.appendChild(modal);
+
+  // Додаємо CSS для анімації
   const style = document.createElement('style');
   style.textContent = `
     @keyframes spin {
@@ -69,240 +106,75 @@ function createPdfModal(html: string): void {
   `;
   document.head.appendChild(style);
 
-  // Створюємо текстові елементи
-  const title = document.createElement('h2');
-  title.textContent = 'Generating PDF';
-  title.style.cssText = `
-    font-size: 24px;
-    font-weight: 600;
-    color: #1f2937;
-    margin: 0 0 8px 0;
+  // Створюємо iframe для PDF
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    border: none;
+    z-index: 999998;
+    background: white;
   `;
-
-  const subtitle = document.createElement('p');
-  subtitle.textContent = 'Creating your resume PDF...';
-  subtitle.style.cssText = `
-    font-size: 16px;
-    color: #6b7280;
-    margin: 0 0 20px 0;
-  `;
-
-  const progress = document.createElement('div');
-  progress.style.cssText = `
-    font-size: 14px;
-    color: #9ca3af;
-    margin: 0;
-  `;
-
-  // Збираємо модальне вікно
-  modalContent.appendChild(spinner);
-  modalContent.appendChild(title);
-  modalContent.appendChild(subtitle);
-  modalContent.appendChild(progress);
-  modal.appendChild(modalContent);
-  document.body.appendChild(modal);
-
-  // Функція для генерації PDF
-  const generatePdf = async () => {
+  
+  // Встановлюємо HTML контент в iframe
+  document.body.appendChild(iframe);
+  
+  iframe.onload = () => {
     try {
-      progress.textContent = 'Preparing document...';
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        throw new Error('Cannot access iframe document');
+      }
       
-      // Дебагінг: перевіряємо HTML
-      console.log('PDF HTML content length:', html.length);
-      console.log('PDF HTML preview:', html.substring(0, 200) + '...');
+      iframeDoc.open();
+      iframeDoc.write(html);
+      iframeDoc.close();
       
-      // Створюємо тимчасовий div для PDF - робимо його точно як A4 сторінка
-      const tempDiv = document.createElement('div');
-      tempDiv.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 210mm;
-        height: 297mm;
-        background: white;
-        color: #333;
-        overflow: hidden;
-        visibility: visible;
-        opacity: 1;
-        padding: 15mm;
-        box-sizing: border-box;
-        font-family: 'Segoe UI', 'Arial', sans-serif;
-        font-size: 12px;
-        line-height: 1.4;
-        z-index: 999998;
-        border: 1px solid #ddd;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        border-radius: 4px;
-      `;
-      tempDiv.innerHTML = html;
-      document.body.appendChild(tempDiv);
-
-      // Дебагінг: перевіряємо розміри контенту
-      console.log('TempDiv dimensions:', {
-        scrollWidth: tempDiv.scrollWidth,
-        scrollHeight: tempDiv.scrollHeight,
-        offsetWidth: tempDiv.offsetWidth,
-        offsetHeight: tempDiv.offsetHeight
-      });
-
-      progress.textContent = 'Loading fonts and styles...';
-      
-      // Чекаємо 3 секунди для завантаження шрифтів і стилів
-      await new Promise<void>(resolve => setTimeout(resolve, 3000));
-
-      progress.textContent = 'Preparing PDF generation...';
-      
-      // Перевіряємо розміри після завантаження
-      console.log('TempDiv dimensions after font load:', {
-        scrollWidth: tempDiv.scrollWidth,
-        scrollHeight: tempDiv.scrollHeight,
-        offsetWidth: tempDiv.offsetWidth,
-        offsetHeight: tempDiv.offsetHeight
-      });
-
-      progress.textContent = 'Rendering content...';
-      
-      progress.textContent = 'Generating PDF file...';
-
-      // Використовуємо jsPDF для створення текстового PDF
-      const doc = new jsPDF({ 
-        orientation: 'portrait', 
-        unit: 'mm', 
-        format: 'a4' 
-      });
-      
-      console.log('Using jsPDF method for text-based PDF');
-      console.log('TempDiv content before PDF:', tempDiv.innerHTML.substring(0, 500));
-      
-      progress.textContent = 'Generating text-based PDF...';
-      
-      await new Promise<void>((resolve, reject) => {
-        try {
-          doc.html(tempDiv, {
-            x: 0,
-            y: 0,
-            width: 210, // Ширина A4 в mm
-            windowWidth: 210, // Вікно також A4 в mm
-            autoPaging: 'slice',
-            html2canvas: {
-              scale: 2, // Краща якість
-              useCORS: true,
-              allowTaint: true,
-              backgroundColor: '#ffffff',
-              logging: false,
-              width: 794, // 210mm в px
-              height: 1123, // 297mm в px
-            },
-            callback: function(doc) {
-              console.log('jsPDF callback executed');
-              console.log('PDF created successfully');
-              
-              // Перевіряємо чи є контент в PDF
-              const pageCount = doc.internal.pages.length - 1; // pages[0] is empty
-              console.log('PDF page count:', pageCount);
-              
-              if (pageCount > 0) {
-                doc.save('resume.pdf');
-                console.log('PDF saved successfully with text content');
-                resolve();
-              } else {
-                console.warn('PDF appears to be empty, trying alternative approach');
-                reject(new Error('Generated PDF appears to be empty'));
-              }
-            },
-          });
-        } catch (e) {
-          console.error('jsPDF error:', e);
-          reject(e);
-        }
-      }).catch(async (error: Error) => {
-        console.warn('jsPDF.html() failed, trying manual text extraction:', error);
-        
-        progress.textContent = 'Extracting text content manually...';
-        
-        // Fallback: витягуємо текст і створюємо PDF вручну
-        const textContent = tempDiv.innerText || tempDiv.textContent || '';
-        
-        if (textContent.trim().length > 0) {
-          console.log('Extracted text length:', textContent.length);
-          console.log('Text preview:', textContent.substring(0, 200));
-          
-          // Створюємо новий документ
-          const textDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-          
-          // Додаємо текст
-          const lines = textContent.split('\n');
-          let yPosition = 20;
-          
-          textDoc.setFontSize(12);
-          
-          for (const line of lines) {
-            if (yPosition > 280) { // Нова сторінка якщо потрібно
-              textDoc.addPage();
-              yPosition = 20;
-            }
-            
-            if (line.trim()) {
-              textDoc.text(line.trim(), 20, yPosition);
-              yPosition += 7;
-            }
-          }
-          
-          textDoc.save('resume.pdf');
-          console.log('PDF saved with extracted text content');
-        } else {
-          throw new Error('No content found to generate PDF');
-        }
-      });
-      
-      // Cleanup
-      tempDiv.remove();
-      
-      // Показуємо успішне завершення
-      progress.textContent = 'PDF downloaded successfully!';
-      spinner.style.display = 'none';
-      title.textContent = 'Success!';
-      subtitle.textContent = 'Your resume has been downloaded.';
-      
-      // Закриваємо модальне вікно через 1.5 секунди
+      // Чекаємо завантаження стилів
       setTimeout(() => {
-        modal.remove();
-        style.remove();
-      }, 1500);
-      
+        progress.textContent = 'Generating PDF file...';
+        
+        // Використовуємо html2pdf.js в iframe
+        const script = iframeDoc.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        script.onload = () => {
+          if (iframe.contentWindow && 'html2pdf' in iframe.contentWindow) {
+            (iframe.contentWindow as any).html2pdf().from(iframeDoc.body).set({
+              margin: 10,
+              filename: 'resume.pdf',
+              image: { type: 'jpeg', quality: 0.98 },
+              html2canvas: { scale: 2, useCORS: true },
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            }).save().then(() => {
+              // Cleanup
+              iframe.remove();
+              modal.remove();
+              style.remove();
+            }).catch((error: any) => {
+              console.error('PDF generation error:', error);
+              // Cleanup on error
+              iframe.remove();
+              modal.remove();
+              style.remove();
+            });
+          }
+        };
+        iframeDoc.head.appendChild(script);
+      }, 2000);
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      
-      // Показуємо помилку
-      spinner.style.display = 'none';
-      title.textContent = 'Error';
-      subtitle.textContent = 'Failed to generate PDF';
-      progress.textContent = error instanceof Error ? error.message : 'Unknown error occurred';
-      
-      // Додаємо кнопку закриття
-      const closeButton = document.createElement('button');
-      closeButton.textContent = 'Close';
-      closeButton.style.cssText = `
-        background: #3b82f6;
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 6px;
-        cursor: pointer;
-        margin-top: 20px;
-        font-size: 14px;
-      `;
-      closeButton.onclick = () => {
-        modal.remove();
-        style.remove();
-      };
-      modalContent.appendChild(closeButton);
+      console.error('Iframe setup error:', error);
+      // Cleanup on error
+      iframe.remove();
+      modal.remove();
+      style.remove();
     }
   };
-
-  // Запускаємо генерацію
-  generatePdf();
+  
+  // Встановлюємо src для iframe
+  iframe.src = 'about:blank';
 }
 
 export async function generatePdfFromElement(options: PdfFromElementOptions): Promise<void> {
