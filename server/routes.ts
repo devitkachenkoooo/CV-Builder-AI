@@ -5,6 +5,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { processUploadedFile } from "./lib/file-processor";
+import { validateCVContent, generateUserFriendlyMessage, formatSuggestionsForUser } from "./lib/cv-validator";
 import multer from "multer";
 import OpenAI from "openai";
 import fs from "fs/promises";
@@ -86,7 +87,7 @@ export async function registerRoutes(
       const cvText = fileResult.text;
       const sourceInfo = `Uploaded file: ${req.file.originalname}`;
 
-      // Parse template ID
+      // Parse template ID first
       const templateId = parseInt(req.body.templateId);
       if (isNaN(templateId) || templateId <= 0) {
         return res.status(400).json({
@@ -95,7 +96,7 @@ export async function registerRoutes(
         });
       }
 
-      // Create CV generation job
+      // Create CV generation job first
       const cv = await storage.createGeneratedCv({
         userId,
         templateId,
@@ -103,6 +104,44 @@ export async function registerRoutes(
         progress: "Initializing...",
         googleDocsUrl: null,
       });
+
+      // Validate CV content using AI
+      console.log(`[VALIDATION] Starting content validation for job ${cv.id}`);
+      await storage.updateGeneratedCvStatus(cv.id, "processing", "Аналіз якості даних...");
+      
+      const validationResult = await validateCVContent(cvText);
+      
+      if (!validationResult.isValid) {
+        const userMessage = generateUserFriendlyMessage(validationResult);
+        const suggestions = formatSuggestionsForUser(validationResult.suggestions || []);
+        const fullMessage = userMessage + suggestions;
+        
+        console.log(`[VALIDATION] Content rejected for job ${cv.id}: ${validationResult.quality}`);
+        
+        await storage.updateGeneratedCvStatus(
+          cv.id, 
+          "failed", 
+          undefined, 
+          undefined, 
+          fullMessage
+        );
+        
+        return res.status(400).json({
+          message: fullMessage,
+          field: "file",
+          validationDetails: {
+            isValid: false,
+            quality: validationResult.quality,
+            issues: validationResult.issues
+          }
+        });
+      }
+      
+      const userMessage = generateUserFriendlyMessage(validationResult);
+      console.log(`[VALIDATION] Content approved for job ${cv.id}: ${validationResult.quality}`);
+      
+      // Update status with positive feedback
+      await storage.updateGeneratedCvStatus(cv.id, "processing", userMessage);
 
       // Start async generation (don't await)
       generateCvAsync(cv.id, templateId, cvText, sourceInfo).catch(err => {
