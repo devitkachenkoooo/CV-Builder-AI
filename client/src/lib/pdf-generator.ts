@@ -111,25 +111,29 @@ function createPdfModal(html: string): void {
       console.log('PDF HTML content length:', html.length);
       console.log('PDF HTML preview:', html.substring(0, 200) + '...');
       
-      // Створюємо тимчасовий div для PDF - робимо його розміром A4
+      // Створюємо тимчасовий div для PDF - робимо його точно як A4 сторінка
       const tempDiv = document.createElement('div');
       tempDiv.style.cssText = `
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 210mm; /* Ширина A4 */
-        height: 297mm; /* Висота A4 */
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 210mm;
+        height: 297mm;
         background: white;
-        color: black;
-        overflow: visible;
+        color: #333;
+        overflow: hidden;
         visibility: visible;
         opacity: 1;
-        padding: 20px;
+        padding: 15mm;
         box-sizing: border-box;
         font-family: 'Segoe UI', 'Arial', sans-serif;
+        font-size: 12px;
+        line-height: 1.4;
         z-index: 999998;
-        transform: scale(3.78); /* Конвертуємо mm в px (1mm ≈ 3.78px) */
-        transform-origin: top left;
+        border: 1px solid #ddd;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        border-radius: 4px;
       `;
       tempDiv.innerHTML = html;
       document.body.appendChild(tempDiv);
@@ -179,16 +183,16 @@ function createPdfModal(html: string): void {
             x: 0,
             y: 0,
             width: 210, // Ширина A4 в mm
-            windowWidth: 210, // Вікно також A4
+            windowWidth: 210, // Вікно також A4 в mm
             autoPaging: 'slice',
             html2canvas: {
-              scale: 1,
+              scale: 2, // Краща якість
               useCORS: true,
               allowTaint: true,
               backgroundColor: '#ffffff',
               logging: false,
-              width: 794, // 210mm в px (210 * 3.78)
-              height: 1123, // 297mm в px (297 * 3.78)
+              width: 794, // 210mm в px
+              height: 1123, // 297mm в px
             },
             callback: function(doc) {
               console.log('jsPDF callback executed');
