@@ -77,19 +77,23 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
     }
   }, [jobStatus, jobId, toast, setLocation, onClose]);
 
-  if (!template || !isOpen) return null;
+  if (!template || !isOpen) {
+    console.log("[GenerateModal] Modal not rendering - isOpen:", isOpen, "template:", template?.name);
+    return null;
+  }
 
   // Show generation progress screen
   if (jobId && jobStatus) {
     return (
       <AnimatePresence>
         <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-          {/* Backdrop */}
+          {/* Backdrop - NOT clickable when generating */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+            // Remove onClick handler to prevent closing
           />
 
           {/* Progress Content */}
@@ -127,6 +131,8 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
             <p className="text-xs text-muted-foreground">
               This usually takes 30-60 seconds. You'll be redirected automatically when complete.
             </p>
+            
+            {/* Remove close button during generation */}
           </motion.div>
         </div>
       </AnimatePresence>
@@ -205,7 +211,7 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={!isPending ? onClose : undefined}
+          onClick={!isPending && !jobId ? onClose : undefined}
           className="absolute inset-0 bg-background/80 backdrop-blur-sm"
         />
 
@@ -216,14 +222,16 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
           className="relative w-full max-w-2xl bg-card rounded-2xl shadow-2xl border border-border/50 overflow-hidden flex flex-col md:flex-row"
         >
-          {/* Close Button */}
-          <button
-            onClick={onClose}
-            disabled={isPending}
-            className="absolute top-4 right-4 p-2 bg-black/5 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 rounded-full transition-colors z-10 disabled:opacity-50"
-          >
-            <X className="w-4 h-4 text-foreground" />
-          </button>
+          {/* Close Button - HIDE during generation */}
+          {!jobId && (
+            <button
+              onClick={onClose}
+              disabled={isPending}
+              className="absolute top-4 right-4 p-2 bg-black/5 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 rounded-full transition-colors z-10 disabled:opacity-50"
+            >
+              <X className="w-4 h-4 text-foreground" />
+            </button>
+          )}
 
           {/* Left: Template Preview */}
           <div className="w-full md:w-2/5 bg-secondary/50 p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-border">
