@@ -15,14 +15,19 @@ interface GenerateModalProps {
 }
 
 export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps) {
+  console.log("[GenerateModal] Component render, isOpen:", isOpen, "template:", template?.name);
+  
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [jobId, setJobId] = useState<number | null>(null);
+  console.log("[GenerateModal] State - jobId:", jobId, "selectedFile:", selectedFile?.name);
+  
   const { mutate: generateCv, isPending } = useGenerateCv();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
   // Set up polling when we have a jobId
+  console.log("[GenerateModal] About to call usePollingJob with jobId:", jobId);
   const { data: jobStatus } = usePollingJob(
     jobId || 0, // Pass 0 when no jobId, hook will be disabled
     "pending" // Always start with "pending" when we have a jobId
@@ -33,13 +38,14 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
 
   // Redirect to CV view when generation is complete
   useEffect(() => {
+    console.log("[GenerateModal] useEffect triggered");
     console.log("[GenerateModal] jobStatus:", jobStatus);
     console.log("[GenerateModal] jobId:", jobId);
     console.log("[GenerateModal] jobStatus.id:", jobStatus?.id);
     console.log("[GenerateModal] jobStatus.status:", jobStatus?.status);
     
     if (jobId && jobStatus?.status === "complete" && jobStatus.id) {
-      console.log("[GenerateModal] Redirecting to CV view:", `/cv/${jobStatus.id}`);
+      console.log("[GenerateModal] CONDITION MET - Redirecting to CV view:", `/cv/${jobStatus.id}`);
       toast({
         title: "CV Generated Successfully! 🎉",
         description: "Your CV has been generated and is ready to view.",
@@ -51,9 +57,15 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
       
       // Navigate after modal is closed
       setTimeout(() => {
+        console.log("[GenerateModal] Executing setLocation to:", `/cv/${jobStatus.id}`);
         setLocation(`/cv/${jobStatus.id}`);
       }, 100);
-    } else if (jobStatus?.status === "failed") {
+    } else {
+      console.log("[GenerateModal] CONDITION NOT MET - jobId:", jobId, "status:", jobStatus?.status, "id:", jobStatus?.id);
+    }
+    
+    if (jobStatus?.status === "failed") {
+      console.log("[GenerateModal] Generation failed - showing error");
       toast({
         title: "Generation Failed",
         description: jobStatus.errorMessage || "Failed to generate CV. Please try again.",
@@ -131,49 +143,47 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
       return;
     }
 
-    setIsValidating(true);
-    
-    try {
-      // Add minimum timeout for better UX (avoid flickering)
-      const timeoutPromise = new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      formData.append('templateId', template.id.toString());
-      
-      await Promise.all([timeoutPromise]);
-      
-      // If validation passes, proceed with generation
-      generateCv(
-        { templateId: template.id, file: selectedFile },
-        {
-          onSuccess: (response) => {
-            toast({
-              title: "Generation Started! 🎉",
-              description: "Your CV is being formatted by our AI. You'll be redirected automatically when it's ready.",
-            });
-            setJobId(response.jobId);
-            setSelectedFile(null);
-            // Don't close modal yet - wait for generation to complete
-          },
-          onError: (err) => {
-            toast({
-              title: "Error",
-              description: err.message,
-              variant: "destructive",
-            });
-          }
-        }
-      );
-    } catch (error) {
+    if (!template) {
       toast({
-        title: "Upload Error",
-        description: "Failed to upload file. Please try again.",
+        title: "No template selected",
+        description: "Please select a template to generate your CV.",
         variant: "destructive",
       });
-    } finally {
-      setIsValidating(false);
+      return;
+    }
+
+    try {
+      console.log("[GenerateModal] Starting generation with template:", template.id);
+      
+      generateCv({
+        templateId: template.id,
+        file: selectedFile,
+      }, {
+        onSuccess: (response) => {
+          console.log("[GenerateModal] Generation started, response:", response);
+          
+          toast({
+            title: "Generation Started! 🎉",
+            description: "Your CV is being formatted by our AI. You'll be redirected automatically when it's ready.",
+          });
+          
+          console.log("[GenerateModal] About to setJobId to:", response.jobId);
+          setJobId(response.jobId);
+          setSelectedFile(null);
+          
+          console.log("[GenerateModal] jobId set to:", response.jobId, "modal will stay open");
+        },
+        onError: (error) => {
+          console.error("[GenerateModal] Generation failed:", error);
+          toast({
+            title: "Generation Failed",
+            description: error instanceof Error ? error.message : "Failed to generate CV. Please try again.",
+            variant: "destructive",
+          });
+        }
+      });
+    } catch (error) {
+      console.error("[GenerateModal] Unexpected error:", error);
     }
   };
 

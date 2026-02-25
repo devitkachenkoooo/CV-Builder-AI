@@ -54,6 +54,7 @@ export function useGenerateCv() {
 // Hook for polling an individual CV's status
 export function usePollingJob(jobId: number, initialStatus: string) {
   const isPolling = (initialStatus === "pending" || initialStatus === "processing") && jobId > 0;
+  console.log(`[usePollingJob] Hook called with jobId: ${jobId}, initialStatus: ${initialStatus}, isPolling: ${isPolling}`);
   const queryClient = useQueryClient();
 
   return useQuery({
@@ -85,7 +86,9 @@ export function usePollingJob(jobId: number, initialStatus: string) {
       return false;
     },
     enabled: isPolling, // Only enable if we're polling AND have a valid jobId
-  });
+    });
+    
+    console.log(`[usePollingJob] Query enabled: ${isPolling}`);
 }
 
 // Hook for deleting a resume
