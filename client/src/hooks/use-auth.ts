@@ -18,7 +18,21 @@ async function fetchUser(): Promise<User | null> {
 }
 
 async function logout(): Promise<void> {
-  window.location.href = "/api/logout";
+  try {
+    const response = await fetch("/api/logout", {
+      method: "GET",
+      credentials: "include",
+    });
+    
+    if (response.ok) {
+      // Після успішного logout на сервері, перезавантажуємо сторінку
+      window.location.href = "/";
+    }
+  } catch (error) {
+    console.error("Logout failed:", error);
+    // У разі помилки, все одно перезавантажуємо на головну
+    window.location.href = "/";
+  }
 }
 
 export function useAuth() {

@@ -120,12 +120,9 @@ export async function setupAuth(app: Express) {
 
   app.get("/api/logout", (req, res) => {
     req.logout(() => {
-      res.redirect(
-        client.buildEndSessionUrl(config, {
-          client_id: process.env.REPL_ID!,
-          post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-        }).href
-      );
+      // Замість redirect на Replit OIDC, просто повертаємо успішну відповідь
+      // Клієнт сам зробить redirect на головну сторінку
+      res.json({ success: true });
     });
   });
 }
