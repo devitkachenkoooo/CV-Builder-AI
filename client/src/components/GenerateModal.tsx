@@ -116,7 +116,7 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          className="relative w-full max-w-2xl mx-2 sm:mx-4 bg-card rounded-2xl shadow-2xl border border-border/50 overflow-hidden flex flex-col md:flex-row max-h-[85vh] sm:max-h-[90vh] my-2 sm:my-4"
+          className="relative w-full max-w-2xl mx-2 sm:mx-4 bg-card rounded-2xl shadow-2xl border border-border/50 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden max-h-[95vh] md:max-h-[85vh] my-auto"
         >
           {/* Close Button */}
           <button
