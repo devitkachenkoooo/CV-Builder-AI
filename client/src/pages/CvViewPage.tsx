@@ -38,6 +38,7 @@ export default function CvViewPage() {
   const { toast } = useToast();
   const [cvData, setCvData] = useState<GeneratedCvResponse | null>(null);
   const [parsedCvData, setParsedCvData] = useState<CvData | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,53 +59,9 @@ export default function CvViewPage() {
 
         // Parse the HTML content to extract structured data
         if (data.pdfUrl) {
-          // For now, we'll create mock data based on the template
-          // In a real implementation, you'd parse the actual CV content
-          const mockParsedData: CvData = {
-            personalInfo: {
-              name: "John Doe",
-              title: "Senior Software Engineer",
-              email: "john.doe@example.com",
-              phone: "+1 (555) 123-4567",
-              linkedin: "linkedin.com/in/johndoe",
-              location: "San Francisco, CA"
-            },
-            summary: "Experienced software engineer with 8+ years in full-stack development, specializing in React, Node.js, and cloud architectures. Passionate about building scalable applications and leading cross-functional teams.",
-            experience: [
-              {
-                title: "Senior Software Engineer",
-                company: "Tech Corp",
-                location: "San Francisco, CA",
-                duration: "2020 - Present",
-                description: [
-                  "Led development of microservices architecture serving 1M+ users",
-                  "Reduced API response times by 40% through optimization",
-                  "Mentored junior developers and conducted code reviews"
-                ]
-              },
-              {
-                title: "Software Engineer",
-                company: "StartupXYZ",
-                location: "New York, NY",
-                duration: "2018 - 2020",
-                description: [
-                  "Built React-based dashboard with real-time data visualization",
-                  "Implemented CI/CD pipelines reducing deployment time by 60%",
-                  "Collaborated with product team to define technical requirements"
-                ]
-              }
-            ],
-            education: [
-              {
-                degree: "Bachelor of Science in Computer Science",
-                institution: "University of Technology",
-                location: "Boston, MA",
-                duration: "2014 - 2018"
-              }
-            ],
-            skills: ["JavaScript", "TypeScript", "React", "Node.js", "Python", "AWS", "Docker", "PostgreSQL", "MongoDB"]
-          };
-          setParsedCvData(mockParsedData);
+          // Show the actual generated HTML file instead of mock data
+          console.log("[CvViewPage] Showing generated CV from:", data.pdfUrl);
+          setPdfUrl(data.pdfUrl);
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load CV';
@@ -200,136 +157,18 @@ export default function CvViewPage() {
             className="bg-white shadow-xl rounded-lg overflow-hidden"
             style={{ minHeight: '297mm' }}
           >
-            <div className="p-8 space-y-8">
-              {/* Header Section */}
-              <div className="border-b border-border pb-6">
-                <h1 className="text-3xl font-bold text-foreground mb-2" style={{ fontSize: '24pt' }}>
-                  {parsedCvData.personalInfo.name}
-                </h1>
-                <p className="text-xl text-muted-foreground mb-4" style={{ fontSize: '16pt' }}>
-                  {parsedCvData.personalInfo.title}
-                </p>
-                
-                <div className="flex flex-wrap gap-4 text-sm" style={{ fontSize: '11pt' }}>
-                  <div className="flex items-center gap-1">
-                    <Mail className="w-4 h-4 text-primary" />
-                    <span>{parsedCvData.personalInfo.email}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Phone className="w-4 h-4 text-primary" />
-                    <span>{parsedCvData.personalInfo.phone}</span>
-                  </div>
-                  {parsedCvData.personalInfo.linkedin && (
-                    <div className="flex items-center gap-1">
-                      <Linkedin className="w-4 h-4 text-primary" />
-                      <span>{parsedCvData.personalInfo.linkedin}</span>
-                    </div>
-                  )}
-                  {parsedCvData.personalInfo.location && (
-                    <div className="flex items-center gap-1">
-                      <MapPin className="w-4 h-4 text-primary" />
-                      <span>{parsedCvData.personalInfo.location}</span>
-                    </div>
-                  )}
-                </div>
+            {pdfUrl ? (
+              <iframe
+                src={pdfUrl}
+                className="w-full h-screen"
+                style={{ minHeight: '842px' }}
+                title="Generated CV"
+              />
+            ) : (
+              <div className="p-8 text-center">
+                <p className="text-muted-foreground">CV not available</p>
               </div>
-
-              {/* Professional Summary */}
-              <div>
-                <h2 className="text-lg font-semibold text-foreground uppercase tracking-wide mb-3" style={{ fontSize: '14pt' }}>
-                  Professional Summary
-                </h2>
-                <p className="text-muted-foreground leading-relaxed" style={{ fontSize: '11pt' }}>
-                  {parsedCvData.summary}
-                </p>
-              </div>
-
-              {/* Experience Section */}
-              <div>
-                <h2 className="text-lg font-semibold text-foreground uppercase tracking-wide mb-4 flex items-center gap-2" style={{ fontSize: '14pt' }}>
-                  <Briefcase className="w-5 h-5" />
-                  Professional Experience
-                </h2>
-                <div className="space-y-6">
-                  {parsedCvData.experience.map((exp, index) => (
-                    <div key={index} className="relative">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h3 className="font-semibold text-foreground" style={{ fontSize: '12pt' }}>
-                            {exp.title}
-                          </h3>
-                          <p className="text-primary font-medium" style={{ fontSize: '11pt' }}>
-                            {exp.company}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-muted-foreground" style={{ fontSize: '10pt' }}>
-                            {exp.location}
-                          </p>
-                          <p className="text-sm text-muted-foreground" style={{ fontSize: '10pt' }}>
-                            {exp.duration}
-                          </p>
-                        </div>
-                      </div>
-                      <ul className="list-disc list-inside space-y-1 text-muted-foreground" style={{ fontSize: '11pt' }}>
-                        {exp.description.map((desc, descIndex) => (
-                          <li key={descIndex}>{desc}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Education Section */}
-              <div>
-                <h2 className="text-lg font-semibold text-foreground uppercase tracking-wide mb-4 flex items-center gap-2" style={{ fontSize: '14pt' }}>
-                  <GraduationCap className="w-5 h-5" />
-                  Education
-                </h2>
-                <div className="space-y-4">
-                  {parsedCvData.education.map((edu, index) => (
-                    <div key={index} className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-semibold text-foreground" style={{ fontSize: '12pt' }}>
-                          {edu.degree}
-                        </h3>
-                        <p className="text-primary font-medium" style={{ fontSize: '11pt' }}>
-                          {edu.institution}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground" style={{ fontSize: '10pt' }}>
-                          {edu.location}
-                        </p>
-                        <p className="text-sm text-muted-foreground" style={{ fontSize: '10pt' }}>
-                          {edu.duration}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Skills Section */}
-              <div>
-                <h2 className="text-lg font-semibold text-foreground uppercase tracking-wide mb-4 flex items-center gap-2" style={{ fontSize: '14pt' }}>
-                  <Award className="w-5 h-5" />
-                  Technical Skills
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  {parsedCvData.skills.map((skill, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-sm"
-                      style={{ fontSize: '10pt' }}
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
+            )}
           </motion.div>
         </div>
       </div>
