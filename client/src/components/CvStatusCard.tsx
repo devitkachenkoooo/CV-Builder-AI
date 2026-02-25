@@ -71,20 +71,22 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
       <div className="glass-card rounded-2xl overflow-hidden group relative flex flex-col cursor-pointer hover:shadow-xl transition-all duration-300">
         {/* Delete Button - Always visible for non-processing CVs */}
         {!isProcessing && (
-          <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-            <AlertDialogTrigger asChild>
-              <button
-                disabled={isDeleting}
-                className="absolute top-3 left-3 p-2 bg-destructive hover:bg-destructive/90 text-white rounded-full shadow-lg transition-all duration-200 hover:scale-110 hover:shadow-xl z-10 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Видалити CV"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </AlertDialogTrigger>
+          <button
+            disabled={isDeleting}
+            className="absolute top-3 left-3 p-2 bg-destructive hover:bg-destructive/90 text-white rounded-full shadow-lg transition-all duration-200 hover:scale-110 hover:shadow-xl z-10 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Видалити CV"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDeleteDialogOpen(true);
+            }}
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
+
+        {/* Delete Dialog */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Видалити CV?</AlertDialogTitle>
@@ -117,7 +119,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        )}
+
           {/* Delete Button Overlay - Prevent click events when delete dialog is open */}
           {!isProcessing && isDeleteDialogOpen && (
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-20 flex items-center justify-center">
