@@ -136,65 +136,187 @@ function createPdfModal(html: string): void {
         throw new Error('Cannot access iframe document');
       }
       
-      console.log('Writing HTML to iframe');
+      console.log('Writing HTML to iframe, HTML length:', html.length);
+      console.log('HTML preview:', html.substring(0, 200) + '...');
+      
       iframeDoc.open();
       iframeDoc.write(html);
       iframeDoc.close();
       
+      console.log('HTML written to iframe successfully');
+      
       // Чекаємо завантаження стилів
       setTimeout(() => {
-        console.log('Starting PDF generation');
+        console.log('Starting PDF generation after style loading');
         progress.textContent = 'Generating PDF file...';
+        
+        // Перевіряємо чи є контент в iframe
+        const iframeBody = iframeDoc.body;
+        console.log('Iframe body content length:', iframeBody?.innerHTML?.length || 0);
+        
+        if (!iframeBody || iframeBody.innerHTML.length === 0) {
+          console.error('Iframe body is empty');
+          progress.textContent = 'No content to generate PDF';
+          
+          // Cleanup on error
+          setTimeout(() => {
+            iframe.remove();
+            modal.remove();
+            style.remove();
+          }, 2000);
+          return;
+        }
         
         // Використовуємо html2pdf.js в iframe
         const script = iframeDoc.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-        script.onload = () => {
-          console.log('html2pdf.js loaded, generating PDF');
-          
-          if (iframe.contentWindow && 'html2pdf' in iframe.contentWindow) {
-            (iframe.contentWindow as any).html2pdf().from(iframeDoc.body).set({
-              margin: 10,
-              filename: 'resume.pdf',
-              image: { type: 'jpeg', quality: 0.98 },
-              html2canvas: { scale: 2, useCORS: true },
-              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            }).save().then(() => {
-              console.log('PDF saved successfully, cleaning up');
-              
-              // Cleanup
-              iframe.remove();
-              modal.remove();
-              style.remove();
-            }).catch((error: any) => {
-              console.error('PDF generation error:', error);
-              // Cleanup on error
-              iframe.remove();
-              modal.remove();
-              style.remove();
-            });
-          } else {
-            console.error('html2pdf not available in iframe');
-            // Cleanup on error
+        
+        script.onerror = () => {
+          console.error('Failed to load html2pdf.js script');
+          progress.textContent = 'Failed to load PDF library';
+          // Cleanup on error
+          setTimeout(() => {
             iframe.remove();
             modal.remove();
             style.remove();
+          }, 2000);
+        };
+        
+        script.onload = () => {
+          console.log('html2pdf.js loaded successfully');
+          console.log('Checking html2pdf availability in iframe:', 'html2pdf' in iframe.contentWindow);
+          
+          if (iframe.contentWindow && 'html2pdf' in iframe.contentWindow) {
+            console.log('Starting PDF generation with html2pdf');
+            progress.textContent = 'Generating PDF file...';
+            
+            try {
+              (iframe.contentWindow as any).html2pdf().from(iframeDoc.body).set({
+                margin: 10,
+                filename: 'resume.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+              }).save().then(() => {
+                console.log('PDF saved successfully, cleaning up');
+                progress.textContent = 'PDF downloaded successfully!';
+                
+                // Cleanup після успішного збереження
+                setTimeout(() => {
+                  iframe.remove();
+                  modal.remove();
+                  style.remove();
+                }, 1000);
+              }).catch((error: any) => {
+                console.error('PDF generation error:', error);
+                progress.textContent = 'PDF generation failed';
+                
+                // Cleanup on error
+                setTimeout(() => {
+                  iframe.remove();
+                  modal.remove();
+                  style.remove();
+                }, 2000);
+              });
+            } catch (genError) {
+              console.error('Error during PDF generation:', genError);
+              progress.textContent = 'PDF generation failed';
+              
+              // Cleanup on error
+              setTimeout(() => {
+                iframe.remove();
+                modal.remove();
+                style.remove();
+              }, 2000);
+            }
+          } else {
+            console.error('html2pdf not available in iframe after loading');
+            progress.textContent = 'PDF library not available';
+            
+            // Cleanup on error
+            setTimeout(() => {
+              iframe.remove();
+              modal.remove();
+              style.remove();
+            }, 2000);
           }
         };
+        
+        console.log('Appending html2pdf.js script to iframe head');
         iframeDoc.head.appendChild(script);
+        
+        // Fallback: якщо html2pdf не завантажиться через 10 секунд
+        setTimeout(() => {
+          if (iframe.contentWindow && !('html2pdf' in iframe.contentWindow)) {
+            console.error('html2pdf.js failed to load within timeout');
+            progress.textContent = 'PDF generation failed - trying alternative';
+            
+            // Простий fallback - відкриваємо HTML в новій вкладці
+            const newWindow = window.open();
+            if (newWindow) {
+              newWindow.document.write(html);
+              newWindow.document.close();
+              progress.textContent = 'Opened CV in new tab - print to PDF';
+              
+              setTimeout(() => {
+                iframe.remove();
+                modal.remove();
+                style.remove();
+              }, 3000);
+            } else {
+              progress.textContent = 'Failed to open new tab';
+              setTimeout(() => {
+                iframe.remove();
+                modal.remove();
+                style.remove();
+              }, 2000);
+            }
+          }
+        }, 10000);
       }, 2000);
     } catch (error) {
       console.error('Iframe setup error:', error);
+      progress.textContent = 'Failed to setup PDF generation';
+      
       // Cleanup on error
+      setTimeout(() => {
+        iframe.remove();
+        modal.remove();
+        style.remove();
+      }, 2000);
+    }
+  };
+  
+  iframe.onerror = () => {
+    console.error('Iframe failed to load');
+    progress.textContent = 'Failed to load PDF generator';
+    
+    // Cleanup on error
+    setTimeout(() => {
       iframe.remove();
       modal.remove();
       style.remove();
-    }
+    }, 2000);
   };
   
   // Встановлюємо src для iframe
   console.log('Setting iframe src to about:blank');
   iframe.src = 'about:blank';
+  
+  // Додаткова перевірка - якщо iframe.onload не спрацює
+  setTimeout(() => {
+    if (!iframe.contentDocument) {
+      console.error('Iframe contentDocument not available after timeout');
+      progress.textContent = 'Failed to initialize PDF generation';
+      
+      // Cleanup on error
+      setTimeout(() => {
+        iframe.remove();
+        modal.remove();
+        style.remove();
+      }, 2000);
+    }
+  }, 5000);
 }
 
 export async function generatePdfFromElement(options: PdfFromElementOptions): Promise<void> {
