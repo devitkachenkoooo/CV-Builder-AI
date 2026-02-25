@@ -111,15 +111,14 @@ function createPdfModal(html: string): void {
       console.log('PDF HTML content length:', html.length);
       console.log('PDF HTML preview:', html.substring(0, 200) + '...');
       
-      // Створюємо тимчасовий div для PDF - робимо його видимим для завантаження шрифтів
+      // Створюємо тимчасовий div для PDF - робимо його на весь екран під модаллю
       const tempDiv = document.createElement('div');
       tempDiv.style.cssText = `
         position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 800px;
-        height: auto;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
         background: white;
         color: black;
         overflow: visible;
@@ -129,8 +128,6 @@ function createPdfModal(html: string): void {
         box-sizing: border-box;
         font-family: 'Segoe UI', 'Arial', sans-serif;
         z-index: 999998;
-        border-radius: 8px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
       `;
       tempDiv.innerHTML = html;
       document.body.appendChild(tempDiv);
@@ -150,13 +147,8 @@ function createPdfModal(html: string): void {
 
       progress.textContent = 'Preparing PDF generation...';
       
-      // Тепер ховаємо tempDiv за екран
-      tempDiv.style.left = '-9999px';
-      tempDiv.style.top = '0';
-      tempDiv.style.transform = 'none';
-      
-      // Знову перевіряємо розміри
-      console.log('TempDiv dimensions after hiding:', {
+      // Перевіряємо розміри після завантаження
+      console.log('TempDiv dimensions after font load:', {
         scrollWidth: tempDiv.scrollWidth,
         scrollHeight: tempDiv.scrollHeight,
         offsetWidth: tempDiv.offsetWidth,
@@ -167,71 +159,90 @@ function createPdfModal(html: string): void {
       
       progress.textContent = 'Generating PDF file...';
 
-      // Використовуємо jsPDF як основний метод
+      // Використовуємо jsPDF для створення текстового PDF
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       
-      console.log('Using jsPDF method');
+      console.log('Using jsPDF method for text-based PDF');
       console.log('TempDiv content before PDF:', tempDiv.innerHTML.substring(0, 500));
-      console.log('TempDiv computed styles:', window.getComputedStyle(tempDiv));
       
-      // Спробуємо спочатку html2canvas, потім jsPDF
-      progress.textContent = 'Capturing content with html2canvas...';
+      progress.textContent = 'Generating text-based PDF...';
       
-      try {
-        // Імпортуємо html2canvas динамічно
-        const html2canvas = (await import('html2canvas')).default;
-        
-        const canvas = await html2canvas(tempDiv, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#ffffff',
-          width: tempDiv.scrollWidth,
-          height: tempDiv.scrollHeight,
-          logging: true,
-        });
-        
-        console.log('Canvas created successfully');
-        console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
-        
-        progress.textContent = 'Adding canvas to PDF...';
-        
-        const imgData = canvas.toDataURL('image/png');
-        const pdfWidth = doc.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        
-        doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        doc.save('resume.pdf');
-        
-        console.log('PDF saved successfully with html2canvas + jsPDF');
-        
-      } catch (canvasError) {
-        console.warn('html2canvas failed, trying jsPDF.html():', canvasError);
-        
-        progress.textContent = 'Trying jsPDF.html() method...';
-        
-        await new Promise<void>((resolve, reject) => {
-          try {
-            doc.html(tempDiv, {
-              x: 10,
-              y: 10,
-              width: 190,
-              windowWidth: 800,
-              autoPaging: 'text',
-              callback: function(doc) {
-                console.log('jsPDF callback executed');
-                console.log('PDF created successfully');
+      await new Promise<void>((resolve, reject) => {
+        try {
+          doc.html(tempDiv, {
+            x: 10,
+            y: 10,
+            width: 190,
+            windowWidth: 800,
+            autoPaging: 'slice',
+            html2canvas: {
+              scale: 1,
+              useCORS: true,
+              allowTaint: true,
+              backgroundColor: '#ffffff',
+              logging: false,
+            },
+            callback: function(doc) {
+              console.log('jsPDF callback executed');
+              console.log('PDF created successfully');
+              
+              // Перевіряємо чи є контент в PDF
+              const pageCount = doc.internal.pages.length - 1; // pages[0] is empty
+              console.log('PDF page count:', pageCount);
+              
+              if (pageCount > 0) {
                 doc.save('resume.pdf');
-                console.log('PDF saved successfully with jsPDF');
+                console.log('PDF saved successfully with text content');
                 resolve();
-              },
-            });
-          } catch (e) {
-            console.error('jsPDF error:', e);
-            reject(e);
+              } else {
+                console.warn('PDF appears to be empty, trying alternative approach');
+                reject(new Error('Generated PDF appears to be empty'));
+              }
+            },
+          });
+        } catch (e) {
+          console.error('jsPDF error:', e);
+          reject(e);
+        }
+      }).catch(async (error) => {
+        console.warn('jsPDF.html() failed, trying manual text extraction:', error);
+        
+        progress.textContent = 'Extracting text content manually...';
+        
+        // Fallback: витягуємо текст і створюємо PDF вручну
+        const textContent = tempDiv.innerText || tempDiv.textContent || '';
+        
+        if (textContent.trim().length > 0) {
+          console.log('Extracted text length:', textContent.length);
+          console.log('Text preview:', textContent.substring(0, 200));
+          
+          // Створюємо новий документ
+          const textDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+          
+          // Додаємо текст
+          const lines = textContent.split('\n');
+          let yPosition = 20;
+          
+          textDoc.setFontSize(12);
+          
+          for (const line of lines) {
+            if (yPosition > 280) { // Нова сторінка якщо потрібно
+              textDoc.addPage();
+              yPosition = 20;
+            }
+            
+            if (line.trim()) {
+              textDoc.text(line.trim(), 20, yPosition);
+              yPosition += 7;
+            }
           }
-        });
-      }
+          
+          textDoc.save('resume.pdf');
+          console.log('PDF saved with extracted text content');
+        } else {
+          throw new Error('No content found to generate PDF');
+        }
+      });
       
       // Cleanup
       tempDiv.remove();
