@@ -26,6 +26,12 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
+  // Log when onClose is called
+  const handleClose = () => {
+    console.log("[GenerateModal] onClose called - jobId:", jobId, "jobStatus:", jobStatus);
+    onClose();
+  };
+
   // Set up polling when we have a jobId
   console.log("[GenerateModal] About to call usePollingJob with jobId:", jobId);
   const { data: jobStatus } = usePollingJob(
@@ -52,16 +58,23 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
       setLocation(`/cv/${jobStatus.id}`);
       
       toast({
-        title: "CV Generated Successfully! 🎉",
+        title: "CV Generated Successfully! ",
         description: "Your CV has been generated and is ready to view.",
       });
       
-      // Close modal and reset state after navigation
+      // Add delay before closing modal to see what happens
       setTimeout(() => {
-        console.log("[GenerateModal] Closing modal and resetting jobId");
-        setJobId(null);
-        onClose();
-      }, 100);
+        console.log("[GenerateModal] 5 seconds passed - checking status before closing");
+        console.log("[GenerateModal] Current jobId before closing:", jobId);
+        console.log("[GenerateModal] Current jobStatus before closing:", jobStatus);
+        
+        // Close modal and reset state after delay
+        setTimeout(() => {
+          console.log("[GenerateModal] Closing modal and resetting jobId");
+          setJobId(null);
+          handleClose();
+        }, 1000);
+      }, 5000); // 5 second delay to see what happens
     } else {
       console.log("[GenerateModal] CONDITION NOT MET - jobId:", jobId, "status:", jobStatus?.status, "id:", jobStatus?.id);
     }
@@ -79,6 +92,8 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
 
   if (!template || !isOpen) {
     console.log("[GenerateModal] Modal not rendering - isOpen:", isOpen, "template:", template?.name);
+    console.log("[GenerateModal] Current jobId when modal closed:", jobId);
+    console.log("[GenerateModal] Current jobStatus when modal closed:", jobStatus);
     return null;
   }
 
@@ -211,7 +226,7 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={!isPending && !jobId ? onClose : undefined}
+          onClick={!isPending && !jobId ? handleClose : undefined}
           className="absolute inset-0 bg-background/80 backdrop-blur-sm"
         />
 
@@ -225,7 +240,7 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
           {/* Close Button - HIDE during generation */}
           {!jobId && (
             <button
-              onClick={onClose}
+              onClick={handleClose}
               disabled={isPending}
               className="absolute top-4 right-4 p-2 bg-black/5 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 rounded-full transition-colors z-10 disabled:opacity-50"
             >
