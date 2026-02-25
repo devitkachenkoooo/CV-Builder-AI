@@ -80,15 +80,17 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
   iframe.id = 'pdf-render-frame';
   iframe.style.cssText = `
     position: fixed;
-    top: 45%;
+    top: 50%;
     left: 50%;
     transform: translate(-50%, -50%) scale(${visualScale});
     width: ${targetWidth}px;
-    height: 1123px;
+    height: auto; /* Dynamic height */
+    min-height: 1123px; /* At least one A4 page */
+    max-height: 85vh;
     border: none;
-    background: white;
+    background: transparent;
     box-shadow: 0 0 60px rgba(0,0,0,0.5);
-    z-index: 999980; /* LOWER than overlay to stay behind */
+    z-index: 999980;
     border-radius: 2px;
     pointer-events: none;
     visibility: visible;
@@ -112,17 +114,26 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
       doc.write(html);
       doc.close();
 
-      // Ensure consistent internal styling
-      const bodyStyle = doc.createElement('style');
-      bodyStyle.textContent = `
-        body { margin: 0; padding: 0; width: ${targetWidth}px; overflow: hidden; background: white; }
-        .container, .cv-container, .resume { box-shadow: none !important; margin: 0 !important; border: none !important; }
-      `;
-      doc.head.appendChild(bodyStyle);
-
       // Give it a moment to render everything
       setTimeout(() => {
-        statusText.textContent = 'Downloading PDF...';
+        statusText.textContent = 'Analyzing styles...';
+
+        const captureElement = doc.querySelector('.container') ||
+          doc.querySelector('.cv-container') ||
+          doc.querySelector('.resume') ||
+          doc.body;
+
+        // --- SMART BACKGROUND DETECTION ---
+        const computedStyle = iframe.contentWindow?.getComputedStyle(captureElement as Element);
+        const bgColor = computedStyle?.backgroundColor || '#ffffff';
+        doc.body.style.backgroundColor = bgColor; // Fill extra pages with theme color
+
+        // Ensure content is strictly 210mm wide for calculation
+        if (captureElement instanceof HTMLElement) {
+          captureElement.style.width = '210mm';
+          captureElement.style.margin = '0 auto';
+          captureElement.style.boxShadow = 'none';
+        }
 
         const win = iframe.contentWindow as any;
         const script = doc.createElement('script');
@@ -130,20 +141,17 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
 
         script.onload = () => {
           if (win.html2pdf) {
-            const captureElement = doc.querySelector('.container') ||
-              doc.querySelector('.cv-container') ||
-              doc.querySelector('.resume') ||
-              doc.body;
+            statusText.textContent = 'Creating pages...';
 
             win.html2pdf().from(captureElement).set({
               margin: 0,
               filename: filename,
-              pagebreak: { mode: ['css', 'legacy'], avoid: '.page-break-avoid' },
+              pagebreak: { mode: ['css', 'legacy'], avoid: ['img', '.section-title'] },
               image: { type: 'jpeg', quality: 0.98 },
               html2canvas: {
                 scale: 2,
                 useCORS: true,
-                backgroundColor: '#ffffff',
+                backgroundColor: bgColor,
                 width: targetWidth,
                 windowWidth: targetWidth,
                 scrollY: 0,
@@ -160,8 +168,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               }, 800);
             }).catch((err: any) => {
               console.error('PDF Generation failed:', err);
-              overlay.remove();
-              iframe.remove();
+              overlay.remove(); iframe.remove();
             });
           }
         };
