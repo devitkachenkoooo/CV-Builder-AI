@@ -4,6 +4,7 @@ import { FileText, Loader2, CheckCircle2, AlertCircle, Calendar, Eye, Download, 
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import type { GeneratedCvResponse } from "@shared/routes";
 
 // Function to get progress width based on progress text
@@ -30,13 +31,10 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
   const isComplete = displayData.status === "complete";
 
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const handleDelete = async () => {
-    if (!confirm('Ви впевнені, що хочете видалити це CV?')) {
-      return;
-    }
-    
     setIsDeleting(true);
     try {
       const response = await fetch(`/api/resumes/${cv.id}`, {
@@ -48,6 +46,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
           title: "CV видалено",
           description: "CV успішно видалено з вашого списку",
         });
+        setIsDeleteDialogOpen(false);
         // Оновити сторінку або перенаправити
         window.location.reload();
       } else {
@@ -123,18 +122,48 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
 
           {/* Delete Button - Always visible for non-processing CVs */}
           {!isProcessing && (
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleDelete();
-              }}
-              disabled={isDeleting}
-              className="absolute top-3 left-3 p-2 bg-destructive hover:bg-destructive/90 text-white rounded-full shadow-lg transition-all duration-200 hover:scale-110 hover:shadow-xl z-10 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Видалити CV"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <button
+                  disabled={isDeleting}
+                  className="absolute top-3 left-3 p-2 bg-destructive hover:bg-destructive/90 text-white rounded-full shadow-lg transition-all duration-200 hover:scale-110 hover:shadow-xl z-10 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Видалити CV"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Видалити CV?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Ви впевнені, що хочете видалити це CV? Цю дію неможливо скасувати.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel asChild>
+                    <button className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80">
+                      Скасувати
+                    </button>
+                  </AlertDialogCancel>
+                  <AlertDialogAction asChild>
+                    <button
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 disabled:opacity-50"
+                    >
+                      {isDeleting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          Видалення...
+                        </>
+                      ) : (
+                        "Видалити"
+                      )}
+                    </button>
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </div>
 
