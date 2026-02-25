@@ -125,6 +125,7 @@ function createPdfModal(html: string): void {
         opacity: 1;
         padding: 20px;
         box-sizing: border-box;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       `;
       tempDiv.innerHTML = html;
       document.body.appendChild(tempDiv);
@@ -140,7 +141,7 @@ function createPdfModal(html: string): void {
       progress.textContent = 'Loading fonts and styles...';
       
       // Чекаємо довше для завантаження шрифтів і стилів
-      await new Promise<void>(resolve => setTimeout(resolve, 2000));
+      await new Promise<void>(resolve => setTimeout(resolve, 3000));
 
       progress.textContent = 'Rendering content...';
       
@@ -154,63 +155,31 @@ function createPdfModal(html: string): void {
 
       progress.textContent = 'Generating PDF file...';
 
-      // Налаштування html2pdf.js - спрощуємо для кращої сумісності
-      const options = {
-        margin: 10,
-        filename: 'resume.pdf',
-        image: { type: 'jpeg' as const, quality: 0.98 },
-        html2canvas: { 
-          scale: 1, // Зменшуємо scale для кращої сумісності
-          useCORS: true, 
-          letterRendering: true,
-          windowWidth: 800,
-          backgroundColor: '#ffffff',
-          logging: true, // Включаємо логування для дебагінгу
-          height: tempDiv.scrollHeight,
-          width: tempDiv.scrollWidth,
-          scrollX: 0,
-          scrollY: 0,
-          allowTaint: true, // Дозволяємо "tainted" контент
-          foreignObjectRendering: false, // Вимикаємо для кращої сумісності
-        },
-        jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
-      };
-
-      console.log('PDF options:', options);
-
-      // Генерація PDF з додатковим логуванням
-      const pdfWorker = html2pdf().set(options).from(tempDiv);
+      // Використовуємо jsPDF як основний метод
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       
-      try {
-        await pdfWorker.save();
-        console.log('PDF saved successfully with html2pdf');
-      } catch (html2pdfError) {
-        console.warn('html2pdf failed, trying fallback method:', html2pdfError);
-        
-        // Fallback: використовуємо jsPDF напряму
-        progress.textContent = 'Trying alternative method...';
-        
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        
-        await new Promise<void>((resolve, reject) => {
-          try {
-            doc.html(tempDiv, {
-              x: 10,
-              y: 10,
-              width: 190,
-              windowWidth: 800,
-              autoPaging: 'text',
-              callback: () => {
-                doc.save('resume.pdf');
-                console.log('PDF saved successfully with jsPDF fallback');
-                resolve();
-              },
-            });
-          } catch (e) {
-            reject(e);
-          }
-        });
-      }
+      console.log('Using jsPDF method');
+      
+      await new Promise<void>((resolve, reject) => {
+        try {
+          doc.html(tempDiv, {
+            x: 10,
+            y: 10,
+            width: 190,
+            windowWidth: 800,
+            autoPaging: 'text',
+            callback: function(doc) {
+              console.log('jsPDF callback executed');
+              doc.save('resume.pdf');
+              console.log('PDF saved successfully with jsPDF');
+              resolve();
+            },
+          });
+        } catch (e) {
+          console.error('jsPDF error:', e);
+          reject(e);
+        }
+      });
       
       // Cleanup
       tempDiv.remove();
