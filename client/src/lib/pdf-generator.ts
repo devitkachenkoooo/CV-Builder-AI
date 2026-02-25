@@ -176,8 +176,8 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               statusText.textContent = `Rendering ${numPages} page(s)...`;
 
               win.html2pdf().from(captureElement).set({
-                // Add vertical margins [top, left, bottom, right] in mm
-                margin: [10, 0, 10, 0],
+                // Using single number to avoid 'Invalid margin array' error
+                margin: 10,
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
