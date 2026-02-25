@@ -46,19 +46,21 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
     
     if (jobId && jobStatus?.status === "complete" && jobStatus.id) {
       console.log("[GenerateModal] CONDITION MET - Redirecting to CV view:", `/cv/${jobStatus.id}`);
+      
+      // Navigate FIRST, then close modal and reset state
+      console.log("[GenerateModal] Executing setLocation to:", `/cv/${jobStatus.id}`);
+      setLocation(`/cv/${jobStatus.id}`);
+      
       toast({
         title: "CV Generated Successfully! 🎉",
         description: "Your CV has been generated and is ready to view.",
       });
       
-      // Close modal first, then navigate
-      setJobId(null);
-      onClose();
-      
-      // Navigate after modal is closed
+      // Close modal and reset state AFTER navigation
       setTimeout(() => {
-        console.log("[GenerateModal] Executing setLocation to:", `/cv/${jobStatus.id}`);
-        setLocation(`/cv/${jobStatus.id}`);
+        console.log("[GenerateModal] Closing modal and resetting jobId");
+        setJobId(null);
+        onClose();
       }, 100);
     } else {
       console.log("[GenerateModal] CONDITION NOT MET - jobId:", jobId, "status:", jobStatus?.status, "id:", jobStatus?.id);
