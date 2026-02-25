@@ -137,14 +137,8 @@ function createPdfModal(html: string): void {
       console.log('Writing HTML to iframe, HTML length:', html.length);
       console.log('HTML preview:', html.substring(0, 200) + '...');
       
-      // Витягуємо тільки body з HTML
-      const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-      const bodyContent = bodyMatch ? bodyMatch[0] : html; // Беремо весь <body>...</body>
-      
-      console.log('Body content length:', bodyContent.length);
-      
       iframeDoc.open();
-      iframeDoc.write(bodyContent);
+      iframeDoc.write(html);
       iframeDoc.close();
       
       console.log('HTML written to iframe successfully');
@@ -157,6 +151,11 @@ function createPdfModal(html: string): void {
         // Перевіряємо чи є контент в iframe
         const iframeBody = iframeDoc.body;
         console.log('Iframe body content length:', iframeBody?.innerHTML?.length || 0);
+        
+        // Перевіряємо поточні стилі в body
+        const computedStyle = window.getComputedStyle(iframeBody);
+        console.log('Iframe body margin:', computedStyle?.margin);
+        console.log('Iframe body padding:', computedStyle?.padding);
         
         if (!iframeBody || iframeBody.innerHTML.length === 0) {
           console.error('Iframe body is empty');
@@ -194,14 +193,36 @@ function createPdfModal(html: string): void {
             console.log('Starting PDF generation with html2pdf');
             progress.textContent = 'Generating PDF file...';
             
+            // Створюємо контейнер для CV контенту
+            const cvContainer = iframeDoc.querySelector('.cv-container') || 
+                               iframeDoc.querySelector('.resume') || 
+                               iframeDoc.querySelector('[data-cv]') ||
+                               iframeDoc.body;
+            
+            console.log('CV container found:', !!cvContainer);
+            console.log('CV container tag:', cvContainer?.tagName);
+            console.log('CV container classes:', cvContainer?.className);
+            
+            if (!cvContainer) {
+              console.error('CV container not found, using body as fallback');
+            }
+            
+            const targetElement = cvContainer || iframeDoc.body;
+            
             try {
-              (iframe.contentWindow as any).html2pdf().from(iframeDoc.body).set({
-                margin: 10,
-                filename: 'resume.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-              }).save().then(() => {
+              (iframe.contentWindow as any).html2pdf().from(targetElement).set({
+            margin: 0, // Прибираємо відступ, оскільки він є на сторінці CV
+            filename: 'resume.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { 
+              scale: 2, 
+              useCORS: true, 
+              letterRendering: true,
+              backgroundColor: '#ffffff',
+              logging: false,
+            },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          }).save().then(() => {
                 console.log('PDF saved successfully, cleaning up');
                 progress.textContent = 'PDF downloaded successfully!';
                 
