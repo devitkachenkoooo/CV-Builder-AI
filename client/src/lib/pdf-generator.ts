@@ -19,8 +19,6 @@ interface PdfFromElementOptions {
 
 // Функція для створення модального вікна генерації PDF
 function createPdfModal(html: string): void {
-  console.log('createPdfModal called with HTML length:', html.length);
-  
   // Створюємо модальне вікно, яке закриває всю сторінку
   const modal = document.createElement('div');
   modal.id = 'pdf-generation-modal';
@@ -139,8 +137,14 @@ function createPdfModal(html: string): void {
       console.log('Writing HTML to iframe, HTML length:', html.length);
       console.log('HTML preview:', html.substring(0, 200) + '...');
       
+      // Витягуємо тільки body з HTML
+      const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+      const bodyContent = bodyMatch ? bodyMatch[0] : html; // Беремо весь <body>...</body>
+      
+      console.log('Body content length:', bodyContent.length);
+      
       iframeDoc.open();
-      iframeDoc.write(html);
+      iframeDoc.write(bodyContent);
       iframeDoc.close();
       
       console.log('HTML written to iframe successfully');
@@ -184,7 +188,7 @@ function createPdfModal(html: string): void {
         
         script.onload = () => {
           console.log('html2pdf.js loaded successfully');
-          console.log('Checking html2pdf availability in iframe:', 'html2pdf' in iframe.contentWindow);
+          console.log('Checking html2pdf availability in iframe:', 'html2pdf' in (iframe.contentWindow || {}));
           
           if (iframe.contentWindow && 'html2pdf' in iframe.contentWindow) {
             console.log('Starting PDF generation with html2pdf');
@@ -247,7 +251,8 @@ function createPdfModal(html: string): void {
         
         // Fallback: якщо html2pdf не завантажиться через 10 секунд
         setTimeout(() => {
-          if (iframe.contentWindow && !('html2pdf' in iframe.contentWindow)) {
+          const contentWindow = iframe.contentWindow;
+          if (contentWindow && !('html2pdf' in contentWindow)) {
             console.error('html2pdf.js failed to load within timeout');
             progress.textContent = 'PDF generation failed - trying alternative';
             
@@ -302,21 +307,6 @@ function createPdfModal(html: string): void {
   // Встановлюємо src для iframe
   console.log('Setting iframe src to about:blank');
   iframe.src = 'about:blank';
-  
-  // Додаткова перевірка - якщо iframe.onload не спрацює
-  setTimeout(() => {
-    if (!iframe.contentDocument) {
-      console.error('Iframe contentDocument not available after timeout');
-      progress.textContent = 'Failed to initialize PDF generation';
-      
-      // Cleanup on error
-      setTimeout(() => {
-        iframe.remove();
-        modal.remove();
-        style.remove();
-      }, 2000);
-    }
-  }, 5000);
 }
 
 export async function generatePdfFromElement(options: PdfFromElementOptions): Promise<void> {
