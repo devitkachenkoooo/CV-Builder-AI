@@ -145,6 +145,13 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
           target.style.boxShadow = 'none';
           target.style.border = 'none';
 
+          // --- FIX: Remove margin from last element to prevent blank page ---
+          const lastChild = target.lastElementChild as HTMLElement;
+          if (lastChild) {
+            lastChild.style.marginBottom = '0';
+            lastChild.style.paddingBottom = '0';
+          }
+
           const computedStyle = iframe.contentWindow?.getComputedStyle(captureElement);
           const bgColor = computedStyle?.backgroundColor || '#ffffff';
           doc.body.style.backgroundColor = bgColor;
@@ -169,9 +176,13 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               statusText.textContent = `Rendering ${numPages} page(s)...`;
 
               win.html2pdf().from(captureElement).set({
-                margin: 0,
+                // Add vertical margins [top, left, bottom, right] in mm
+                margin: [10, 0, 10, 0],
                 filename: filename,
-                pagebreak: { mode: ['css', 'legacy'] },
+                pagebreak: {
+                  mode: ['css', 'legacy'],
+                  avoid: ['p', 'li', 'h1', 'h2', 'h3', '.section', 'img']
+                },
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
                   scale: 2,
