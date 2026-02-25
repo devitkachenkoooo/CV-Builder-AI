@@ -113,13 +113,16 @@ function createPdfModal(html: string): void {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;
-    height: 100vh;
+    width: 794px; /* Exact A4 width */
+    height: 1123px;
     border: none;
-    z-index: 999998;
-    background: #f3f4f6;
+    z-index: 999998; /* Behind modal (999999) */
+    background: white;
     padding: 0 !important;
     margin: 0 !important;
+    opacity: 0; /* Hidden from user */
+    pointer-events: none;
+    overflow: hidden;
   `;
 
   console.log('Creating iframe for PDF generation');
@@ -158,15 +161,13 @@ function createPdfModal(html: string): void {
         if (iframeBody) {
           iframeBody.style.padding = '0';
           iframeBody.style.margin = '0';
-          iframeBody.style.backgroundColor = 'transparent';
-          iframeBody.style.overflow = 'hidden';
-          console.log('Removed padding, margin and set overflow:hidden on iframe body');
+          iframeBody.style.backgroundColor = 'white';
+          iframeBody.style.width = '210mm';
         }
 
         if (!iframeBody || iframeBody.innerHTML.length === 0) {
           console.error('Iframe body is empty');
           progress.textContent = 'No content to generate PDF';
-
           // Cleanup on error
           setTimeout(() => {
             iframe.remove();
@@ -201,6 +202,7 @@ function createPdfModal(html: string): void {
 
             // Створюємо контейнер для CV контенту
             const cvContainer = iframeDoc.querySelector('.cv-container') ||
+              iframeDoc.querySelector('.container') ||
               iframeDoc.querySelector('.resume') ||
               iframeDoc.querySelector('[data-cv]') ||
               iframeDoc.body;
@@ -211,11 +213,13 @@ function createPdfModal(html: string): void {
 
             const targetElement = (cvContainer || iframeDoc.body) as HTMLElement;
 
-            // Critical: Ensure the target element has NO extra width or margins
+            // Critical: Force alignment to 0,0
             targetElement.style.width = '210mm';
             targetElement.style.margin = '0';
             targetElement.style.padding = '0';
-            targetElement.style.boxSizing = 'border-box';
+            targetElement.style.position = 'absolute';
+            targetElement.style.top = '0';
+            targetElement.style.left = '0';
 
             try {
               (iframe.contentWindow as any).html2pdf().from(targetElement).set({
@@ -226,11 +230,13 @@ function createPdfModal(html: string): void {
                   scale: 2,
                   useCORS: true,
                   allowTaint: true,
-                  letterRendering: true,
                   backgroundColor: '#ffffff',
-                  logging: false,
-                  width: 793.7, // Exact width for A4 at 96 DPI
-                  windowWidth: 793.7,
+                  width: 794,
+                  windowWidth: 794,
+                  scrollX: 0,
+                  scrollY: 0,
+                  x: 0,
+                  y: 0
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
               }).save().then(() => {
@@ -245,17 +251,7 @@ function createPdfModal(html: string): void {
                 }, 1000);
               }).catch((error: any) => {
                 console.error('PDF generation error:', error);
-                progress.textContent = 'PDF downloaded successfully!';
-
-                // Cleanup після успішного збереження
-                setTimeout(() => {
-                  iframe.remove();
-                  modal.remove();
-                  style.remove();
-                }, 1000);
-              }).catch((error: any) => {
-                console.error('PDF generation error:', error);
-                progress.textContent = 'PDF generation failed';
+                progress.textContent = 'Generation failed';
 
                 // Cleanup on error
                 setTimeout(() => {
@@ -266,7 +262,7 @@ function createPdfModal(html: string): void {
               });
             } catch (genError) {
               console.error('Error during PDF generation:', genError);
-              progress.textContent = 'PDF generation failed';
+              progress.textContent = 'Process error';
 
               // Cleanup on error
               setTimeout(() => {
@@ -323,7 +319,7 @@ function createPdfModal(html: string): void {
       }, 2000);
     } catch (error) {
       console.error('Iframe setup error:', error);
-      progress.textContent = 'Failed to setup PDF generation';
+      progress.textContent = 'Setup failed';
 
       // Cleanup on error
       setTimeout(() => {
