@@ -10,6 +10,56 @@ import OpenAI from "openai";
 import fs from "fs/promises";
 import fsSync from "fs";
 import path from "path";
+import puppeteer from "puppeteer";
+
+// Function to convert HTML to PDF
+async function convertHtmlToPdf(html: string, outputPath: string): Promise<void> {
+  console.log("[PDF] Starting HTML to PDF conversion");
+  
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+        '--disable-gpu'
+      ]
+    });
+    
+    const page = await browser.newPage();
+    
+    // Set content and wait for it to load
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    
+    // Generate PDF with A4 size
+    await page.pdf({
+      path: outputPath,
+      format: 'A4',
+      printBackground: true,
+      margin: {
+        top: '10mm',
+        right: '10mm',
+        bottom: '10mm',
+        left: '10mm'
+      }
+    });
+    
+    console.log(`[PDF] Successfully generated PDF: ${outputPath}`);
+  } catch (error) {
+    console.error("[PDF] Error converting HTML to PDF:", error);
+    throw error;
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
+}
 
 // Configure multer for file uploads
 const upload = multer({
@@ -316,20 +366,21 @@ Return the complete HTML document with the CV content injected.`;
       // Update status: Generating PDF
       await storage.updateGeneratedCvStatus(jobId, "processing", "Generating PDF...");
 
-      // For simplicity, save HTML as "PDF" (in production, use Playwright to render actual PDF)
+      // Convert HTML to PDF using Puppeteer
       const outputDir = path.join(process.cwd(), "client", "public", "generated");
       await fs.mkdir(outputDir, { recursive: true });
       
-      const filename = `cv-${jobId}-${Date.now()}.html`;
+      const filename = `cv-${jobId}-${Date.now()}.pdf`;
       const outputPath = path.join(outputDir, filename);
-      await fs.writeFile(outputPath, generatedHtml, "utf-8");
+      
+      await convertHtmlToPdf(generatedHtml, outputPath);
 
       const pdfUrl = `/generated/${filename}`;
 
       // Update status: Complete
       await storage.updateGeneratedCvStatus(jobId, "complete", undefined, pdfUrl);
 
-      console.log(`Successfully generated CV ${jobId}`);
+      console.log(`Successfully generated CV ${jobId} as PDF`);
     } catch (apiError) {
       console.error(`[AI] OpenAI API Error for job ${jobId}:`, apiError);
       
@@ -351,9 +402,10 @@ Return the complete HTML document with the CV content injected.`;
         const outputDir = path.join(process.cwd(), "client", "public", "generated");
         await fs.mkdir(outputDir, { recursive: true });
         
-        const filename = `cv-${jobId}-${Date.now()}.html`;
+        const filename = `cv-${jobId}-${Date.now()}.pdf`;
         const outputPath = path.join(outputDir, filename);
-        await fs.writeFile(outputPath, templateHtml, "utf-8");
+        
+        await convertHtmlToPdf(templateHtml, outputPath);
 
         const pdfUrl = `/generated/${filename}`;
 

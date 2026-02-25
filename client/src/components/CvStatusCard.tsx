@@ -29,7 +29,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
       // Create a temporary link element to trigger download
       const link = document.createElement('a');
       link.href = displayData.pdfUrl;
-      link.download = `cv-${cv.id}.html`; // Set filename
+      link.download = `cv-${cv.id}.pdf`; // Set filename as PDF
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -144,7 +144,12 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
           {/* Progress Bar (if processing) */}
           {isProcessing && (
             <div className="mt-4 w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-              <div className="h-full bg-primary rounded-full w-2/3 animate-[pulse_2s_ease-in-out_infinite]"></div>
+              <div 
+                className="h-full bg-primary rounded-full transition-all duration-1000 ease-out animate-[pulse_2s_ease-in-out_infinite]"
+                style={{ 
+                  width: displayData.status === "pending" ? "25%" : "75%"
+                }}
+              ></div>
             </div>
           )}
         </div>
