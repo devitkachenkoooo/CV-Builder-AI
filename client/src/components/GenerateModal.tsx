@@ -19,8 +19,6 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isValidating, setIsValidating] = useState(false);
-  const [jobId, setJobId] = useState<number | null>(null);
-  console.log("[GenerateModal] State - jobId:", jobId, "selectedFile:", selectedFile?.name);
   
   const { mutate: generateCv, isPending } = useGenerateCv();
   const [, setLocation] = useLocation();
@@ -28,108 +26,13 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
 
   // Log when onClose is called
   const handleClose = () => {
-    console.log("[GenerateModal] onClose called - jobId:", jobId, "jobStatus:", jobStatus);
+    console.log("[GenerateModal] onClose called");
     onClose();
   };
 
-  // Set up polling when we have a jobId
-  console.log("[GenerateModal] About to call usePollingJob with jobId:", jobId);
-  const { data: jobStatus } = usePollingJob(
-    jobId || 0, // Pass 0 when no jobId, hook will be disabled
-    "pending" // Always start with "pending" when we have a jobId
-  );
-
-  console.log("[GenerateModal] Current jobId:", jobId);
-  console.log("[GenerateModal] Current jobStatus:", jobStatus);
-
-  // Redirect to CV view when generation is complete
-  useEffect(() => {
-    console.log("[GenerateModal] useEffect triggered");
-    console.log("[GenerateModal] jobStatus:", jobStatus);
-    console.log("[GenerateModal] jobId:", jobId);
-    console.log("[GenerateModal] jobStatus.id:", jobStatus?.id);
-    console.log("[GenerateModal] jobStatus.status:", jobStatus?.status);
-    
-    if (jobId && jobStatus?.status === "complete" && jobStatus.id) {
-      console.log("[GenerateModal] ✅ CONDITION MET - Generation complete!");
-      console.log("[GenerateModal] Would redirect to:", `/cv/${jobStatus.id}`);
-      console.log("[GenerateModal] jobId:", jobId, "jobStatus.id:", jobStatus.id);
-      
-      // Don't do anything else - just log
-      console.log("[GenerateModal] 🔍 Keeping modal open to see what happens");
-    } else {
-      console.log("[GenerateModal] CONDITION NOT MET - jobId:", jobId, "status:", jobStatus?.status, "id:", jobStatus?.id);
-    }
-    
-    if (jobStatus?.status === "failed") {
-      console.log("[GenerateModal] Generation failed - showing error");
-      console.log("[GenerateModal] Error message:", jobStatus.errorMessage);
-      setJobId(null);
-    }
-  }, [jobStatus, jobId, toast, setLocation, onClose]);
-
   if (!template || !isOpen) {
     console.log("[GenerateModal] Modal not rendering - isOpen:", isOpen, "template:", template?.name);
-    console.log("[GenerateModal] Current jobId when modal closed:", jobId);
-    console.log("[GenerateModal] Current jobStatus when modal closed:", jobStatus);
     return null;
-  }
-
-  // Show generation progress screen
-  if (jobId && jobStatus) {
-    return (
-      <AnimatePresence>
-        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-          {/* Backdrop - NOT clickable when generating */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
-            // Remove onClick handler to prevent closing
-          />
-
-          {/* Progress Content */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            className="relative w-full max-w-md bg-card rounded-2xl shadow-2xl border border-border/50 overflow-hidden p-8 text-center"
-          >
-            <div className="w-16 h-16 mx-auto mb-6 relative">
-              <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping"></div>
-              <div className="relative w-16 h-16 bg-primary rounded-full flex items-center justify-center">
-                <Sparkles className="w-8 h-8 text-primary-foreground animate-pulse" />
-              </div>
-            </div>
-            
-            <h2 className="text-2xl font-bold text-foreground mb-2">
-              {jobStatus.status === "processing" ? "Formatting Your CV" : "Starting Generation"}
-            </h2>
-            
-            <p className="text-muted-foreground mb-6">
-              {jobStatus.progress || "Our AI is working its magic..."}
-            </p>
-            
-            <div className="w-full bg-secondary rounded-full h-2 mb-4">
-              <div 
-                className="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
-                style={{ 
-                  width: jobStatus.status === "processing" ? "60%" : "30%",
-                  animation: "pulse 2s infinite"
-                }}
-              ></div>
-            </div>
-            
-            <p className="text-xs text-muted-foreground">
-              This usually takes 30-60 seconds. You'll be redirected automatically when complete.
-            </p>
-            
-            {/* Remove close button during generation */}
-          </motion.div>
-        </div>
-      </AnimatePresence>
-    );
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -165,14 +68,14 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
           
           toast({
             title: "Generation Started! 🎉",
-            description: "Your CV is being formatted by our AI. You'll be redirected automatically when it's ready.",
+            description: "Your CV is being generated. You'll be redirected to your resumes.",
           });
           
-          console.log("[GenerateModal] About to setJobId to:", response.jobId);
-          setJobId(response.jobId);
-          setSelectedFile(null);
+          console.log("[GenerateModal] Redirecting to /my-resumes immediately");
           
-          console.log("[GenerateModal] jobId set to:", response.jobId, "modal will stay open");
+          // Close modal and redirect to my-resumes
+          handleClose();
+          setLocation("/my-resumes");
         },
         onError: (error) => {
           console.error("[GenerateModal] Generation failed:", error);
@@ -204,7 +107,7 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={!isPending && !jobId ? handleClose : undefined}
+          onClick={!isPending ? handleClose : undefined}
           className="absolute inset-0 bg-background/80 backdrop-blur-sm"
         />
 
@@ -215,16 +118,14 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
           className="relative w-full max-w-2xl bg-card rounded-2xl shadow-2xl border border-border/50 overflow-hidden flex flex-col md:flex-row"
         >
-          {/* Close Button - HIDE during generation */}
-          {!jobId && (
-            <button
-              onClick={handleClose}
-              disabled={isPending}
-              className="absolute top-4 right-4 p-2 bg-black/5 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 rounded-full transition-colors z-10 disabled:opacity-50"
-            >
-              <X className="w-4 h-4 text-foreground" />
-            </button>
-          )}
+          {/* Close Button */}
+          <button
+            onClick={handleClose}
+            disabled={isPending}
+            className="absolute top-4 right-4 p-2 bg-black/5 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 rounded-full transition-colors z-10 disabled:opacity-50"
+          >
+            <X className="w-4 h-4 text-foreground" />
+          </button>
 
           {/* Left: Template Preview */}
           <div className="w-full md:w-2/5 bg-secondary/50 p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-border">
