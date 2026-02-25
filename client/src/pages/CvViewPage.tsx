@@ -375,10 +375,12 @@ export default function CvViewPage() {
                 <h3 className="font-semibold text-gray-900">Створено</h3>
               </div>
               <p className="text-gray-600 text-sm">
-                {new Date(cvData.createdAt).toLocaleDateString('uk-UA', {
+                {new Date(cvData.createdAt).toLocaleString('uk-UA', {
                   day: 'numeric',
                   month: 'long',
-                  year: 'numeric'
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
                 })}
               </p>
             </div>

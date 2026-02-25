@@ -4,6 +4,8 @@ interface PdfFromUrlOptions {
   url: string;
   filename?: string;
   onLoadingChange?: (loading: boolean) => void;
+  windowWidth?: number;
+  contentWidthMm?: number;
 }
 
 interface PdfFromElementOptions {
