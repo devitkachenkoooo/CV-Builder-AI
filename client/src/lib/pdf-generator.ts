@@ -3,237 +3,194 @@ import html2pdf from 'html2pdf.js';
 interface PdfFromUrlOptions {
   url: string;
   filename?: string;
-  windowWidth?: number;
-  contentWidthMm?: number;
   onLoadingChange?: (loading: boolean) => void;
 }
 
 interface PdfFromElementOptions {
   element: HTMLElement;
   filename?: string;
-  windowWidth?: number;
-  contentWidthMm?: number;
   onLoadingChange?: (loading: boolean) => void;
 }
 
-// Функція для створення модального вікна генерації PDF
-function createPdfModal(html: string): void {
-  // Створюємо модальне вікно (Progress Popup)
-  const modal = document.createElement('div');
-  modal.id = 'pdf-generation-modal';
-  modal.style.cssText = `
+/**
+ * Creates a dedicated, fixed-size environment for PDF generation.
+ * Uses visual scaling to fit any screen while maintaining internal A4 dimensions.
+ */
+function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
+  // 1. Dark Overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'pdf-generation-overlay';
+  overlay.style.cssText = `
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.85);
-    z-index: 999999;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    z-index: 999990;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     font-family: system-ui, -apple-system, sans-serif;
   `;
 
-  const modalContent = document.createElement('div');
-  modalContent.style.cssText = `
+  // 2. Progress Indicator (Always on top)
+  const loader = document.createElement('div');
+  loader.style.cssText = `
     background: white;
-    padding: 40px;
-    border-radius: 16px;
-    text-align: center;
-    max-width: 400px;
-    width: 90%;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    padding: 16px 32px;
+    border-radius: 100px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    z-index: 1000000;
   `;
 
   const spinner = document.createElement('div');
   spinner.style.cssText = `
-    width: 50px;
-    height: 50px;
-    border: 4px solid #f3f4f6;
-    border-top: 4px solid #3b82f6;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f4f6;
+    border-top: 3px solid #3b82f6;
     border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 20px;
+    animation: pdf-spin 0.8s linear infinite;
   `;
 
-  const title = document.createElement('h2');
-  title.textContent = 'Generating PDF';
-  title.style.cssText = `
-    font-size: 20px;
-    font-weight: 700;
-    margin-bottom: 8px;
-    color: #111827;
-  `;
+  const statusText = document.createElement('span');
+  statusText.textContent = 'Preparing PDF Document...';
+  statusText.style.cssText = `color: #111827; font-weight: 600; font-size: 15px;`;
 
-  const progress = document.createElement('p');
-  progress.textContent = 'Preparing document...';
-  progress.style.cssText = `
-    font-size: 15px;
-    color: #3b82f6;
-    font-weight: 500;
-  `;
+  loader.appendChild(spinner);
+  loader.appendChild(statusText);
+  overlay.appendChild(loader);
 
-  modalContent.appendChild(spinner);
-  modalContent.appendChild(title);
-  modalContent.appendChild(progress);
-  modal.appendChild(modalContent);
-  document.body.appendChild(modal);
+  // 3. The A4 "Photo Studio" Iframe
+  const targetWidth = 794; // A4 at 96 DPI
+  const screenWidth = window.innerWidth;
+  const padding = 40;
+  const visualScale = screenWidth < (targetWidth + padding)
+    ? (screenWidth - padding) / targetWidth
+    : 1;
 
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-  `;
-  document.head.appendChild(style);
-
-  // Створюємо Fullscreen Iframe (Render Target)
   const iframe = document.createElement('iframe');
+  iframe.id = 'pdf-render-frame';
   iframe.style.cssText = `
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
+    top: 45%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(${visualScale});
+    width: ${targetWidth}px;
+    height: 1123px; /* Full A4 height */
     border: none;
-    z-index: 999998;
-    background: #f3f4f6;
-    opacity: 1;
-    visibility: visible;
+    background: white;
+    box-shadow: 0 0 60px rgba(0,0,0,0.5);
+    z-index: 999991; /* Behind the loader but on top of everything else */
+    border-radius: 2px;
+    pointer-events: none;
   `;
 
+  // Animation styles
+  const style = document.createElement('style');
+  style.textContent = `@keyframes pdf-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
+  document.head.appendChild(style);
+
+  document.body.appendChild(overlay);
   document.body.appendChild(iframe);
 
   iframe.onload = () => {
     try {
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-      if (!iframeDoc) throw new Error('Cannot access iframe document');
+      const doc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!doc) throw new Error('Iframe access denied');
 
-      iframeDoc.open();
-      iframeDoc.write(html);
-      iframeDoc.close();
+      // Inject content
+      doc.open();
+      doc.write(html);
+      doc.close();
 
+      // Ensure consistent internal styling
+      const bodyStyle = doc.createElement('style');
+      bodyStyle.textContent = `
+        body { margin: 0; padding: 0; width: ${targetWidth}px; overflow: hidden; background: white; }
+        .container, .cv-container, .resume { box-shadow: none !important; margin: 0 !important; border: none !important; }
+      `;
+      doc.head.appendChild(bodyStyle);
+
+      // Give it a moment to render everything
       setTimeout(() => {
-        progress.textContent = 'Generating...';
+        statusText.textContent = 'Downloading PDF...';
 
-        const iframeBody = iframeDoc.body;
-        if (iframeBody) {
-          // Center content visually during generation
-          iframeBody.style.margin = '0';
-          iframeBody.style.padding = '50px 0';
-          iframeBody.style.display = 'flex';
-          iframeBody.style.justifyContent = 'center';
-          iframeBody.style.backgroundColor = '#f3f4f6';
-          iframeBody.style.minHeight = '100vh';
-        }
-
-        const script = iframeDoc.createElement('script');
+        const win = iframe.contentWindow as any;
+        const script = doc.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
 
         script.onload = () => {
-          const win = iframe.contentWindow as any;
-          if (win && win.html2pdf) {
-            const container = iframeDoc.querySelector('.cv-container') ||
-              iframeDoc.querySelector('.container') ||
-              iframeDoc.querySelector('.resume') ||
-              iframeDoc.body;
+          if (win.html2pdf) {
+            const captureElement = doc.querySelector('.container') ||
+              doc.querySelector('.cv-container') ||
+              doc.querySelector('.resume') ||
+              doc.body;
 
-            const target = container as HTMLElement;
-            target.style.width = '210mm';
-            target.style.margin = '0';
-            target.style.padding = '0';
-            target.style.boxShadow = 'none';
-
-            win.html2pdf().from(target).set({
+            win.html2pdf().from(captureElement).set({
               margin: 0,
-              filename: 'resume.pdf',
+              filename: filename,
               image: { type: 'jpeg', quality: 0.98 },
               html2canvas: {
                 scale: 2,
                 useCORS: true,
                 backgroundColor: '#ffffff',
-                width: 794,
-                windowWidth: 794
+                width: targetWidth,
+                windowWidth: targetWidth
               },
               jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             }).save().then(() => {
-              progress.textContent = 'Success!';
+              statusText.textContent = 'Success!';
               setTimeout(() => {
+                overlay.remove();
                 iframe.remove();
-                modal.remove();
                 style.remove();
-              }, 1000);
+              }, 800);
             }).catch((err: any) => {
-              console.error('PDF generation error:', err);
-              progress.textContent = 'Error during save';
-              setTimeout(() => {
-                iframe.remove();
-                modal.remove();
-                style.remove();
-              }, 2000);
+              console.error('PDF Generation failed:', err);
+              overlay.remove();
+              iframe.remove();
             });
           }
         };
-
-        iframeDoc.head.appendChild(script);
+        doc.head.appendChild(script);
       }, 1500);
-    } catch (error) {
-      console.error('Iframe setup error:', error);
-      progress.textContent = 'Setup failed';
-      setTimeout(() => {
-        iframe.remove();
-        modal.remove();
-        style.remove();
-      }, 2000);
+
+    } catch (err) {
+      console.error('PDF Setup Error:', err);
+      overlay.remove();
+      iframe.remove();
     }
   };
 }
 
 export async function generatePdfFromElement(options: PdfFromElementOptions): Promise<void> {
-  const { element, onLoadingChange } = options;
+  const { element, onLoadingChange, filename } = options;
   if (onLoadingChange) onLoadingChange(true);
-
   try {
-    const html = element.outerHTML;
-    await new Promise<void>((resolve, reject) => {
-      createPdfModal(html);
-      const checkModal = setInterval(() => {
-        if (!document.getElementById('pdf-generation-modal')) {
-          clearInterval(checkModal);
-          resolve();
-        }
-      }, 500);
-      setTimeout(() => { clearInterval(checkModal); reject(new Error('Timeout')); }, 30000);
-    });
-  } catch (error) {
-    console.error('Error in generatePdfFromElement:', error);
-    throw error;
+    createPdfModal(element.outerHTML, filename);
+    // Modal cleans itself up
+    await new Promise(r => setTimeout(r, 2000));
   } finally {
     if (onLoadingChange) onLoadingChange(false);
   }
 }
 
 export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<void> {
-  const { url, onLoadingChange } = options;
+  const { url, onLoadingChange, filename } = options;
   if (onLoadingChange) onLoadingChange(true);
-
   try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Fetch failed');
-    const html = await response.text();
-
-    await new Promise<void>((resolve, reject) => {
-      createPdfModal(html);
-      const checkModal = setInterval(() => {
-        if (!document.getElementById('pdf-generation-modal')) {
-          clearInterval(checkModal);
-          resolve();
-        }
-      }, 500);
-      setTimeout(() => { clearInterval(checkModal); reject(new Error('Timeout')); }, 30000);
-    });
-  } catch (error) {
-    console.error('Error in generatePdfFromUrl:', error);
-    throw error;
+    const res = await fetch(url);
+    const html = await res.text();
+    createPdfModal(html, filename);
+    await new Promise(r => setTimeout(r, 2000));
   } finally {
     if (onLoadingChange) onLoadingChange(false);
   }
