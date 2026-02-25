@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { z } from "zod";
+import i18n from "@/lib/i18n";
 
 function parseWithLogging<T>(schema: z.ZodSchema<T>, data: unknown, label: string): T {
   const result = schema.safeParse(data);
@@ -19,20 +20,23 @@ type GenerateCvInput = {
 
 export function useGenerateCv() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (data: GenerateCvInput) => {
       // Create FormData for file upload
       const formData = new FormData();
       formData.append('file', data.file);
       formData.append('templateId', data.templateId.toString());
-      
+
       const res = await fetch(api.generate.start.path, {
         method: api.generate.start.method,
         body: formData,
         credentials: "include",
+        headers: {
+          'x-language': i18n.language || 'ua'
+        }
       });
-      
+
       if (!res.ok) {
         if (res.status === 400) {
           const error = await res.json();
@@ -40,7 +44,7 @@ export function useGenerateCv() {
         }
         throw new Error("Failed to start CV generation");
       }
-      
+
       const responseData = await res.json();
       return parseWithLogging(api.generate.start.responses[202], responseData, "generate.start");
     },
@@ -63,26 +67,26 @@ export function usePollingJob(jobId: number, initialStatus: string) {
       console.log(`[usePollingJob] Polling status for job ${jobId}`);
       const url = buildUrl(api.generate.status.path, { jobId });
       console.log(`[usePollingJob] Fetching from URL: ${url}`);
-      
+
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) {
         console.log(`[usePollingJob] HTTP Error: ${res.status} ${res.statusText}`);
         throw new Error("Failed to fetch job status");
       }
-      
+
       const data = await res.json();
       console.log(`[usePollingJob] Raw response data:`, data);
-      
+
       const parsed = parseWithLogging(api.generate.status.responses[200], data, "generate.status");
       console.log(`[usePollingJob] Job ${jobId} status:`, parsed.status);
       console.log(`[usePollingJob] Job ${jobId} full response:`, parsed);
-      
+
       // If we just completed, invalidate the main resumes list to ensure everything is in sync
       if (parsed.status === "complete" || parsed.status === "failed") {
         console.log(`[usePollingJob] Job ${jobId} finished with status: ${parsed.status}`);
         queryClient.invalidateQueries({ queryKey: [api.resumes.list.path] });
       }
-      
+
       return parsed;
     },
     // Poll every 2 seconds if status is still pending or processing
@@ -95,15 +99,15 @@ export function usePollingJob(jobId: number, initialStatus: string) {
       return false;
     },
     enabled: isPolling, // Only enable if we're polling AND have a valid jobId
-    });
-    
-    console.log(`[usePollingJob] Query enabled: ${isPolling}`);
+  });
+
+  console.log(`[usePollingJob] Query enabled: ${isPolling}`);
 }
 
 // Hook for deleting a resume
 export function useDeleteResume() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: number) => {
       const url = buildUrl(api.resumes.delete.path, { id });
@@ -111,14 +115,14 @@ export function useDeleteResume() {
         method: api.resumes.delete.method,
         credentials: "include",
       });
-      
+
       if (!res.ok) {
         if (res.status === 404) {
           throw new Error("Resume not found");
         }
         throw new Error("Failed to delete resume");
       }
-      
+
       return;
     },
     onSuccess: () => {

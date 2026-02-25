@@ -22,8 +22,7 @@ export const generatedCvs = pgTable("generated_cvs", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   templateId: integer("template_id").notNull().references(() => cvTemplates.id),
   status: text("status").notNull().default("pending"), // pending, processing, complete, failed
-  progress: text("progress"), // Current step: "Fetching Document...", "AI Formatting...", "Generating PDF..."
-  googleDocsUrl: text("google_docs_url"),
+  progress: text("progress"), // Current step: "Processing DOCX...", "AI Formatting...", "Generating PDF..."
   pdfUrl: text("pdf_url"), // URL to generated PDF
   errorMessage: text("error_message"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
@@ -57,7 +56,6 @@ export type InsertGeneratedCv = z.infer<typeof insertGeneratedCvSchema>;
 // Request types
 export interface GenerateCvRequest {
   templateId: number;
-  googleDocsUrl: string;
 }
 
 // Response types

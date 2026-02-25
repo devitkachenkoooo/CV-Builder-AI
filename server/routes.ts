@@ -65,11 +65,14 @@ export async function registerRoutes(
   app.post(api.generate.start.path, isAuthenticated, upload.single('file'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const lang = (req.headers['x-language'] as 'ua' | 'en') || 'ua';
 
       // Handle file upload
       if (!req.file) {
         return res.status(400).json({
-          message: "❌ Файл не завантажено! Будь ласка, виберіть файл .docx для створення CV.",
+          message: lang === 'ua'
+            ? "❌ Файл не завантажено! Будь ласка, виберіть файл .docx для створення CV."
+            : "❌ No file uploaded! Please select a .docx file to create your CV.",
           field: "file"
         });
       }
@@ -81,16 +84,31 @@ export async function registerRoutes(
         let errorMessage = fileResult.error || "Failed to process file";
 
         // Add user-friendly messages for common errors
-        if (errorMessage.includes("File must have .docx extension")) {
-          errorMessage = "❌ Невірний формат файлу! Будь ласка, завантажте файл у форматі .docx (Microsoft Word).";
-        } else if (errorMessage.includes("Invalid MIME type")) {
-          errorMessage = "❌ Невірний тип файлу! Файл повинен бути документом Microsoft Word (.docx).";
-        } else if (errorMessage.includes("File too large")) {
-          errorMessage = "❌ Файл занадто великий! Максимальний розмір: 5MB.";
-        } else if (errorMessage.includes("Empty file")) {
-          errorMessage = "❌ Файл порожній! Будь ласка, виберіть файл з вмістом.";
-        } else if (errorMessage.includes("Failed to extract text")) {
-          errorMessage = "❌ Не вдалося прочитати вміст файлу! Перевірте, що файл не пошкоджений.";
+        if (lang === 'ua') {
+          if (errorMessage.includes("File must have .docx extension")) {
+            errorMessage = "❌ Невірний формат файлу! Будь ласка, завантажте файл у форматі .docx (Microsoft Word).";
+          } else if (errorMessage.includes("Invalid MIME type")) {
+            errorMessage = "❌ Невірний тип файлу! Файл повинен бути документом Microsoft Word (.docx).";
+          } else if (errorMessage.includes("File too large")) {
+            errorMessage = "❌ Файл занадто великий! Максимальний розмір: 5MB.";
+          } else if (errorMessage.includes("Empty file")) {
+            errorMessage = "❌ Файл порожній! Будь ласка, виберіть файл з вмістом.";
+          } else if (errorMessage.includes("Failed to extract text")) {
+            errorMessage = "❌ Не вдалося прочитати вміст файлу! Перевірте, що файл не пошкоджений.";
+          }
+        } else {
+          // English error messages
+          if (errorMessage.includes("File must have .docx extension")) {
+            errorMessage = "❌ Invalid file format! Please upload a .docx file (Microsoft Word).";
+          } else if (errorMessage.includes("Invalid MIME type")) {
+            errorMessage = "❌ Invalid file type! File must be a Microsoft Word document (.docx).";
+          } else if (errorMessage.includes("File too large")) {
+            errorMessage = "❌ File too large! Maximum size: 5MB.";
+          } else if (errorMessage.includes("Empty file")) {
+            errorMessage = "❌ File is empty! Please select a file with content.";
+          } else if (errorMessage.includes("Failed to extract text")) {
+            errorMessage = "❌ Failed to read file content! Please check that the file is not corrupted.";
+          }
         }
 
         return res.status(400).json({
@@ -106,19 +124,21 @@ export async function registerRoutes(
       const templateId = parseInt(req.body.templateId);
       if (isNaN(templateId) || templateId <= 0) {
         return res.status(400).json({
-          message: "❌ Невірний ID шаблону! Будь ласка, виберіть правильний шаблон CV.",
+          message: lang === 'ua'
+            ? "❌ Невірний ID шаблону! Будь ласка, виберіть правильний шаблон CV."
+            : "❌ Invalid template ID! Please select a valid CV template.",
           field: "templateId"
         });
       }
 
       // 1. Validate CV content using AI FIRST (before creating anything in DB)
-      console.log(`[VALIDATION] Starting content validation for user ${userId}`);
+      console.log(`[VALIDATION] Starting content validation for user ${userId} in ${lang}`);
 
-      const validationResult = await validateCVContent(cvText);
+      const validationResult = await validateCVContent(cvText, lang);
 
       if (!validationResult.isValid) {
-        const userMessage = generateUserFriendlyMessage(validationResult);
-        const suggestions = formatSuggestionsForUser(validationResult.suggestions || []);
+        const userMessage = generateUserFriendlyMessage(validationResult, lang);
+        const suggestions = formatSuggestionsForUser(validationResult.suggestions || [], lang);
         const fullMessage = userMessage + suggestions;
 
         console.log(`[VALIDATION] Content rejected: ${validationResult.quality}`);
@@ -135,7 +155,7 @@ export async function registerRoutes(
       }
 
       console.log(`[VALIDATION] Content approved: ${validationResult.quality}`);
-      const userFriendlyStatus = generateUserFriendlyMessage(validationResult);
+      const userFriendlyStatus = generateUserFriendlyMessage(validationResult, lang);
 
       // 2. ONLY NOW create the job in the database
       const cv = await storage.createGeneratedCv({
@@ -143,11 +163,10 @@ export async function registerRoutes(
         templateId,
         status: "processing",
         progress: userFriendlyStatus,
-        googleDocsUrl: null,
       });
 
       // 3. Start async generation
-      generateCvAsync(cv.id, templateId, cvText, sourceInfo).catch(err => {
+      generateCvAsync(cv.id, templateId, cvText, lang, sourceInfo).catch(err => {
         console.error("[ASYNC] generateCvAsync crashed immediately:", err);
       });
 
@@ -294,8 +313,8 @@ async function seedTemplates() {
   console.log(`Seeded ${templates.length} CV templates`);
 }
 
-async function generateCvAsync(jobId: number, templateId: number, cvText: string, sourceInfo?: string) {
-  console.log(`[ASYNC] Starting generateCvAsync for job ${jobId}`);
+async function generateCvAsync(jobId: number, templateId: number, cvText: string, lang: 'ua' | 'en' = 'ua', sourceInfo?: string) {
+  console.log(`[ASYNC] Starting generateCvAsync for job ${jobId} in ${lang}`);
   try {
 
     // Read template HTML
@@ -310,6 +329,8 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
     // Use OpenRouter (Llama via Groq) to inject CV content into template
     const prompt = `You are a CV formatting expert. I have a CV template in HTML format and need you to inject professional CV content into it.
 
+IMPORTANT: The output language must be ${lang === 'ua' ? 'Ukrainian' : 'English'}. Translate all professional terms, skills, experience, and content accordingly, but keep the core professional meaning.
+
 TEMPLATE HTML:
 ${templateHtml}
 
@@ -322,7 +343,7 @@ INSTRUCTIONS:
 3. Replace the example content in the HTML with relevant professional CV information
 4. Ensure the content fits perfectly on ONE A4 page
 5. Maintain the template's visual design and layout
-6. Use realistic, professional content
+6. Use realistic, professional content in ${lang === 'ua' ? 'Ukrainian' : 'English'}
 7. Return ONLY the final HTML code with injected content - no explanations
 
 OUTPUT:
@@ -330,15 +351,13 @@ Return the complete HTML document with the CV content injected.`;
 
     console.log(`[AI] Starting OpenAI call for job ${jobId}...`);
     console.log(`[AI] Using model: meta-llama/llama-3.3-70b-instruct`);
-    console.log(`[AI] API Base URL: ${process.env.AI_INTEGRATIONS_OPENROUTER_BASE_URL}`);
-    console.log(`[AI] API Key exists: ${!!process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY}`);
 
     // Update status: Starting AI
-    await storage.updateGeneratedCvStatus(jobId, "processing", "Starting AI generation...");
+    await storage.updateGeneratedCvStatus(jobId, "processing", lang === 'ua' ? "Запуск генерації ШІ..." : "Starting AI generation...");
 
     try {
       // Update status: AI analyzing
-      await storage.updateGeneratedCvStatus(jobId, "processing", "AI analyzing content...");
+      await storage.updateGeneratedCvStatus(jobId, "processing", lang === 'ua' ? "ШІ аналізує вміст..." : "AI analyzing content...");
 
       const response = await openrouter.chat.completions.create({
         model: "meta-llama/llama-3.3-70b-instruct",
@@ -356,7 +375,7 @@ Return the complete HTML document with the CV content injected.`;
       generatedHtml = generatedHtml.replace(/```html\n?/g, "").replace(/```\n?$/g, "").trim();
 
       // Update status: AI formatting
-      await storage.updateGeneratedCvStatus(jobId, "processing", "AI formatting CV...");
+      await storage.updateGeneratedCvStatus(jobId, "processing", lang === 'ua' ? "ШІ форматує резюме..." : "AI formatting CV...");
 
       // Save HTML file only
       const outputDir = path.join(process.cwd(), "client", "public", "generated");
@@ -372,7 +391,7 @@ Return the complete HTML document with the CV content injected.`;
       const pdfUrl = `/generated/${filename}`;
 
       // Update status: Complete
-      await storage.updateGeneratedCvStatus(jobId, "complete", "✅ CV успішно створено! Готово до перегляду.", pdfUrl);
+      await storage.updateGeneratedCvStatus(jobId, "complete", lang === 'ua' ? "✅ Резюме успішно створено! Готово до перегляду." : "✅ CV successfully created! Ready to view.", pdfUrl);
 
       console.log(`Successfully generated CV ${jobId} as HTML`);
     } catch (apiError) {
@@ -391,7 +410,7 @@ Return the complete HTML document with the CV content injected.`;
         const templateHtml = await fs.readFile(templatePath, "utf-8");
 
         // Update status: Generating HTML
-        await storage.updateGeneratedCvStatus(jobId, "processing", "Generating HTML...");
+        await storage.updateGeneratedCvStatus(jobId, "processing", lang === 'ua' ? "Генерація HTML..." : "Generating HTML...");
 
         const outputDir = path.join(process.cwd(), "client", "public", "generated");
         await fs.mkdir(outputDir, { recursive: true });
@@ -405,25 +424,16 @@ Return the complete HTML document with the CV content injected.`;
         const pdfUrl = `/generated/${filename}`;
 
         // Update status: Complete
-        await storage.updateGeneratedCvStatus(jobId, "complete", "⚠️ CV створено в базовому режимі (AI недоступний).", pdfUrl);
+        await storage.updateGeneratedCvStatus(jobId, "complete", lang === 'ua' ? "⚠️ Резюме створено в базовому режимі (AI недоступний)." : "⚠️ CV created in fallback mode (AI unavailable).", pdfUrl);
 
         console.log(`Successfully generated CV ${jobId} (fallback mode)`);
       } catch (fallbackError) {
         console.error(`[AI] Fallback also failed for job ${jobId}:`, fallbackError);
-        throw apiError; // Throw original error
+        await storage.updateGeneratedCvStatus(jobId, "failed", lang === 'ua' ? "❌ Помилка: Не вдалося створити резюме." : "❌ Error: Failed to create CV.");
       }
     }
   } catch (error) {
-    console.error("DETAILED AI ERROR:", error);
-    console.error(`[AI] Error stack:`, error instanceof Error ? error.stack : 'No stack available');
-    const errorMessage = error instanceof Error ? error.message : "Generation failed";
-
-    // Update database with error status - use "error" to match frontend expectations
-    try {
-      await storage.updateGeneratedCvStatus(jobId, "failed", undefined, undefined, errorMessage);
-      console.log(`[AI] Updated job ${jobId} status to failed with error: ${errorMessage}`);
-    } catch (dbError) {
-      console.error("[AI] CRITICAL: Failed to update database with error status:", dbError);
-    }
+    console.error(`[ASYNC] Fatal error for job ${jobId}:`, error);
+    await storage.updateGeneratedCvStatus(jobId, "failed", lang === 'ua' ? "❌ Критична помилка." : "❌ Critical error.");
   }
 }

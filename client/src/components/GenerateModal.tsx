@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dropzone } from "@/components/ui/dropzone";
 import { validateDocxFile } from "@/lib/file-validation";
 import type { CvTemplate } from "@shared/routes";
+import { useTranslation } from "react-i18next";
 
 interface GenerateModalProps {
   template: CvTemplate | null;
@@ -15,11 +16,12 @@ interface GenerateModalProps {
 }
 
 export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps) {
+  const { t } = useTranslation();
   console.log("[GenerateModal] Component render, isOpen:", isOpen, "template:", template?.name);
-  
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isValidating, setIsValidating] = useState(false);
-  
+
   const { mutate: generateCv, isPending } = useGenerateCv();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -37,11 +39,11 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedFile) {
       toast({
-        title: "File Required",
-        description: "Please select a .docx file to upload.",
+        title: t("modal.error_file_required"),
+        description: t("modal.error_file_desc"),
         variant: "destructive",
       });
       return;
@@ -49,8 +51,8 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
 
     if (!template) {
       toast({
-        title: "No template selected",
-        description: "Please select a template to generate your CV.",
+        title: t("modal.error_no_template"),
+        description: t("modal.error_no_template_desc"),
         variant: "destructive",
       });
       return;
@@ -58,21 +60,21 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
 
     try {
       console.log("[GenerateModal] Starting generation with template:", template.id);
-      
+
       generateCv({
         templateId: template.id,
         file: selectedFile,
       }, {
         onSuccess: (response) => {
           console.log("[GenerateModal] Generation started, response:", response);
-          
+
           toast({
-            title: "Generation Started! 🎉",
-            description: "Your CV is being generated. You'll be redirected to your resumes.",
+            title: t("toast.gen_started_title"),
+            description: t("toast.gen_started_desc"),
           });
-          
+
           console.log("[GenerateModal] Redirecting to /my-resumes immediately");
-          
+
           // Close modal and redirect to my-resumes
           handleClose();
           setLocation("/my-resumes");
@@ -80,8 +82,8 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
         onError: (error) => {
           console.error("[GenerateModal] Generation failed:", error);
           toast({
-            title: "Generation Failed",
-            description: error instanceof Error ? error.message : "Failed to generate CV. Please try again.",
+            title: t("toast.gen_failed_title"),
+            description: error instanceof Error ? error.message : t("toast.gen_failed_fallback"),
             variant: "destructive",
           });
         }
@@ -129,10 +131,10 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
 
           {/* Left: Template Preview */}
           <div className="w-full md:w-2/5 bg-secondary/50 p-3 sm:p-4 lg:p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-border">
-            <h3 className="font-display font-bold text-sm sm:text-base lg:text-lg mb-2 sm:mb-3 lg:mb-4 text-center">Selected Template</h3>
+            <h3 className="font-display font-bold text-sm sm:text-base lg:text-lg mb-2 sm:mb-3 lg:mb-4 text-center">{t("modal.selected_template")}</h3>
             <div className="relative w-full max-w-[160px] sm:max-w-[200px] lg:max-w-none aspect-[1/1.4] rounded-lg overflow-hidden shadow-lg border border-border/50 bg-white">
-              <img 
-                src={template.screenshotUrl} 
+              <img
+                src={template.screenshotUrl}
                 alt={template.name}
                 className="w-full h-full object-cover"
                 onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400&q=80' }}
@@ -146,19 +148,19 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
           {/* Right: Form */}
           <div className="w-full md:w-3/5 p-4 sm:p-6 lg:p-8 flex flex-col justify-center">
             <div className="mb-6 sm:mb-8">
-              <h2 className="font-display font-bold text-lg sm:text-xl lg:text-2xl mb-2 text-foreground">Import Content</h2>
+              <h2 className="font-display font-bold text-lg sm:text-xl lg:text-2xl mb-2 text-foreground">{t("modal.import_content")}</h2>
               <p className="text-muted-foreground text-sm">
-                <span className="hidden sm:inline">Upload your CV in .docx format. Our AI will automatically extract and format it beautifully into your chosen template.</span>
-                <span className="sm:hidden">Upload your .docx file. AI will format it beautifully.</span>
+                <span className="hidden sm:inline">{t("modal.description")}</span>
+                <span className="sm:hidden">{t("modal.description_mobile")}</span>
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               <div className="space-y-2">
                 <label htmlFor="file-upload" className="block text-sm font-medium text-foreground">
-                  Upload CV Document
+                  {t("modal.upload_label")}
                 </label>
-                
+
                 <Dropzone
                   onFileSelect={handleFileSelect}
                   selectedFile={selectedFile}
@@ -166,18 +168,18 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
                   disabled={isPending || isValidating}
                   className="min-h-[120px] sm:min-h-[140px]"
                 />
-                
+
                 <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground bg-primary/5 p-2 rounded-lg border border-primary/10">
                   <FileText className="w-3 h-3 text-primary" />
-                  <span className="hidden sm:inline">Upload your CV in .docx format. Maximum file size: 5MB.</span>
-                  <span className="sm:hidden">.docx format, max 5MB</span>
+                  <span className="hidden sm:inline">{t("modal.upload_hint")}</span>
+                  <span className="sm:hidden">{t("modal.upload_hint_mobile")}</span>
                 </div>
-                
+
                 {selectedFile && (
                   <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground bg-blue-50 dark:bg-blue-950/20 p-2 rounded-lg border border-blue-200 dark:border-blue-800">
                     <AlertCircle className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                    <span className="hidden sm:inline">File will be processed and formatted by our AI.</span>
-                    <span className="sm:hidden">AI will process your file</span>
+                    <span className="hidden sm:inline">{t("modal.ai_processing")}</span>
+                    <span className="sm:hidden">{t("modal.ai_processing_mobile")}</span>
                   </div>
                 )}
               </div>
@@ -190,17 +192,17 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
                 >
                   {/* Subtle shine effect */}
                   <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12"></div>
-                  
+
                   {isPending || isValidating ? (
                     <>
                       <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                      {isValidating ? "Processing File..." : "Starting Magic..."}
+                      {isValidating ? t("modal.btn_processing") : t("modal.btn_magic")}
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
-                      <span className="hidden sm:inline">Generate Beautiful CV</span>
-                      <span className="sm:hidden">Generate CV</span>
+                      <span className="hidden sm:inline">{t("modal.btn_generate")}</span>
+                      <span className="sm:hidden">{t("modal.btn_generate_mobile")}</span>
                     </>
                   )}
                 </button>

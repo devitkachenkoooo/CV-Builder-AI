@@ -22,18 +22,22 @@ export interface ValidationIssue {
   suggestion?: string;
 }
 
-export async function validateCVContent(cvText: string): Promise<ValidationResult> {
+export async function validateCVContent(cvText: string, lang: 'ua' | 'en' = 'ua'): Promise<ValidationResult> {
   try {
     const textSnippet = cvText.trim();
-    console.log(`[VALIDATION] Starting CV content analysis. Text length: ${textSnippet.length} chars`);
+    console.log(`[VALIDATION] Starting CV content analysis. Text length: ${textSnippet.length} chars, Language: ${lang}`);
 
     if (textSnippet.length < 50) {
       console.log('[VALIDATION] Content too short for meaningful analysis');
+      const shortMsg = lang === 'ua'
+        ? 'Текст резюме занадто короткий. Будь ласка, додайте більше професійної інформації.'
+        : 'CV text is too short. Please add more professional information.';
+
       return {
         isValid: false,
         quality: 'poor',
         confidence: 1,
-        message: 'Текст резюме занадто короткий. Будь ласка, додайте більше професійної інформації.',
+        message: shortMsg,
         issues: [{
           type: 'quality_issue',
           severity: 'high',
@@ -43,6 +47,7 @@ export async function validateCVContent(cvText: string): Promise<ValidationResul
       };
     }
 
+    const languageName = lang === 'ua' ? 'Ukrainian' : 'English';
     const prompt = `You are a professional CV analyzer. Your goal is to determine if the provided text looks like a CV or contains information that can be used to generate a CV.
 
 CV TEXT TO ANALYZE:
@@ -63,8 +68,8 @@ RESPONSE FORMAT (Return ONLY a raw JSON object):
   "isValid": boolean,
   "quality": "excellent" | "good" | "fair" | "poor",
   "confidence": number,
-  "message": "Simple explanation in Ukrainian",
-  "suggestions": ["suggestion in Ukrainian"],
+  "message": "Simple explanation in ${languageName}",
+  "suggestions": ["suggestion in ${languageName}"],
   "issues": [
     {
       "type": "missing_info" | "quality_issue" | "inappropriate_content",
@@ -120,48 +125,63 @@ Respond with JSON only.`;
   } catch (error) {
     console.error('[VALIDATION] System Error:', error);
 
-    // In case of any system/AI error, we prefer to allow the user to proceed 
-    // rather than blocking them entirely if the file isn't obviously bad.
-    // However, for safety, we'll return a "fair" status to keep it moving.
+    const fallbackMsg = lang === 'ua'
+      ? 'Завантаження успішне. Починаємо обробку.'
+      : 'Upload successful. Starting processing.';
+
+    const fallbackSuggestion = lang === 'ua'
+      ? 'Система валідації тимчасово недоступна, але ми спробуємо створити ваше CV.'
+      : 'Validation system is temporarily unavailable, but we will try to create your CV.';
+
     return {
       isValid: true,
       quality: 'fair',
       confidence: 0.5,
-      message: 'Завантаження успішне. Починаємо обробку.',
-      suggestions: ['Система валідації тимчасово недоступна, але ми спробуємо створити ваше CV.'],
+      message: fallbackMsg,
+      suggestions: [fallbackSuggestion],
       issues: []
     };
   }
 }
 
-export function generateUserFriendlyMessage(result: ValidationResult): string {
+export function generateUserFriendlyMessage(result: ValidationResult, lang: 'ua' | 'en' = 'ua'): string {
   if (result.isValid) {
     switch (result.quality) {
       case 'excellent':
-        return '🎉 Ідеально! Ваші дані чудові, створюю професійне CV найвищої якості!';
+        return lang === 'ua'
+          ? '🎉 Ідеально! Ваші дані чудові, створюю професійне CV найвищої якості!'
+          : '🎉 Perfect! Your data is great, creating a professional CV of the highest quality!';
       case 'good':
-        return '✅ Дуже добре! Маю всю необхідну інформацію для створення якісного CV.';
+        return lang === 'ua'
+          ? '✅ Дуже добре! Маю всю необхідну інформацію для створення якісного CV.'
+          : '✅ Very good! I have all the necessary information to create a high-quality CV.';
       case 'fair':
-        return '👍 Непогано! Створю CV, але наступного разу можна додати більше деталей.';
+        return lang === 'ua'
+          ? '👍 Непогано! Створю CV, але наступного разу можна додати більше деталей.'
+          : '👍 Not bad! I\'ll create the CV, but next time you could add more details.';
       default:
         return result.message;
     }
   } else {
+    const errorPrefix = lang === 'ua' ? '❌ На жаль, дані непридатні. ' : '❌ Unfortunately, the data is not suitable. ';
+    const warningPrefix = lang === 'ua' ? '⚠️ Дані потребують покращення. ' : '⚠️ Data needs improvement. ';
+
     switch (result.quality) {
       case 'poor':
-        return '❌ На жаль, дані непридатні. ' + result.message;
+        return errorPrefix + result.message;
       case 'fair':
-        return '⚠️ Дані потребують покращення. ' + result.message;
+        return warningPrefix + result.message;
       default:
         return '❌ ' + result.message;
     }
   }
 }
 
-export function formatSuggestionsForUser(suggestions: string[]): string {
+export function formatSuggestionsForUser(suggestions: string[], lang: 'ua' | 'en' = 'ua'): string {
   if (!suggestions || suggestions.length === 0) {
     return '';
   }
 
-  return '\n\n💡 Рекомендації:\n' + suggestions.map((s, i) => `${i + 1}. ${s}`).join('\n');
+  const label = lang === 'ua' ? 'Рекомендації' : 'Suggestions';
+  return `\n\n💡 ${label}:\n` + suggestions.map((s, i) => `${i + 1}. ${s}`).join('\n');
 }

@@ -6,6 +6,7 @@ import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import type { GeneratedCvResponse } from "@shared/routes";
+import { useTranslation } from "react-i18next";
 
 // Function to get progress width based on progress text
 function getProgressWidth(progress?: string | null): string {
@@ -22,6 +23,7 @@ function getProgressWidth(progress?: string | null): string {
 }
 
 export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
+  const { t } = useTranslation();
   // Poll if status is pending/processing
   const { data: polledJob } = usePollingJob(cv.id, cv.status);
 
@@ -43,19 +45,19 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
 
       if (response.ok) {
         toast({
-          title: "CV видалено",
-          description: "CV успішно видалено з вашого списку",
+          title: t("toast.cv_deleted_title"),
+          description: t("toast.cv_deleted_desc"),
         });
         setIsDeleteDialogOpen(false);
-        // Оновити сторінку або перенаправити
+        // Refresh page or update context (reload is simplest here)
         window.location.reload();
       } else {
         throw new Error('Failed to delete CV');
       }
     } catch (error) {
       toast({
-        title: "Помилка видалення",
-        description: "Не вдалося видалити CV. Спробуйте ще раз",
+        title: t("toast.delete_failed_title"),
+        description: t("toast.delete_failed_desc"),
         variant: "destructive",
       });
     } finally {
@@ -68,19 +70,19 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
 
   return (
     <>
-      {/* Delete Dialog - Moved outside of Link to prevent event bubbling */}
+      {/* Delete Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent onClick={(e) => e.stopPropagation()}>
           <AlertDialogHeader>
-            <AlertDialogTitle>Видалити CV?</AlertDialogTitle>
+            <AlertDialogTitle>{t("cv_card.delete_title")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Ви впевнені, що хочете видалити це CV? Цю дію неможливо скасувати.
+              {t("cv_card.delete_desc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel asChild>
               <button className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80">
-                Скасувати
+                {t("common.cancel")}
               </button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
@@ -95,10 +97,10 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
                 {isDeleting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Видалення...
+                    {t("common.deleting")}
                   </>
                 ) : (
-                  "Видалити"
+                  t("common.delete")
                 )}
               </button>
             </AlertDialogAction>
@@ -108,12 +110,12 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
 
       <Link href={`/cv/${cv.id}`} className="block group">
         <div className="glass-card rounded-2xl overflow-hidden group relative flex flex-col cursor-pointer hover:shadow-xl transition-all duration-300">
-          {/* Delete Button - Always visible for non-processing CVs */}
+          {/* Delete Button */}
           {!isProcessing && (
             <button
               disabled={isDeleting}
               className="absolute top-3 left-3 p-2 bg-destructive hover:bg-destructive/90 text-white rounded-full shadow-lg transition-all duration-200 hover:scale-110 hover:shadow-xl z-10 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Видалити CV"
+              title={t("cv_card.delete_btn")}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -124,12 +126,12 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
             </button>
           )}
 
-          {/* Delete Processing Overlay - Keep inside the card for visual feedback on the card itself */}
+          {/* Delete Processing Overlay */}
           {!isProcessing && isDeleteDialogOpen && isDeleting && (
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-20 flex items-center justify-center">
               <div className="text-center text-sm text-muted-foreground flex items-center">
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                Видалення...
+                {t("common.deleting")}
               </div>
             </div>
           )}
@@ -157,9 +159,9 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
                   <div className="absolute inset-0 rounded-full border-4 border-primary/20"></div>
                   <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
                 </div>
-                <h4 className="font-display font-bold text-foreground mb-1">AI is working...</h4>
+                <h4 className="font-display font-bold text-foreground mb-1">{t("cv_card.ai_working")}</h4>
                 <p className="text-sm text-primary font-medium animate-pulse">
-                  {displayData.progress || "Preparing magical formatting..."}
+                  {displayData.progress || t("cv_card.preparing_format")}
                 </p>
               </div>
             )}
@@ -168,19 +170,19 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
             {isFailed && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-destructive/10 backdrop-blur-sm p-6 text-center">
                 <AlertCircle className="w-12 h-12 text-destructive mb-3" />
-                <h4 className="font-display font-bold text-destructive mb-1">Помилка генерації</h4>
+                <h4 className="font-display font-bold text-destructive mb-1">{t("cv_card.gen_error")}</h4>
                 <p className="text-xs text-destructive/80 font-medium px-4 break-words">
-                  {displayData.errorMessage || "Щось пішло не так під час обробки."}
+                  {displayData.errorMessage || t("cv_card.gen_error_desc")}
                 </p>
               </div>
             )}
 
-            {/* Success Overlay - Just show completion indicator */}
+            {/* Success Overlay */}
             {isComplete && (
               <div className="absolute inset-0 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
                 <div className="text-center">
                   <CheckCircle2 className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-foreground">Готово до перегляду</p>
+                  <p className="text-sm font-medium text-foreground">{t("cv_card.ready")}</p>
                 </div>
               </div>
             )}
@@ -193,10 +195,10 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
                 <h3 className="font-display font-bold text-foreground line-clamp-1">{templateName}</h3>
                 {/* Status Badge */}
                 <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${isProcessing ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' :
-                    isComplete ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' :
-                      'bg-red-500/10 text-red-600 border border-red-500/20'
+                  isComplete ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' :
+                    'bg-red-500/10 text-red-600 border border-red-500/20'
                   }`}>
-                  {displayData.status}
+                  {isProcessing ? t("cv_card.processing") : displayData.status}
                 </div>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-3">
@@ -206,7 +208,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
               {isComplete && (
                 <div className="flex items-center gap-1.5 text-xs text-primary mt-2">
                   <Eye className="w-3.5 h-3.5" />
-                  Натисніть для перегляду CV
+                  {t("cv_card.click_to_view")}
                 </div>
               )}
             </div>
@@ -226,7 +228,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
             {/* Progress Text */}
             {isProcessing && (
               <div className="mt-2 text-xs text-muted-foreground text-center">
-                {displayData.progress || "Processing..."}
+                {displayData.progress || t("cv_card.processing")}
               </div>
             )}
           </div>
