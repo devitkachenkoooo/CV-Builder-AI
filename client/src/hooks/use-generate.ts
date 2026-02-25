@@ -84,7 +84,7 @@ export function usePollingJob(jobId: number, initialStatus: string) {
       }
       return false;
     },
-    enabled: isPolling && !!jobId, // Only enable if we're polling AND have a jobId
+    enabled: isPolling && !!jobId && jobId > 0, // Only enable if we're polling AND have a valid jobId
   });
 }
 

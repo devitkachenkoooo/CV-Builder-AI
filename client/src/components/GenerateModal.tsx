@@ -28,6 +28,9 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
     "pending" // Always start with "pending" when we have a jobId
   );
 
+  console.log("[GenerateModal] Current jobId:", jobId);
+  console.log("[GenerateModal] Current jobStatus:", jobStatus);
+
   // Redirect to CV view when generation is complete
   useEffect(() => {
     console.log("[GenerateModal] jobStatus:", jobStatus);
