@@ -62,15 +62,24 @@ export function usePollingJob(jobId: number, initialStatus: string) {
     queryFn: async () => {
       console.log(`[usePollingJob] Polling status for job ${jobId}`);
       const url = buildUrl(api.generate.status.path, { jobId });
+      console.log(`[usePollingJob] Fetching from URL: ${url}`);
+      
       const res = await fetch(url, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch job status");
+      if (!res.ok) {
+        console.log(`[usePollingJob] HTTP Error: ${res.status} ${res.statusText}`);
+        throw new Error("Failed to fetch job status");
+      }
       
       const data = await res.json();
+      console.log(`[usePollingJob] Raw response data:`, data);
+      
       const parsed = parseWithLogging(api.generate.status.responses[200], data, "generate.status");
       console.log(`[usePollingJob] Job ${jobId} status:`, parsed.status);
+      console.log(`[usePollingJob] Job ${jobId} full response:`, parsed);
       
       // If we just completed, invalidate the main resumes list to ensure everything is in sync
       if (parsed.status === "complete" || parsed.status === "failed") {
+        console.log(`[usePollingJob] Job ${jobId} finished with status: ${parsed.status}`);
         queryClient.invalidateQueries({ queryKey: [api.resumes.list.path] });
       }
       
