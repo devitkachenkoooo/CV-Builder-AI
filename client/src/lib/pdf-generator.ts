@@ -27,7 +27,7 @@ function createPdfModal(html: string): void {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(0, 0, 0, 1);
     z-index: 999999;
     display: flex;
     align-items: center;
@@ -111,11 +111,13 @@ function createPdfModal(html: string): void {
       console.log('PDF HTML content length:', html.length);
       console.log('PDF HTML preview:', html.substring(0, 200) + '...');
       
-      // Створюємо тимчасовий div для PDF
+      // Створюємо тимчасовий div для PDF - робимо його видимим для завантаження шрифтів
       const tempDiv = document.createElement('div');
       tempDiv.style.cssText = `
         position: fixed;
-        left: -9999px;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
         width: 800px;
         height: auto;
         background: white;
@@ -125,7 +127,10 @@ function createPdfModal(html: string): void {
         opacity: 1;
         padding: 20px;
         box-sizing: border-box;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: 'Segoe UI', 'Arial', sans-serif;
+        z-index: 999998;
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
       `;
       tempDiv.innerHTML = html;
       document.body.appendChild(tempDiv);
@@ -140,19 +145,26 @@ function createPdfModal(html: string): void {
 
       progress.textContent = 'Loading fonts and styles...';
       
-      // Чекаємо довше для завантаження шрифтів і стилів
+      // Чекаємо 3 секунди для завантаження шрифтів і стилів (тепер вони точно завантажаться)
       await new Promise<void>(resolve => setTimeout(resolve, 3000));
 
-      progress.textContent = 'Rendering content...';
+      progress.textContent = 'Preparing PDF generation...';
       
-      // Знову перевіряємо розміри після завантаження стилів
-      console.log('TempDiv dimensions after styles load:', {
+      // Тепер ховаємо tempDiv за екран
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '0';
+      tempDiv.style.transform = 'none';
+      
+      // Знову перевіряємо розміри
+      console.log('TempDiv dimensions after hiding:', {
         scrollWidth: tempDiv.scrollWidth,
         scrollHeight: tempDiv.scrollHeight,
         offsetWidth: tempDiv.offsetWidth,
         offsetHeight: tempDiv.offsetHeight
       });
 
+      progress.textContent = 'Rendering content...';
+      
       progress.textContent = 'Generating PDF file...';
 
       // Використовуємо jsPDF як основний метод
