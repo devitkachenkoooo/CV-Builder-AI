@@ -28,7 +28,6 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
   const { mutate: deleteResume, isPending: isDeleting } = useGlobalDeleteResume();
   const { toast } = useToast();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   
   const displayData = polledJob || cv;
   const isProcessing = displayData.status === "pending" || displayData.status === "processing";
@@ -38,45 +37,23 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
   const templateScreenshot = displayData.template?.screenshotUrl || cv.template?.screenshotUrl;
   const templateName = displayData.template?.name || cv.template?.name || "Template";
 
-  const handleDownload = async (e: React.MouseEvent) => {
+  const handleDownload = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
     if (displayData.pdfUrl) {
-      try {
-        setIsGeneratingPdf(true);
-        
-        // Generate PDF on demand
-        const response = await fetch(`/api/resumes/${cv.id}/pdf`);
-        if (!response.ok) {
-          throw new Error('Failed to generate PDF');
-        }
-        
-        // Create blob and download
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `cv-${cv.id}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        
-        toast({
-          title: "PDF Generated! 🎉",
-          description: "Your CV has been downloaded as PDF.",
-        });
-      } catch (error) {
-        console.error('Error downloading PDF:', error);
-        toast({
-          title: "Download Failed",
-          description: "Failed to generate PDF. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsGeneratingPdf(false);
-      }
+      // Create a temporary link element to trigger download
+      const link = document.createElement('a');
+      link.href = `/api/resumes/${cv.id}/pdf`;
+      link.download = `cv-${cv.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "PDF Downloaded! 🎉",
+        description: "Your CV has been downloaded.",
+      });
     }
   };
 
@@ -138,15 +115,10 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center gap-3">
               <button
                 onClick={handleDownload}
-                disabled={isGeneratingPdf}
-                className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center shadow-lg hover:scale-110 hover:bg-primary/90 transition-transform disabled:opacity-50"
-                title={isGeneratingPdf ? "Generating PDF..." : "Download PDF"}
+                className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center shadow-lg hover:scale-110 hover:bg-primary/90 transition-transform"
+                title="Download PDF"
               >
-                {isGeneratingPdf ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Download className="w-5 h-5" />
-                )}
+                <Download className="w-5 h-5" />
               </button>
               <button
                 onClick={(e) => {

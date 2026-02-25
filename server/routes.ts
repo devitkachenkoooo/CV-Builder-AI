@@ -283,17 +283,22 @@ export async function registerRoutes(
         return res.status(403).json({ message: 'Forbidden' });
       }
 
-      // Delete the generated HTML file if it exists
+      // Delete generated HTML and PDF files
       if (cv.pdfUrl) {
         try {
-          const filePath = path.join(process.cwd(), "client", "public", cv.pdfUrl);
-          console.log(`[DELETE] Attempting to delete file: ${filePath}`);
+          const htmlPath = path.join(process.cwd(), "client", "public", cv.pdfUrl);
+          const pdfPath = path.join(process.cwd(), "client", "public", cv.pdfUrl.replace('.html', '.pdf'));
           
-          if (fsSync.existsSync(filePath)) {
-            await fs.unlink(filePath);
-            console.log(`[DELETE] Successfully deleted file: ${filePath}`);
-          } else {
-            console.log(`[DELETE] File does not exist: ${filePath}`);
+          // Delete HTML file
+          if (fsSync.existsSync(htmlPath)) {
+            await fs.unlink(htmlPath);
+            console.log(`[DELETE] Removed HTML file: ${htmlPath}`);
+          }
+          
+          // Delete PDF file
+          if (fsSync.existsSync(pdfPath)) {
+            await fs.unlink(pdfPath);
+            console.log(`[DELETE] Removed PDF file: ${pdfPath}`);
           }
         } catch (fileError) {
           console.error(`[DELETE] Error deleting file ${cv.pdfUrl}:`, fileError);
@@ -329,33 +334,18 @@ export async function registerRoutes(
         return res.status(404).json({ message: 'PDF file not found' });
       }
 
-      // Read the HTML file
-      const htmlPath = path.join(process.cwd(), "client", "public", cv.pdfUrl);
-      const htmlContent = await fs.readFile(htmlPath, "utf-8");
-
-      // Convert HTML to PDF
-      const outputDir = path.join(process.cwd(), "client", "public", "generated");
-      await fs.mkdir(outputDir, { recursive: true });
-      
-      const pdfFilename = `cv-${id}-${Date.now()}.pdf`;
-      const pdfPath = path.join(outputDir, pdfFilename);
-      
-      await convertHtmlToPdf(htmlContent, pdfPath);
-
-      // Send PDF file
+      // Read the PDF file and send it
+      const pdfPath = path.join(process.cwd(), "client", "public", cv.pdfUrl);
       const pdfBuffer = await fs.readFile(pdfPath);
-      
-      // Clean up temporary PDF file
-      await fs.unlink(pdfPath);
       
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="cv-${id}.pdf"`);
       res.send(pdfBuffer);
       
-      console.log(`[PDF] Generated and sent PDF for CV ${id}`);
+      console.log(`[PDF] Sent existing PDF for CV ${id}`);
     } catch (error) {
-      console.error("Error generating PDF:", error);
-      res.status(500).json({ message: "Failed to generate PDF" });
+      console.error("Error sending PDF:", error);
+      res.status(500).json({ message: "Failed to send PDF" });
     }
   });
 
@@ -459,20 +449,30 @@ Return the complete HTML document with the CV content injected.`;
       // Update status: AI formatting
       await storage.updateGeneratedCvStatus(jobId, "processing", "AI formatting CV...");
 
-      // Save HTML file (for viewing and PDF generation)
+      // Save HTML and PDF files
       const outputDir = path.join(process.cwd(), "client", "public", "generated");
       await fs.mkdir(outputDir, { recursive: true });
       
-      const filename = `cv-${jobId}-${Date.now()}.html`;
-      const outputPath = path.join(outputDir, filename);
-      await fs.writeFile(outputPath, generatedHtml, "utf-8");
+      const baseFilename = `cv-${jobId}-${Date.now()}`;
+      const htmlFilename = `${baseFilename}.html`;
+      const pdfFilename = `${baseFilename}.pdf`;
+      
+      const htmlPath = path.join(outputDir, htmlFilename);
+      const pdfPath = path.join(outputDir, pdfFilename);
+      
+      // Save HTML file
+      await fs.writeFile(htmlPath, generatedHtml, "utf-8");
+      
+      // Generate PDF file
+      await convertHtmlToPdf(generatedHtml, pdfPath);
 
-      const pdfUrl = `/generated/${filename}`;
+      // Store both URLs (HTML for viewing, PDF for download)
+      const pdfUrl = `/generated/${pdfFilename}`;
 
       // Update status: Complete
       await storage.updateGeneratedCvStatus(jobId, "complete", undefined, pdfUrl);
 
-      console.log(`Successfully generated CV ${jobId} as HTML`);
+      console.log(`Successfully generated CV ${jobId} as HTML and PDF`);
     } catch (apiError) {
       console.error(`[AI] OpenAI API Error for job ${jobId}:`, apiError);
       
@@ -494,11 +494,20 @@ Return the complete HTML document with the CV content injected.`;
         const outputDir = path.join(process.cwd(), "client", "public", "generated");
         await fs.mkdir(outputDir, { recursive: true });
         
-        const filename = `cv-${jobId}-${Date.now()}.html`;
-        const outputPath = path.join(outputDir, filename);
-        await fs.writeFile(outputPath, templateHtml, "utf-8");
+        const baseFilename = `cv-${jobId}-${Date.now()}`;
+        const htmlFilename = `${baseFilename}.html`;
+        const pdfFilename = `${baseFilename}.pdf`;
+        
+        const htmlPath = path.join(outputDir, htmlFilename);
+        const pdfPath = path.join(outputDir, pdfFilename);
+        
+        // Save HTML file
+        await fs.writeFile(htmlPath, templateHtml, "utf-8");
+        
+        // Generate PDF file
+        await convertHtmlToPdf(templateHtml, pdfPath);
 
-        const pdfUrl = `/generated/${filename}`;
+        const pdfUrl = `/generated/${pdfFilename}`;
 
         // Update status: Complete
         await storage.updateGeneratedCvStatus(jobId, "complete", undefined, pdfUrl);
