@@ -65,7 +65,7 @@ export async function registerRoutes(
   app.post(api.generate.start.path, isAuthenticated, upload.single('file'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      
+
       // Handle file upload
       if (!req.file) {
         return res.status(400).json({
@@ -76,10 +76,10 @@ export async function registerRoutes(
 
       // Process uploaded file
       const fileResult = await processUploadedFile(req.file);
-      
+
       if (!fileResult.success) {
         let errorMessage = fileResult.error || "Failed to process file";
-        
+
         // Add user-friendly messages for common errors
         if (errorMessage.includes("File must have .docx extension")) {
           errorMessage = "❌ Невірний формат файлу! Будь ласка, завантажте файл у форматі .docx (Microsoft Word).";
@@ -92,13 +92,13 @@ export async function registerRoutes(
         } else if (errorMessage.includes("Failed to extract text")) {
           errorMessage = "❌ Не вдалося прочитати вміст файлу! Перевірте, що файл не пошкоджений.";
         }
-        
+
         return res.status(400).json({
           message: errorMessage,
           field: "file"
         });
       }
-      
+
       const cvText = fileResult.text;
       const sourceInfo = `Uploaded file: ${req.file.originalname}`;
 
@@ -111,36 +111,18 @@ export async function registerRoutes(
         });
       }
 
-      // Create CV generation job first
-      const cv = await storage.createGeneratedCv({
-        userId,
-        templateId,
-        status: "pending",
-        progress: "Initializing...",
-        googleDocsUrl: null,
-      });
+      // 1. Validate CV content using AI FIRST (before creating anything in DB)
+      console.log(`[VALIDATION] Starting content validation for user ${userId}`);
 
-      // Validate CV content using AI
-      console.log(`[VALIDATION] Starting content validation for job ${cv.id}`);
-      await storage.updateGeneratedCvStatus(cv.id, "processing", "Аналіз якості даних...");
-      
       const validationResult = await validateCVContent(cvText);
-      
+
       if (!validationResult.isValid) {
         const userMessage = generateUserFriendlyMessage(validationResult);
         const suggestions = formatSuggestionsForUser(validationResult.suggestions || []);
         const fullMessage = userMessage + suggestions;
-        
-        console.log(`[VALIDATION] Content rejected for job ${cv.id}: ${validationResult.quality}`);
-        
-        await storage.updateGeneratedCvStatus(
-          cv.id, 
-          "failed", 
-          undefined, 
-          undefined, 
-          fullMessage
-        );
-        
+
+        console.log(`[VALIDATION] Content rejected: ${validationResult.quality}`);
+
         return res.status(400).json({
           message: fullMessage,
           field: "file",
@@ -151,14 +133,20 @@ export async function registerRoutes(
           }
         });
       }
-      
-      const userMessage = generateUserFriendlyMessage(validationResult);
-      console.log(`[VALIDATION] Content approved for job ${cv.id}: ${validationResult.quality}`);
-      
-      // Update status with positive feedback
-      await storage.updateGeneratedCvStatus(cv.id, "processing", userMessage);
 
-      // Start async generation (don't await)
+      console.log(`[VALIDATION] Content approved: ${validationResult.quality}`);
+      const userFriendlyStatus = generateUserFriendlyMessage(validationResult);
+
+      // 2. ONLY NOW create the job in the database
+      const cv = await storage.createGeneratedCv({
+        userId,
+        templateId,
+        status: "processing",
+        progress: userFriendlyStatus,
+        googleDocsUrl: null,
+      });
+
+      // 3. Start async generation
       generateCvAsync(cv.id, templateId, cvText, sourceInfo).catch(err => {
         console.error("[ASYNC] generateCvAsync crashed immediately:", err);
       });
@@ -254,7 +242,7 @@ export async function registerRoutes(
       if (cv.pdfUrl) {
         try {
           const htmlPath = path.join(process.cwd(), "client", "public", cv.pdfUrl);
-          
+
           // Delete HTML file
           if (fsSync.existsSync(htmlPath)) {
             await fs.unlink(htmlPath);
@@ -309,11 +297,6 @@ async function seedTemplates() {
 async function generateCvAsync(jobId: number, templateId: number, cvText: string, sourceInfo?: string) {
   console.log(`[ASYNC] Starting generateCvAsync for job ${jobId}`);
   try {
-    // Update status: Fetching Document
-    await storage.updateGeneratedCvStatus(jobId, "processing", "Processing Document...");
-
-    // Update status: AI Formatting
-    await storage.updateGeneratedCvStatus(jobId, "processing", "AI Formatting...");
 
     // Read template HTML
     const template = await storage.getTemplate(templateId);
@@ -349,21 +332,21 @@ Return the complete HTML document with the CV content injected.`;
     console.log(`[AI] Using model: meta-llama/llama-3.3-70b-instruct`);
     console.log(`[AI] API Base URL: ${process.env.AI_INTEGRATIONS_OPENROUTER_BASE_URL}`);
     console.log(`[AI] API Key exists: ${!!process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY}`);
-    
+
     // Update status: Starting AI
     await storage.updateGeneratedCvStatus(jobId, "processing", "Starting AI generation...");
-    
+
     try {
       // Update status: AI analyzing
       await storage.updateGeneratedCvStatus(jobId, "processing", "AI analyzing content...");
-      
+
       const response = await openrouter.chat.completions.create({
         model: "meta-llama/llama-3.3-70b-instruct",
         messages: [{ role: "user", content: prompt }],
         max_tokens: 8192,
         temperature: 0.7,
       });
-      
+
       console.log(`[AI] OpenAI call completed for job ${jobId}`);
       console.log(`[AI] Response length: ${response.choices[0]?.message?.content?.length || 0} chars`);
 
@@ -378,10 +361,10 @@ Return the complete HTML document with the CV content injected.`;
       // Save HTML file only
       const outputDir = path.join(process.cwd(), "client", "public", "generated");
       await fs.mkdir(outputDir, { recursive: true });
-      
+
       const filename = `cv-${jobId}-${Date.now()}.html`;
       const outputPath = path.join(outputDir, filename);
-      
+
       // Save HTML file
       await fs.writeFile(outputPath, generatedHtml, "utf-8");
 
@@ -394,10 +377,10 @@ Return the complete HTML document with the CV content injected.`;
       console.log(`Successfully generated CV ${jobId} as HTML`);
     } catch (apiError) {
       console.error(`[AI] OpenAI API Error for job ${jobId}:`, apiError);
-      
+
       // Fallback: save template without AI processing
       console.log(`[AI] Using fallback: saving template without AI processing for job ${jobId}`);
-      
+
       try {
         const template = await storage.getTemplate(templateId);
         if (!template) {
@@ -412,10 +395,10 @@ Return the complete HTML document with the CV content injected.`;
 
         const outputDir = path.join(process.cwd(), "client", "public", "generated");
         await fs.mkdir(outputDir, { recursive: true });
-        
+
         const filename = `cv-${jobId}-${Date.now()}.html`;
         const outputPath = path.join(outputDir, filename);
-        
+
         // Save HTML file
         await fs.writeFile(outputPath, templateHtml, "utf-8");
 
@@ -434,7 +417,7 @@ Return the complete HTML document with the CV content injected.`;
     console.error("DETAILED AI ERROR:", error);
     console.error(`[AI] Error stack:`, error instanceof Error ? error.stack : 'No stack available');
     const errorMessage = error instanceof Error ? error.message : "Generation failed";
-    
+
     // Update database with error status - use "error" to match frontend expectations
     try {
       await storage.updateGeneratedCvStatus(jobId, "failed", undefined, undefined, errorMessage);
