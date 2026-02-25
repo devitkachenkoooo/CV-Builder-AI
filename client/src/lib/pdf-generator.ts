@@ -115,41 +115,57 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
       doc.close();
 
       setTimeout(() => {
-        statusText.textContent = 'Analyzing document...';
+        try {
+          console.log('[PDF] Starting analysis phase');
+          statusText.textContent = 'Preparing content...';
 
-        const captureElement = doc.querySelector('.container') ||
-          doc.querySelector('.cv-container') ||
-          doc.querySelector('.resume') ||
-          doc.body;
+          const captureElement = doc.querySelector('.container') ||
+            doc.querySelector('.cv-container') ||
+            doc.querySelector('.resume') ||
+            doc.body;
 
-        if (captureElement instanceof HTMLElement) {
-          // 1. Get current content height
+          if (!captureElement || !(captureElement instanceof HTMLElement)) {
+            throw new Error('Could not find a valid content element to capture');
+          }
+
+          console.log('[PDF] Found capture element:', captureElement.className || 'body');
+
+          // 1. Calculate dimensions
           const contentHeight = captureElement.offsetHeight;
-          const a4HeightPx = 1123; // A4 height at 96 DPI
+          const a4HeightPx = 1123;
+          const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
 
-          // 2. Calculate how many pages we need
-          const numPages = Math.ceil(contentHeight / a4HeightPx);
+          console.log(`[PDF] Content height: ${contentHeight}px, calculated pages: ${numPages}`);
 
-          // 3. Force container to be a full multiple of A4 pages
+          // 2. Setup styles
           captureElement.style.minHeight = `${numPages * a4HeightPx}px`;
           captureElement.style.width = '210mm';
           captureElement.style.margin = '0';
           captureElement.style.boxShadow = 'none';
           captureElement.style.border = 'none';
 
-          // 4. Force body background to match
           const computedStyle = iframe.contentWindow?.getComputedStyle(captureElement);
           const bgColor = computedStyle?.backgroundColor || '#ffffff';
           doc.body.style.backgroundColor = bgColor;
           doc.documentElement.style.backgroundColor = bgColor;
 
+          console.log('[PDF] Background color detected:', bgColor);
+
+          // 3. Load Library
           const win = iframe.contentWindow as any;
           const script = doc.createElement('script');
           script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
 
+          script.onerror = () => {
+            console.error('[PDF] Failed to load html2pdf library');
+            statusText.textContent = 'Library load failed. Check your internet.';
+            setTimeout(() => { overlay.remove(); iframe.remove(); }, 3000);
+          };
+
           script.onload = () => {
+            console.log('[PDF] Library loaded, starting generation');
             if (win.html2pdf) {
-              statusText.textContent = `Generating ${numPages} page(s)...`;
+              statusText.textContent = `Rendering ${numPages} page(s)...`;
 
               win.html2pdf().from(captureElement).set({
                 margin: 0,
@@ -167,6 +183,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
               }).save().then(() => {
+                console.log('[PDF] Generation successful');
                 statusText.textContent = 'Success!';
                 setTimeout(() => {
                   overlay.remove();
@@ -174,12 +191,21 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                   style.remove();
                 }, 800);
               }).catch((err: any) => {
-                console.error('PDF Generation failed:', err);
-                overlay.remove(); iframe.remove();
+                console.error('[PDF] Final Error:', err);
+                statusText.textContent = 'Generation failed';
+                setTimeout(() => { overlay.remove(); iframe.remove(); }, 2000);
               });
+            } else {
+              console.error('[PDF] html2pdf not found on window');
+              statusText.textContent = 'Plugin Error';
+              setTimeout(() => { overlay.remove(); iframe.remove(); }, 2000);
             }
           };
           doc.head.appendChild(script);
+        } catch (innerErr: any) {
+          console.error('[PDF] Analysis Error:', innerErr);
+          statusText.textContent = 'Analysis failed';
+          setTimeout(() => { overlay.remove(); iframe.remove(); }, 2000);
         }
       }, 1500);
 
