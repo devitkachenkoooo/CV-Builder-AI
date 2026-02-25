@@ -111,14 +111,14 @@ function createPdfModal(html: string): void {
       console.log('PDF HTML content length:', html.length);
       console.log('PDF HTML preview:', html.substring(0, 200) + '...');
       
-      // Створюємо тимчасовий div для PDF - робимо його на весь екран під модаллю
+      // Створюємо тимчасовий div для PDF - робимо його розміром A4
       const tempDiv = document.createElement('div');
       tempDiv.style.cssText = `
         position: fixed;
         top: 0;
         left: 0;
-        width: 100vw;
-        height: 100vh;
+        width: 210mm; /* Ширина A4 */
+        height: 297mm; /* Висота A4 */
         background: white;
         color: black;
         overflow: visible;
@@ -128,6 +128,8 @@ function createPdfModal(html: string): void {
         box-sizing: border-box;
         font-family: 'Segoe UI', 'Arial', sans-serif;
         z-index: 999998;
+        transform: scale(3.78); /* Конвертуємо mm в px (1mm ≈ 3.78px) */
+        transform-origin: top left;
       `;
       tempDiv.innerHTML = html;
       document.body.appendChild(tempDiv);
@@ -142,7 +144,7 @@ function createPdfModal(html: string): void {
 
       progress.textContent = 'Loading fonts and styles...';
       
-      // Чекаємо 3 секунди для завантаження шрифтів і стилів (тепер вони точно завантажаться)
+      // Чекаємо 3 секунди для завантаження шрифтів і стилів
       await new Promise<void>(resolve => setTimeout(resolve, 3000));
 
       progress.textContent = 'Preparing PDF generation...';
@@ -160,7 +162,11 @@ function createPdfModal(html: string): void {
       progress.textContent = 'Generating PDF file...';
 
       // Використовуємо jsPDF для створення текстового PDF
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const doc = new jsPDF({ 
+        orientation: 'portrait', 
+        unit: 'mm', 
+        format: 'a4' 
+      });
       
       console.log('Using jsPDF method for text-based PDF');
       console.log('TempDiv content before PDF:', tempDiv.innerHTML.substring(0, 500));
@@ -170,10 +176,10 @@ function createPdfModal(html: string): void {
       await new Promise<void>((resolve, reject) => {
         try {
           doc.html(tempDiv, {
-            x: 10,
-            y: 10,
-            width: 190,
-            windowWidth: 800,
+            x: 0,
+            y: 0,
+            width: 210, // Ширина A4 в mm
+            windowWidth: 210, // Вікно також A4
             autoPaging: 'slice',
             html2canvas: {
               scale: 1,
@@ -181,6 +187,8 @@ function createPdfModal(html: string): void {
               allowTaint: true,
               backgroundColor: '#ffffff',
               logging: false,
+              width: 794, // 210mm в px (210 * 3.78)
+              height: 1123, // 297mm в px (297 * 3.78)
             },
             callback: function(doc) {
               console.log('jsPDF callback executed');
@@ -204,7 +212,7 @@ function createPdfModal(html: string): void {
           console.error('jsPDF error:', e);
           reject(e);
         }
-      }).catch(async (error) => {
+      }).catch(async (error: Error) => {
         console.warn('jsPDF.html() failed, trying manual text extraction:', error);
         
         progress.textContent = 'Extracting text content manually...';
