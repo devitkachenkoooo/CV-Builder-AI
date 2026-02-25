@@ -114,65 +114,73 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
       doc.write(html);
       doc.close();
 
-      // Give it a moment to render everything
       setTimeout(() => {
-        statusText.textContent = 'Analyzing styles...';
+        statusText.textContent = 'Analyzing document...';
 
         const captureElement = doc.querySelector('.container') ||
           doc.querySelector('.cv-container') ||
           doc.querySelector('.resume') ||
           doc.body;
 
-        // --- SMART BACKGROUND DETECTION ---
-        const computedStyle = iframe.contentWindow?.getComputedStyle(captureElement as Element);
-        const bgColor = computedStyle?.backgroundColor || '#ffffff';
-        doc.body.style.backgroundColor = bgColor; // Fill extra pages with theme color
-
-        // Ensure content is strictly 210mm wide for calculation
         if (captureElement instanceof HTMLElement) {
+          // 1. Get current content height
+          const contentHeight = captureElement.offsetHeight;
+          const a4HeightPx = 1123; // A4 height at 96 DPI
+
+          // 2. Calculate how many pages we need
+          const numPages = Math.ceil(contentHeight / a4HeightPx);
+
+          // 3. Force container to be a full multiple of A4 pages
+          captureElement.style.minHeight = `${numPages * a4HeightPx}px`;
           captureElement.style.width = '210mm';
-          captureElement.style.margin = '0 auto';
+          captureElement.style.margin = '0';
           captureElement.style.boxShadow = 'none';
+          captureElement.style.border = 'none';
+
+          // 4. Force body background to match
+          const computedStyle = iframe.contentWindow?.getComputedStyle(captureElement);
+          const bgColor = computedStyle?.backgroundColor || '#ffffff';
+          doc.body.style.backgroundColor = bgColor;
+          doc.documentElement.style.backgroundColor = bgColor;
+
+          const win = iframe.contentWindow as any;
+          const script = doc.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+
+          script.onload = () => {
+            if (win.html2pdf) {
+              statusText.textContent = `Generating ${numPages} page(s)...`;
+
+              win.html2pdf().from(captureElement).set({
+                margin: 0,
+                filename: filename,
+                pagebreak: { mode: ['css', 'legacy'] },
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                  scale: 2,
+                  useCORS: true,
+                  backgroundColor: bgColor,
+                  width: targetWidth,
+                  scrollY: 0,
+                  y: 0,
+                  removeContainer: true
+                },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
+              }).save().then(() => {
+                statusText.textContent = 'Success!';
+                setTimeout(() => {
+                  overlay.remove();
+                  iframe.remove();
+                  style.remove();
+                }, 800);
+              }).catch((err: any) => {
+                console.error('PDF Generation failed:', err);
+                overlay.remove(); iframe.remove();
+              });
+            }
+          };
+          doc.head.appendChild(script);
         }
-
-        const win = iframe.contentWindow as any;
-        const script = doc.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-
-        script.onload = () => {
-          if (win.html2pdf) {
-            statusText.textContent = 'Creating pages...';
-
-            win.html2pdf().from(captureElement).set({
-              margin: 0,
-              filename: filename,
-              pagebreak: { mode: ['css', 'legacy'], avoid: ['img', '.section-title'] },
-              image: { type: 'jpeg', quality: 0.98 },
-              html2canvas: {
-                scale: 2,
-                useCORS: true,
-                backgroundColor: bgColor,
-                width: targetWidth,
-                windowWidth: targetWidth,
-                scrollY: 0,
-                y: 0,
-                removeContainer: true
-              },
-              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
-            }).save().then(() => {
-              statusText.textContent = 'Success!';
-              setTimeout(() => {
-                overlay.remove();
-                iframe.remove();
-                style.remove();
-              }, 800);
-            }).catch((err: any) => {
-              console.error('PDF Generation failed:', err);
-              overlay.remove(); iframe.remove();
-            });
-          }
-        };
-        doc.head.appendChild(script);
       }, 1500);
 
     } catch (err) {
