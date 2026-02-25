@@ -5,6 +5,7 @@ import { ArrowLeft, Download, Loader2, Mail, Phone, Linkedin, MapPin, Calendar, 
 import { useToast } from "@/hooks/use-toast";
 import { api, buildUrl } from "@shared/routes";
 import { GeneratedCvResponse } from "@shared/schema";
+import { generatePDF } from "@/lib/pdf-generator";
 
 interface CvData {
   personalInfo: {
@@ -41,6 +42,7 @@ export default function CvViewPage() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   useEffect(() => {
     const fetchCvData = async () => {
@@ -51,26 +53,20 @@ export default function CvViewPage() {
         const response = await fetch(`/api/resumes/${id}`);
         
         if (!response.ok) {
-          throw new Error('Failed to fetch CV data');
+          if (response.status === 404) {
+            setError("CV not found");
+          } else {
+            setError("Failed to load CV");
+          }
+          return;
         }
 
-        const data: GeneratedCvResponse = await response.json();
+        const data = await response.json();
         setCvData(data);
-
-        // Parse the HTML content to extract structured data
-        if (data.pdfUrl) {
-          // Show the actual generated HTML file instead of mock data
-          console.log("[CvViewPage] Showing generated CV from:", data.pdfUrl);
-          setPdfUrl(data.pdfUrl);
-        }
+        setPdfUrl(data.pdfUrl);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load CV';
-        setError(errorMessage);
-        toast({
-          title: "Error",
-          description: errorMessage,
-          variant: "destructive",
-        });
+        console.error("Error fetching CV:", err);
+        setError("Failed to load CV");
       } finally {
         setIsLoading(false);
       }
@@ -79,15 +75,46 @@ export default function CvViewPage() {
     fetchCvData();
   }, [id, toast]);
 
-  const handleDownloadPDF = () => {
-    // Trigger browser print dialog
-    window.print();
+  const handleDownloadPDF = async () => {
+    if (!cvData?.id || !pdfUrl) return;
     
-    toast({
-      title: "Print Dialog Opened! 🎉",
-      description: "Choose 'Save as PDF' to download your CV.",
-    });
+    try {
+      setIsGeneratingPdf(true);
+      
+      // Generate PDF using jsPDF + html2canvas
+      await generatePDF({
+        filename: `cv-${cvData.id}.pdf`,
+        elementId: 'cv-content',
+        hideElements: ['.no-print', '.print-hidden']
+      });
+      
+      toast({
+        title: "PDF Generated! 🎉",
+        description: "Your CV has been downloaded successfully.",
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "PDF Generation Failed",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
+
+  // Listen for PDF generation messages from parent window
+  useEffect(() => {
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.data.type === 'GENERATE_PDF') {
+        await handleDownloadPDF();
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   const handleGoBack = () => {
     setLocation("/my-resumes");
@@ -157,10 +184,20 @@ export default function CvViewPage() {
         </button>
         <button
           onClick={handleDownloadPDF}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg shadow-lg hover:shadow-xl transition-shadow"
+          disabled={isGeneratingPdf}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg shadow-lg hover:shadow-xl transition-shadow disabled:opacity-50"
         >
-          <Download className="w-4 h-4" />
-          Print to PDF
+          {isGeneratingPdf ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Generating PDF...
+            </>
+          ) : (
+            <>
+              <Download className="w-4 h-4" />
+              Download PDF
+            </>
+          )}
         </button>
       </div>
 
@@ -175,35 +212,14 @@ export default function CvViewPage() {
             style={{ minHeight: '297mm' }}
           >
             {pdfUrl ? (
-              <>
-                <style>{`
-                  @media print {
-                    body * {
-                      visibility: hidden;
-                    }
-                    .print-container, .print-container * {
-                      visibility: visible;
-                    }
-                    .print-container {
-                      position: absolute;
-                      left: 0;
-                      top: 0;
-                      width: 100%;
-                    }
-                    .no-print {
-                      display: none !important;
-                    }
-                  }
-                `}</style>
-                <div className="print-container">
-                  <iframe
-                    src={pdfUrl}
-                    className="w-full h-screen"
-                    style={{ minHeight: '842px' }}
-                    title="Generated CV HTML"
-                  />
-                </div>
-              </>
+              <div id="cv-content" className="w-full">
+                <iframe
+                  src={pdfUrl}
+                  className="w-full h-screen"
+                  style={{ minHeight: '842px' }}
+                  title="Generated CV HTML"
+                />
+              </div>
             ) : (
               <div className="p-8 text-center">
                 <p className="text-muted-foreground">CV not available</p>
