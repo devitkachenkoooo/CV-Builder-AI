@@ -19,8 +19,11 @@ interface PdfFromElementOptions {
 
 // Функція для створення модального вікна генерації PDF
 function createPdfModal(html: string): void {
+  console.log('createPdfModal called with HTML length:', html.length);
+  
   // Створюємо модальне вікно, яке закриває всю сторінку
   const modal = document.createElement('div');
+  modal.id = 'pdf-generation-modal';
   modal.style.cssText = `
     position: fixed;
     top: 0;
@@ -119,28 +122,36 @@ function createPdfModal(html: string): void {
     background: white;
   `;
   
+  console.log('Creating iframe for PDF generation');
+  
   // Встановлюємо HTML контент в iframe
   document.body.appendChild(iframe);
   
   iframe.onload = () => {
+    console.log('Iframe loaded, setting up content');
+    
     try {
       const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
       if (!iframeDoc) {
         throw new Error('Cannot access iframe document');
       }
       
+      console.log('Writing HTML to iframe');
       iframeDoc.open();
       iframeDoc.write(html);
       iframeDoc.close();
       
       // Чекаємо завантаження стилів
       setTimeout(() => {
+        console.log('Starting PDF generation');
         progress.textContent = 'Generating PDF file...';
         
         // Використовуємо html2pdf.js в iframe
         const script = iframeDoc.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
         script.onload = () => {
+          console.log('html2pdf.js loaded, generating PDF');
+          
           if (iframe.contentWindow && 'html2pdf' in iframe.contentWindow) {
             (iframe.contentWindow as any).html2pdf().from(iframeDoc.body).set({
               margin: 10,
@@ -149,6 +160,8 @@ function createPdfModal(html: string): void {
               html2canvas: { scale: 2, useCORS: true },
               jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             }).save().then(() => {
+              console.log('PDF saved successfully, cleaning up');
+              
               // Cleanup
               iframe.remove();
               modal.remove();
@@ -160,6 +173,12 @@ function createPdfModal(html: string): void {
               modal.remove();
               style.remove();
             });
+          } else {
+            console.error('html2pdf not available in iframe');
+            // Cleanup on error
+            iframe.remove();
+            modal.remove();
+            style.remove();
           }
         };
         iframeDoc.head.appendChild(script);
@@ -174,6 +193,7 @@ function createPdfModal(html: string): void {
   };
   
   // Встановлюємо src для iframe
+  console.log('Setting iframe src to about:blank');
   iframe.src = 'about:blank';
 }
 
@@ -189,11 +209,26 @@ export async function generatePdfFromElement(options: PdfFromElementOptions): Pr
     // Отримуємо HTML з елемента
     const html = element.outerHTML;
     
-    // Створюємо модальне вікно генерації
-    createPdfModal(html);
-    
-    // Даємо час для відкриття модального вікна
-    await new Promise<void>(resolve => setTimeout(resolve, 500));
+    // Створюємо модальне вікно генерації і чекаємо на завершення
+    await new Promise<void>((resolve, reject) => {
+      // Створюємо модальне вікно
+      createPdfModal(html);
+      
+      // Слухаємо коли модальне вікно закриється (означає завершення)
+      const checkModal = setInterval(() => {
+        const modal = document.getElementById('pdf-generation-modal');
+        if (!modal) {
+          clearInterval(checkModal);
+          resolve();
+        }
+      }, 500);
+      
+      // Таймаут на випадок проблем
+      setTimeout(() => {
+        clearInterval(checkModal);
+        reject(new Error('PDF generation timeout'));
+      }, 30000); // 30 секунд
+    });
     
   } catch (error) {
     console.error('Error generating PDF from element:', error);
@@ -234,11 +269,26 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
       throw new Error('Empty HTML content received');
     }
     
-    // Створюємо модальне вікно генерації
-    createPdfModal(html);
-    
-    // Даємо час для відкриття модального вікна
-    await new Promise<void>(resolve => setTimeout(resolve, 500));
+    // Створюємо модальне вікно генерації і чекаємо на завершення
+    await new Promise<void>((resolve, reject) => {
+      // Створюємо модальне вікно
+      createPdfModal(html);
+      
+      // Слухаємо коли модальне вікно закриється (означає завершення)
+      const checkModal = setInterval(() => {
+        const modal = document.getElementById('pdf-generation-modal');
+        if (!modal) {
+          clearInterval(checkModal);
+          resolve();
+        }
+      }, 500);
+      
+      // Таймаут на випадок проблем
+      setTimeout(() => {
+        clearInterval(checkModal);
+        reject(new Error('PDF generation timeout'));
+      }, 30000); // 30 секунд
+    });
     
   } catch (error) {
     console.error('Error generating PDF from URL:', error);

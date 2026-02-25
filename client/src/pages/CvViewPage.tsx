@@ -76,11 +76,25 @@ export default function CvViewPage() {
   }, [id, toast]);
 
   const handleDownloadPDF = async () => {
-    if (!cvData?.id || !pdfUrl) return;
+    console.log('CvViewPage handleDownloadPDF called');
+    console.log('cvData:', cvData);
+    console.log('pdfUrl:', pdfUrl);
+    
+    if (!cvData?.id || !pdfUrl) {
+      console.error('Missing cvData.id or pdfUrl:', { cvDataId: cvData?.id, pdfUrl });
+      toast({
+        title: "PDF Generation Failed",
+        description: "CV data not loaded. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     try {
       setIsGeneratingPdf(true);
       
+      console.log('Calling generatePdfFromUrl with:', pdfUrl);
+
       await generatePdfFromUrl({
         url: pdfUrl,
         filename: `cv-${cvData.id}.pdf`,
