@@ -176,12 +176,13 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               statusText.textContent = `Rendering ${numPages} page(s)...`;
 
               win.html2pdf().from(captureElement).set({
-                // Using single number to avoid 'Invalid margin array' error
-                margin: 10,
+                // Margin 0 ensures the background color fills the whole page (no white borders)
+                margin: 0,
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
-                  avoid: ['p', 'li', 'h1', 'h2', 'h3', '.section', 'img']
+                  // Avoid breaking these elements to create natural padding at page ends
+                  avoid: ['p', 'li', 'h1', 'h2', 'h3', '.section', 'img', '.contact-item']
                 },
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
