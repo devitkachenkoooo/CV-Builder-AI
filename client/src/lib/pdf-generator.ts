@@ -84,13 +84,14 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
     left: 50%;
     transform: translate(-50%, -50%) scale(${visualScale});
     width: ${targetWidth}px;
-    height: 1123px; /* Full A4 height */
+    height: 1123px;
     border: none;
     background: white;
     box-shadow: 0 0 60px rgba(0,0,0,0.5);
-    z-index: 999991; /* Behind the loader but on top of everything else */
+    z-index: 999980; /* LOWER than overlay to stay behind */
     border-radius: 2px;
     pointer-events: none;
+    visibility: visible;
   `;
 
   // Animation styles
@@ -137,15 +138,19 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             win.html2pdf().from(captureElement).set({
               margin: 0,
               filename: filename,
+              pagebreak: { mode: ['css', 'legacy'], avoid: '.page-break-avoid' },
               image: { type: 'jpeg', quality: 0.98 },
               html2canvas: {
                 scale: 2,
                 useCORS: true,
                 backgroundColor: '#ffffff',
                 width: targetWidth,
-                windowWidth: targetWidth
+                windowWidth: targetWidth,
+                scrollY: 0,
+                y: 0,
+                removeContainer: true
               },
-              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
             }).save().then(() => {
               statusText.textContent = 'Success!';
               setTimeout(() => {
