@@ -34,10 +34,45 @@ async function convertHtmlToPdf(html: string, outputPath: string): Promise<void>
     
     const page = await browser.newPage();
     
-    // Set content and wait for it to load
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    // Set viewport to A4 size
+    await page.setViewport({ width: 794, height: 1123 });
     
-    // Generate PDF with A4 size
+    // Add CSS for better PDF formatting
+    const enhancedHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          @page {
+            size: A4;
+            margin: 10mm;
+          }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 100%;
+            margin: 0;
+            padding: 20px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          @media print {
+            body { padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        ${html}
+      </body>
+      </html>
+    `;
+    
+    // Set content and wait for it to load
+    await page.setContent(enhancedHtml, { waitUntil: 'networkidle0' });
+    
+    // Generate PDF with A4 size and better settings
     await page.pdf({
       path: outputPath,
       format: 'A4',
@@ -47,7 +82,9 @@ async function convertHtmlToPdf(html: string, outputPath: string): Promise<void>
         right: '10mm',
         bottom: '10mm',
         left: '10mm'
-      }
+      },
+      preferCSSPageSize: true,
+      scale: 0.8 // Scale down slightly to fit content better
     });
     
     console.log(`[PDF] Successfully generated PDF: ${outputPath}`);
@@ -397,13 +434,20 @@ Return the complete HTML document with the CV content injected.`;
     console.log(`[AI] API Base URL: ${process.env.AI_INTEGRATIONS_OPENROUTER_BASE_URL}`);
     console.log(`[AI] API Key exists: ${!!process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY}`);
     
+    // Update status: Starting AI
+    await storage.updateGeneratedCvStatus(jobId, "processing", "Starting AI generation...");
+    
     try {
+      // Update status: AI analyzing
+      await storage.updateGeneratedCvStatus(jobId, "processing", "AI analyzing content...");
+      
       const response = await openrouter.chat.completions.create({
         model: "meta-llama/llama-3.3-70b-instruct",
         messages: [{ role: "user", content: prompt }],
         max_tokens: 8192,
         temperature: 0.7,
       });
+      
       console.log(`[AI] OpenAI call completed for job ${jobId}`);
       console.log(`[AI] Response length: ${response.choices[0]?.message?.content?.length || 0} chars`);
 
@@ -412,8 +456,8 @@ Return the complete HTML document with the CV content injected.`;
       // Clean up markdown code blocks if present
       generatedHtml = generatedHtml.replace(/```html\n?/g, "").replace(/```\n?$/g, "").trim();
 
-      // Update status: Generating PDF
-      await storage.updateGeneratedCvStatus(jobId, "processing", "Generating PDF...");
+      // Update status: AI formatting
+      await storage.updateGeneratedCvStatus(jobId, "processing", "AI formatting CV...");
 
       // Save HTML file (for viewing and PDF generation)
       const outputDir = path.join(process.cwd(), "client", "public", "generated");

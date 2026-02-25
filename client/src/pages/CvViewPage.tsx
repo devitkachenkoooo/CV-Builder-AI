@@ -41,6 +41,7 @@ export default function CvViewPage() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   useEffect(() => {
     const fetchCvData = async () => {
@@ -79,18 +80,42 @@ export default function CvViewPage() {
     fetchCvData();
   }, [id, toast]);
 
-  const handleDownloadPDF = () => {
-    if (cvData?.pdfUrl) {
-      // Create a temporary link element to trigger download
+  const handleDownloadPDF = async () => {
+    if (!cvData?.id) return;
+    
+    try {
+      setIsGeneratingPdf(true);
+      
+      // Generate PDF on demand
+      const response = await fetch(`/api/resumes/${cvData.id}/pdf`);
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+      
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = cvData.pdfUrl;
-      link.download = `cv-${cvData.id}.html`; // Set filename
+      link.href = url;
+      link.download = `cv-${cvData.id}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } else {
-      // Fallback to print if no PDF URL available
-      window.print();
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "PDF Generated! 🎉",
+        description: "Your CV has been downloaded as PDF.",
+      });
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      toast({
+        title: "Download Failed",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
@@ -162,10 +187,20 @@ export default function CvViewPage() {
         </button>
         <button
           onClick={handleDownloadPDF}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg shadow-lg hover:shadow-xl transition-shadow"
+          disabled={isGeneratingPdf}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg shadow-lg hover:shadow-xl transition-shadow disabled:opacity-50"
         >
-          <Download className="w-4 h-4" />
-          Download CV
+          {isGeneratingPdf ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Generating PDF...
+            </>
+          ) : (
+            <>
+              <Download className="w-4 h-4" />
+              Download PDF
+            </>
+          )}
         </button>
       </div>
 

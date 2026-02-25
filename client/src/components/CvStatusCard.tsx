@@ -8,6 +8,20 @@ import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
 import type { GeneratedCvResponse } from "@shared/routes";
 
+// Function to get progress width based on progress text
+function getProgressWidth(progress?: string | null): string {
+  if (!progress) return "25%";
+  
+  const progressLower = progress.toLowerCase();
+  if (progressLower.includes("starting")) return "10%";
+  if (progressLower.includes("analyzing")) return "30%";
+  if (progressLower.includes("formatting")) return "60%";
+  if (progressLower.includes("finalizing")) return "85%";
+  if (progressLower.includes("generating pdf")) return "90%";
+  
+  return "50%"; // Default for unknown progress
+}
+
 export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
   // Poll if status is pending/processing
   const { data: polledJob } = usePollingJob(cv.id, cv.status);
@@ -182,9 +196,16 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
               <div 
                 className="h-full bg-primary rounded-full transition-all duration-1000 ease-out animate-[pulse_2s_ease-in-out_infinite]"
                 style={{ 
-                  width: displayData.status === "pending" ? "25%" : "75%"
+                  width: getProgressWidth(displayData.progress)
                 }}
               ></div>
+            </div>
+          )}
+
+          {/* Progress Text */}
+          {isProcessing && (
+            <div className="mt-2 text-xs text-muted-foreground text-center">
+              {displayData.progress || "Processing..."}
             </div>
           )}
         </div>
