@@ -79,7 +79,7 @@ export function Dropzone({
       {!selectedFile ? (
         <div
           className={cn(
-            "border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 cursor-pointer",
+            "border-2 border-dashed rounded-xl p-4 sm:p-6 lg:p-8 text-center transition-all duration-200 cursor-pointer",
             isDragOver 
               ? "border-primary bg-primary/5" 
               : "border-border hover:border-primary/50 hover:bg-primary/5",
@@ -99,13 +99,13 @@ export function Dropzone({
             className="hidden"
           />
           
-          <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+          <Upload className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 mx-auto mb-3 sm:mb-4 text-muted-foreground" />
           
-          <div className="space-y-2">
-            <p className="text-lg font-medium text-foreground">
+          <div className="space-y-1 sm:space-y-2">
+            <p className="text-sm sm:text-base lg:text-lg font-medium text-foreground">
               Drop your .docx file here
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               or click to browse
             </p>
             <p className="text-xs text-muted-foreground">
@@ -114,12 +114,12 @@ export function Dropzone({
           </div>
         </div>
       ) : (
-        <div className="border-2 border-border rounded-xl p-4 bg-muted/30">
+        <div className="border-2 border-border rounded-xl p-3 sm:p-4 bg-muted/30">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <FileText className="w-8 h-8 text-primary flex-shrink-0" />
+            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+              <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-primary flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">
+                <p className="text-xs sm:text-sm font-medium text-foreground truncate">
                   {selectedFile.name}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -131,17 +131,17 @@ export function Dropzone({
             <button
               onClick={handleRemove}
               disabled={disabled}
-              className="p-2 rounded-lg hover:bg-destructive/10 text-destructive hover:text-destructive transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1.5 sm:p-2 rounded-lg hover:bg-destructive/10 text-destructive hover:text-destructive transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3 h-3 sm:w-4 sm:h-4" />
             </button>
           </div>
         </div>
       )}
       
       {error && (
-        <div className="mt-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-          <p className="text-sm text-destructive">{error}</p>
+        <div className="mt-2 p-2 sm:p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+          <p className="text-xs sm:text-sm text-destructive">{error}</p>
         </div>
       )}
     </div>
