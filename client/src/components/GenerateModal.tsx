@@ -35,6 +35,8 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
   useEffect(() => {
     console.log("[GenerateModal] jobStatus:", jobStatus);
     console.log("[GenerateModal] jobId:", jobId);
+    console.log("[GenerateModal] jobStatus.id:", jobStatus?.id);
+    console.log("[GenerateModal] jobStatus.status:", jobStatus?.status);
     
     if (jobId && jobStatus?.status === "complete" && jobStatus.id) {
       console.log("[GenerateModal] Redirecting to CV view:", `/cv/${jobStatus.id}`);
@@ -42,9 +44,15 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
         title: "CV Generated Successfully! 🎉",
         description: "Your CV has been generated and is ready to view.",
       });
-      setLocation(`/cv/${jobStatus.id}`);
+      
+      // Close modal first, then navigate
       setJobId(null);
       onClose();
+      
+      // Navigate after modal is closed
+      setTimeout(() => {
+        setLocation(`/cv/${jobStatus.id}`);
+      }, 100);
     } else if (jobStatus?.status === "failed") {
       toast({
         title: "Generation Failed",
