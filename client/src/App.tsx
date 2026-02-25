@@ -11,6 +11,7 @@ import LandingPage from "@/pages/LandingPage";
 import GalleryPage from "@/pages/GalleryPage";
 import MyResumesPage from "@/pages/MyResumesPage";
 import CvViewPage from "@/pages/CvViewPage";
+import PdfGenerationPage from "@/pages/PdfGenerationPage";
 import { Loader2 } from "lucide-react";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -58,6 +59,11 @@ function Router() {
       
       <Route path="/cv/:id">
         {() => <ProtectedRoute component={CvViewPage} />}
+      </Route>
+      
+      {/* PDF Generation Page - no auth required */}
+      <Route path="/pdf-generation/:html">
+        <PdfGenerationPage />
       </Route>
       
       <Route component={NotFound} />
