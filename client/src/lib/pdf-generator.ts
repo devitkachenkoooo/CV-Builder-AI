@@ -177,13 +177,40 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             if (win.html2pdf) {
               statusText.textContent = `Rendering ${numPages} page(s)...`;
 
+              // --- ADVANCED FULL-BLEED PADDING INJECTION ---
+              // Since margin: 0 causes content to hit edges, we manually inject
+              // background-colored spacer blocks at physical page boundaries.
+              const A4_HEIGHT_PX = 1123;
+              const PADDING_PX = 56; // ~15mm top/bottom padding
+
+              const allElements = Array.from(target.querySelectorAll('*')) as HTMLElement[];
+
+              allElements.forEach((el) => {
+                const rect = el.getBoundingClientRect();
+                const containerRect = target.getBoundingClientRect();
+
+                // Calculate absolute physical Y position within the document
+                const absoluteY = rect.top - containerRect.top;
+
+                // If an element crosses a page boundary or starts very close to it
+                if (absoluteY > 0) {
+                  const pageNumber = Math.floor(absoluteY / A4_HEIGHT_PX);
+                  const boundaryY = pageNumber * A4_HEIGHT_PX;
+
+                  // If element is close to the cut line
+                  if (Math.abs(absoluteY - boundaryY) < PADDING_PX) {
+                    // Add safe spacing to push it down
+                    el.style.marginTop = `${PADDING_PX}px`;
+                  }
+                }
+              });
+
               win.html2pdf().from(captureElement).set({
-                // Margin 0 ensures the background color fills the whole page (no white borders)
+                // Strict 0 margin for full edge-to-edge background color
                 margin: 0,
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
-                  // Avoid breaking these elements to create natural padding at page ends
                   avoid: ['p', 'li', 'h1', 'h2', 'h3', '.section', 'img', '.contact-item']
                 },
                 image: { type: 'jpeg', quality: 0.98 },
@@ -226,8 +253,12 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
 
     } catch (err) {
       console.error('PDF Setup Error:', err);
-      overlay.remove();
-      iframe.remove();
+      // NOTE: Here overlay and iframe might not be initialized if error happens before they are created,
+      // but if the error threw from doc operations, they exist. Best effort cleanup:
+      try {
+        const o = document.body.querySelector('div[style*="z-index: 9999"]');
+        if (o) o.remove();
+      } catch (e) { }
     }
   };
 }
