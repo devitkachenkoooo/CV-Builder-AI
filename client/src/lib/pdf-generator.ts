@@ -177,33 +177,41 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             if (win.html2pdf) {
               statusText.textContent = `Rendering ${numPages} page(s)...`;
 
-              // --- ADVANCED FULL-BLEED PADDING INJECTION ---
-              // Since margin: 0 causes content to hit edges, we manually inject
-              // background-colored spacer blocks at physical page boundaries.
+              // --- PHYSICAL SPACER INJECTION (RELIABLE PADDING) ---
+              // Instead of just margins (which are often ignored by html2pdf's splitter),
+              // we inject real DIV elements that take up space at the top and bottom of each page.
               const A4_HEIGHT_PX = 1123;
-              const PADDING_PX = 56; // ~15mm top/bottom padding
+              const PADDING_PX = 60; // 15-20mm safety zone
 
-              const allElements = Array.from(target.querySelectorAll('*')) as HTMLElement[];
+              // We need to work backwards to not mess up coordinates of elements we haven't processed yet
+              const numSafetyPages = Math.ceil(target.offsetHeight / A4_HEIGHT_PX) + 1;
 
-              allElements.forEach((el) => {
-                const rect = el.getBoundingClientRect();
-                const containerRect = target.getBoundingClientRect();
+              for (let i = 1; i < numSafetyPages; i++) {
+                // Bottom of page i
+                const bottomSpacer = doc.createElement('div');
+                bottomSpacer.className = 'pdf-spacer';
+                bottomSpacer.style.height = `${PADDING_PX}px`;
+                bottomSpacer.style.width = '100%';
+                bottomSpacer.style.backgroundColor = bgColor;
+                bottomSpacer.style.position = 'absolute';
+                bottomSpacer.style.top = `${(i * A4_HEIGHT_PX) - PADDING_PX}px`;
+                bottomSpacer.style.zIndex = '999';
+                target.appendChild(bottomSpacer);
 
-                // Calculate absolute physical Y position within the document
-                const absoluteY = rect.top - containerRect.top;
+                // Top of page i+1
+                const topSpacer = doc.createElement('div');
+                topSpacer.className = 'pdf-spacer';
+                topSpacer.style.height = `${PADDING_PX}px`;
+                topSpacer.style.width = '100%';
+                topSpacer.style.backgroundColor = bgColor;
+                topSpacer.style.position = 'absolute';
+                topSpacer.style.top = `${i * A4_HEIGHT_PX}px`;
+                topSpacer.style.zIndex = '999';
+                target.appendChild(topSpacer);
+              }
 
-                // If an element crosses a page boundary or starts very close to it
-                if (absoluteY > 0) {
-                  const pageNumber = Math.floor(absoluteY / A4_HEIGHT_PX);
-                  const boundaryY = pageNumber * A4_HEIGHT_PX;
-
-                  // If element is close to the cut line
-                  if (Math.abs(absoluteY - boundaryY) < PADDING_PX) {
-                    // Add safe spacing to push it down
-                    el.style.marginTop = `${PADDING_PX}px`;
-                  }
-                }
-              });
+              // Re-calculate height after injection for safety
+              target.style.minHeight = `${numPages * A4_HEIGHT_PX}px`;
 
               win.html2pdf().from(captureElement).set({
                 // Strict 0 margin for full edge-to-edge background color
