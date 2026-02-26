@@ -139,7 +139,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
             </div>
           )}
 
-          <div className="relative aspect-[1/1.414] bg-secondary/30 w-full overflow-hidden border-b border-border/50">
+          <div className="relative aspect-[4/5] lg:aspect-[1/1.414] bg-secondary/30 w-full overflow-hidden border-b border-border/50">
             {templateScreenshot ? (
               <img
                 src={templateScreenshot}
@@ -192,7 +192,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
           </div>
 
           {/* Info Area */}
-          <div className="p-5 h-[150px] flex flex-col justify-between bg-card">
+          <div className="p-4 lg:p-5 h-[126px] lg:h-[140px] flex flex-col justify-between bg-card">
             <div>
               <div className="flex justify-between items-start mb-2">
                 <h3 className="font-display font-bold text-foreground line-clamp-1">{templateName}</h3>
