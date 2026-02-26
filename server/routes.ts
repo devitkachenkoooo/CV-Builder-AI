@@ -181,6 +181,9 @@ export async function registerRoutes(
   app.get(api.generate.status.path, isAuthenticated, async (req, res) => {
     try {
       const jobId = parseInt(req.params.jobId as string);
+      if (Number.isNaN(jobId)) {
+        return res.status(400).json({ message: "Invalid job id" });
+      }
       const cv = await storage.getGeneratedCvWithTemplate(jobId);
 
       if (!cv) {
@@ -217,6 +220,9 @@ export async function registerRoutes(
   app.get("/api/resumes/:id", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
+      if (Number.isNaN(id)) {
+        return res.status(400).json({ message: "Invalid CV id" });
+      }
       const userId = req.user.claims.sub;
 
       const cv = await storage.getGeneratedCvWithTemplate(id);
@@ -237,6 +243,9 @@ export async function registerRoutes(
   app.get(api.generatedCv.render.path, isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
+      if (Number.isNaN(id)) {
+        return res.status(400).json({ message: "Invalid CV id" });
+      }
       const userId = req.user.claims.sub;
 
       const cv = await storage.getGeneratedCv(id);
@@ -261,6 +270,9 @@ export async function registerRoutes(
   app.delete(api.resumes.delete.path, isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
+      if (Number.isNaN(id)) {
+        return res.status(400).json({ message: "Invalid CV id" });
+      }
       const userId = req.user.claims.sub;
 
       // Verify ownership
@@ -350,6 +362,9 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
       let generatedHtml = response.choices[0]?.message?.content || "";
       // Очищаємо від Markdown тегів, якщо ШІ їх додав
       generatedHtml = generatedHtml.replace(/```html\n?/g, "").replace(/```\n?$/g, "").trim();
+      if (!generatedHtml) {
+        throw new Error("AI returned empty HTML");
+      }
 
       const pdfUrl = buildUrl(api.generatedCv.render.path, { id: jobId });
       await storage.updateGeneratedCvStatus(

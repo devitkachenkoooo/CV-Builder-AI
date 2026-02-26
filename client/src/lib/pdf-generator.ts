@@ -158,10 +158,6 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             .container, .cv-container, .resume, main {
               overflow: visible !important;
             }
-            main > * {
-              break-inside: avoid;
-              page-break-inside: avoid;
-            }
             .pdf-page-start {
               break-before: page !important;
               page-break-before: always !important;
@@ -293,7 +289,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
-                  avoid: ['main > *', 'h1', 'h2', 'h3', '.section-title', 'img']
+                  avoid: ['h1', 'h2', 'h3', '.section-title', 'img']
                 },
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
