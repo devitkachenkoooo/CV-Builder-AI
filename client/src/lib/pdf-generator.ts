@@ -136,6 +136,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
           const contentHeight = target.scrollHeight;
           const a4HeightPx = 1123;
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
+          const pageMarginsMm = { top: 0, right: 0, bottom: 14, left: 0 };
           console.log(`[PDF] Content height: ${contentHeight}px, estimated pages: ${numPages}`);
 
           // Keep a deterministic A4 rendering world for every template.
@@ -157,6 +158,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
           target.style.width = '210mm';
           target.style.maxWidth = '210mm';
           target.style.margin = '0';
+          target.style.minHeight = '0';
           target.style.boxShadow = 'none';
           target.style.border = 'none';
           target.style.position = 'relative';
@@ -168,9 +170,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
 
           // Prevent awkward splits for common semantic blocks across all templates.
           const avoidSplitSelectors = [
-            'header', 'footer', 'section', '.section', '.section-title',
-            'h1', 'h2', 'h3',
-            '.exp-item', '.edu-item', '.projects-item', '.sub-item', '.award-item', '.skill-cat'
+            'h1', 'h2', 'h3', '.section-title', 'img'
           ];
           const avoidSplitBlocks = Array.from(target.querySelectorAll(avoidSplitSelectors.join(', '))) as HTMLElement[];
           avoidSplitBlocks.forEach((block) => {
@@ -212,13 +212,19 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
 
               target.style.backgroundColor = bgColor;
               doc.body.style.backgroundColor = bgColor;
+              const pdfMargin = win.Array.from([
+                pageMarginsMm.top,
+                pageMarginsMm.right,
+                pageMarginsMm.bottom,
+                pageMarginsMm.left
+              ]);
 
               win.html2pdf().from(captureElement).set({
-                margin: 0,
+                margin: pdfMargin,
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
-                  avoid: ['header', 'footer', 'section', 'h1', 'h2', 'h3', '.section-title', '.exp-item', '.edu-item', '.projects-item', '.sub-item', '.award-item', 'img']
+                  avoid: ['h1', 'h2', 'h3', '.section-title', 'img']
                 },
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
