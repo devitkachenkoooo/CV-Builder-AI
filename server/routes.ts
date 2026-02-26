@@ -300,35 +300,51 @@ async function seedTemplates() {
 
 async function generateCvAsync(jobId: number, templateId: number, cvText: string, lang: 'ua' | 'en' = 'ua', sourceInfo?: string) {
   try {
+    console.log("--- 🚀 ДІАГНОСТИКА ГЕНЕРАЦІЇ СТАРТ ---");
+    console.log("1. Поточна робоча директорія (cwd):", process.cwd());
+
     const template = await storage.getTemplate(templateId);
     if (!template) {
-      throw new Error("Template not found");
+      throw new Error("Template not found in DB");
     }
 
-    // --- ВИПРАВЛЕНИЙ ШЛЯХ (КРОК 1) ---
-    // Шукаємо спочатку в корені (як показав лог), потім у public
-    let templatePath = path.join(process.cwd(), "templates", template.fileName);
-    if (!fsSync.existsSync(templatePath)) {
-        templatePath = path.join(process.cwd(), "client", "public", "templates", template.fileName);
+    // Список шляхів, які ми перевіримо
+    const pathsToCheck = [
+      { name: "КОРІНЬ/templates", path: path.join(process.cwd(), "templates", template.fileName) },
+      { name: "CLIENT/PUBLIC/TEMPLATES", path: path.join(process.cwd(), "client", "public", "templates", template.fileName) },
+      { name: "SERVER/TEMPLATES", path: path.join(process.cwd(), "server", "templates", template.fileName) }
+    ];
+
+    let templateHtml = "";
+    let finalPath = "";
+
+    console.log("2. Перевірка наявності файлів:");
+    for (const item of pathsToCheck) {
+      const exists = fsSync.existsSync(item.path);
+      console.log(`   - [${exists ? "✅ ЗНАЙДЕНО" : "❌ НЕМАЄ"}] ${item.name}: ${item.path}`);
+      if (exists && !templateHtml) {
+        templateHtml = await fs.readFile(item.path, "utf-8");
+        finalPath = item.path;
+      }
     }
-    // Якщо все ще не знайшли, спробуємо старий шлях
-    if (!fsSync.existsSync(templatePath)) {
-        templatePath = path.join(process.cwd(), "server", "templates", template.fileName);
+
+    if (!templateHtml) {
+      console.error("3. ❌ КРИТИЧНО: Файл не знайдено в жодному з місць!");
+      throw new Error(`ENOENT: No template file found for ${template.fileName}`);
     }
 
-    const templateHtml = await fs.readFile(templatePath, "utf-8");
-    // --------------------------------
+    console.log("4. ✅ Файл успішно зчитано з:", finalPath);
 
-    const prompt = `You are a CV formatting expert...`; // Твій промпт залишається без змін
+    // Оновлення статусу (з новим текстом для перевірки деплою)
+    await storage.updateGeneratedCvStatus(jobId, "processing", lang === 'ua' ? "🚀 ПОЇХАЛИ! ШІ працює..." : "🚀 GO! AI is working...");
 
-    await storage.updateGeneratedCvStatus(jobId, "processing", lang === 'ua' ? "Запуск генерації ШІ..." : "Starting AI generation...");
+    // Далі йде логіка з AI...
+    const prompt = `You are a CV expert... Template: ${templateHtml.substring(0, 100)}...`; // Короткий шматок для тесту
 
     try {
-      await storage.updateGeneratedCvStatus(jobId, "processing", lang === 'ua' ? "ШІ аналізує вміст..." : "AI analyzing content...");
-
       const response = await openrouter.chat.completions.create({
         model: "meta-llama/llama-3.3-70b-instruct",
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: `Inject content into this template: ${templateHtml} \n\n Content: ${cvText}` }],
         max_tokens: 8192,
         temperature: 0.7,
       });
@@ -336,44 +352,23 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
       let generatedHtml = response.choices[0]?.message?.content || "";
       generatedHtml = generatedHtml.replace(/```html\n?/g, "").replace(/```\n?$/g, "").trim();
 
-      await storage.updateGeneratedCvStatus(jobId, "processing", lang === 'ua' ? "ШІ форматує резюме..." : "AI formatting CV...");
-
       const outputDir = path.join(process.cwd(), "client", "public", "generated");
       await fs.mkdir(outputDir, { recursive: true });
 
       const filename = `cv-${jobId}-${Date.now()}.html`;
       const outputPath = path.join(outputDir, filename);
-
       await fs.writeFile(outputPath, generatedHtml, "utf-8");
-      const pdfUrl = `/generated/${filename}`;
 
-      await storage.updateGeneratedCvStatus(jobId, "complete", lang === 'ua' ? "✅ Резюме успішно створено!" : "✅ CV successfully created!", pdfUrl);
+      await storage.updateGeneratedCvStatus(jobId, "complete", "✅ Готово!", `/generated/${filename}`);
+      console.log("5. 🎉 ГЕНЕРАЦІЯ ЗАВЕРШЕНА УСПІШНО");
 
-    } catch (apiError) {
-      // --- ВИПРАВЛЕНИЙ ШЛЯХ У FALLBACK (КРОК 2) ---
-      try {
-        // Використовуємо той самий templatePath, що визначили вище
-        const fallbackHtml = await fs.readFile(templatePath, "utf-8");
-
-        await storage.updateGeneratedCvStatus(jobId, "processing", lang === 'ua' ? "Генерація HTML..." : "Generating HTML...");
-
-        const outputDir = path.join(process.cwd(), "client", "public", "generated");
-        await fs.mkdir(outputDir, { recursive: true });
-
-        const filename = `cv-${jobId}-${Date.now()}.html`;
-        const outputPath = path.join(outputDir, filename);
-
-        await fs.writeFile(outputPath, fallbackHtml, "utf-8");
-        const pdfUrl = `/generated/${filename}`;
-
-        await storage.updateGeneratedCvStatus(jobId, "complete", lang === 'ua' ? "⚠️ Резюме створено в базовому режимі." : "⚠️ CV created in fallback mode.", pdfUrl);
-      } catch (fallbackError) {
-        await storage.updateGeneratedCvStatus(jobId, "failed", lang === 'ua' ? "❌ Помилка: Не вдалося створити резюме." : "❌ Error: Failed to create CV.");
-      }
+    } catch (apiError: any) {
+      console.error("❌ Помилка AI:", apiError.message);
+      throw apiError;
     }
-  } catch (error) {
-    // Тут тепер можна додати детальніший лог, щоб не гадати наступного разу
-    console.error("Critical error in generateCvAsync:", error);
-    await storage.updateGeneratedCvStatus(jobId, "failed", lang === 'ua' ? "❌ Критична помилка." : "❌ Critical error.");
+
+  } catch (error: any) {
+    console.error("❌ КРИТИЧНА ПОМИЛКА:", error.message);
+    await storage.updateGeneratedCvStatus(jobId, "failed", `❌ Помилка: ${error.message}`);
   }
 }
