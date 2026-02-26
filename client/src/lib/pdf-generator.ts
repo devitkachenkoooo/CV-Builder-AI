@@ -171,7 +171,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
           // Prevent awkward splits for common semantic blocks across all templates.
           const avoidSplitSelectors = [
             'header', 'footer', 'section', '.section', '.section-title',
-            'h1', 'h2', 'h3', 'ul', 'ol', 'li', 'p',
+            'h1', 'h2', 'h3',
             '.exp-item', '.edu-item', '.projects-item', '.sub-item', '.award-item', '.skill-cat'
           ];
           const avoidSplitBlocks = Array.from(target.querySelectorAll(avoidSplitSelectors.join(', '))) as HTMLElement[];
@@ -208,7 +208,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               // breathing room at the top via spacer carryover.
               const flowBlocks = Array.from(
                 target.querySelectorAll(
-                  'section, .section, .section-title, .exp-item, .edu-item, .projects-item, .sub-item, .award-item, h1, h2, h3, p, li'
+                  'section, .section, .section-title, .exp-item, .edu-item, .projects-item, .sub-item, .award-item, h1, h2, h3'
                 )
               ) as HTMLElement[];
 
@@ -225,6 +225,9 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                     const spacer = doc.createElement('div');
                     spacer.style.height = `${spacerHeight}px`;
                     spacer.style.width = '100%';
+                    spacer.style.display = 'block';
+                    spacer.style.fontSize = '0';
+                    spacer.style.lineHeight = '0';
                     spacer.style.backgroundColor = bgColor;
                     spacer.style.breakInside = 'avoid';
                     spacer.style.pageBreakInside = 'avoid';
@@ -242,7 +245,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
-                  avoid: ['header', 'footer', 'section', 'h1', 'h2', 'h3', 'ul', 'ol', 'li', '.section-title', '.exp-item', '.edu-item', '.projects-item', '.sub-item', '.award-item', 'img']
+                  avoid: ['header', 'footer', 'section', 'h1', 'h2', 'h3', '.section-title', '.exp-item', '.edu-item', '.projects-item', '.sub-item', '.award-item', 'img']
                 },
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
@@ -251,8 +254,6 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                   backgroundColor: bgColor,
                   width: targetWidth,
                   windowWidth: targetWidth,
-                  height: target.scrollHeight,
-                  windowHeight: target.scrollHeight,
                   scrollY: 0,
                   x: 0,
                   y: 0,
