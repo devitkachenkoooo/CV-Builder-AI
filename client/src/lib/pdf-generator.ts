@@ -182,6 +182,8 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
           target.style.top = '0';
           target.style.left = '0';
           target.style.transform = 'none';
+          // Keep breathing space on the first page too (not only on forced page starts).
+          target.style.paddingTop = `${pageTopGapPx}px`;
           target.style.breakInside = 'auto';
           target.style.pageBreakInside = 'auto';
           target.style.display = 'flow-root'; // prevent margin-collapsing side effects in PDF layout
@@ -266,8 +268,14 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               });
 
               target.style.boxSizing = 'border-box';
-              const fullPageCount = Math.max(1, Math.ceil((target.scrollHeight - 1) / a4HeightPx));
-              target.style.minHeight = `${(fullPageCount * a4HeightPx) - 1}px`;
+              const fullPageCount = Math.max(1, Math.ceil(target.scrollHeight / a4HeightPx));
+              const fullCanvasHeight = fullPageCount * a4HeightPx;
+              target.style.minHeight = `${fullCanvasHeight}px`;
+              target.style.backgroundColor = bgColor;
+              doc.body.style.minHeight = `${fullCanvasHeight}px`;
+              doc.documentElement.style.minHeight = `${fullCanvasHeight}px`;
+              doc.body.style.backgroundColor = bgColor;
+              doc.documentElement.style.backgroundColor = bgColor;
 
               win.html2pdf().from(captureElement).set({
                 margin: 0,
@@ -283,6 +291,8 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                   backgroundColor: bgColor,
                   width: targetWidth,
                   windowWidth: targetWidth,
+                  height: fullCanvasHeight,
+                  windowHeight: fullCanvasHeight,
                   scrollY: 0,
                   x: 0,
                   y: 0,
