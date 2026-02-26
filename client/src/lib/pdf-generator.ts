@@ -133,26 +133,52 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
           const target = captureElement as HTMLElement;
           console.log('[PDF] Found capture element:', target.className || 'body');
 
-          // 1. Calculate dimensions
-          const contentHeight = target.offsetHeight;
+          const contentHeight = target.scrollHeight;
           const a4HeightPx = 1123;
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
+          const pageMarginsMm = { top: 12, right: 0, bottom: 12, left: 0 };
 
-          console.log(`[PDF] Content height: ${contentHeight}px, calculated pages: ${numPages}`);
+          console.log(`[PDF] Content height: ${contentHeight}px, estimated pages: ${numPages}`);
 
-          // 2. Setup styles
-          target.style.minHeight = `${numPages * a4HeightPx}px`;
+          // Keep a deterministic A4 rendering world for every template.
+          const normalizeStyle = doc.createElement('style');
+          normalizeStyle.textContent = `
+            html, body {
+              width: ${targetWidth}px !important;
+              max-width: ${targetWidth}px !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              overflow: visible !important;
+            }
+            body {
+              display: block !important;
+            }
+          `;
+          doc.head.appendChild(normalizeStyle);
+
           target.style.width = '210mm';
+          target.style.maxWidth = '210mm';
           target.style.margin = '0';
           target.style.boxShadow = 'none';
           target.style.border = 'none';
+          target.style.position = 'relative';
+          target.style.top = '0';
+          target.style.left = '0';
+          target.style.transform = 'none';
+          target.style.breakInside = 'auto';
+          target.style.pageBreakInside = 'auto';
 
-          // --- FIX: Remove margin from last element to prevent blank page ---
-          const lastChild = target.lastElementChild as HTMLElement;
-          if (lastChild) {
-            lastChild.style.marginBottom = '0';
-            lastChild.style.paddingBottom = '0';
-          }
+          // Prevent awkward splits for common semantic blocks across all templates.
+          const avoidSplitSelectors = [
+            'header', 'footer', 'section', '.section', '.section-title',
+            'h1', 'h2', 'h3', 'ul', 'ol', 'li', 'p',
+            '.exp-item', '.edu-item', '.projects-item', '.sub-item', '.award-item', '.skill-cat'
+          ];
+          const avoidSplitBlocks = Array.from(target.querySelectorAll(avoidSplitSelectors.join(', '))) as HTMLElement[];
+          avoidSplitBlocks.forEach((block) => {
+            block.style.breakInside = 'avoid';
+            block.style.pageBreakInside = 'avoid';
+          });
 
           const computedStyle = iframe.contentWindow?.getComputedStyle(captureElement);
           const bgColor = computedStyle?.backgroundColor || '#ffffff';
@@ -178,66 +204,17 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               statusText.textContent = `Rendering ${numPages} page(s)...`;
 
               // --- REFINED GRANULAR "FLOW INJECTION" ---
-              // Higher granularity: we target smaller elements like paragraphs and list items
-              // so that we don't push entire sections if only their end is at a boundary.
-              const A4_HEIGHT_PX = 1123;
-              const SAFE_ZONE_PX = 45; // ~12mm safety margin
-
-              // More granular selection: sections, headings, paragraphs, and list items.
-              const flowBlocks = Array.from(target.querySelectorAll('.section, header, footer, h1, h2, h3, p, li, .contact-item')) as HTMLElement[];
-
-              flowBlocks.forEach((el) => {
-                const rect = el.getBoundingClientRect();
-                const containerRect = target.getBoundingClientRect();
-
-                const elTop = rect.top - containerRect.top;
-                const elBottom = rect.bottom - containerRect.top;
-
-                const pageNum = Math.floor((elTop + 1) / A4_HEIGHT_PX);
-                const pageBottom = (pageNum + 1) * A4_HEIGHT_PX;
-
-                // If this specific smaller element crosses the boundary or is too close to the end
-                if (elBottom > (pageBottom - SAFE_ZONE_PX)) {
-                  // Calculate dynamic jump to the start of the next page + top padding
-                  const spacerHeight = (pageBottom - elTop) + SAFE_ZONE_PX;
-
-                  const spacer = doc.createElement('div');
-                  spacer.style.height = `${spacerHeight}px`;
-                  spacer.style.backgroundColor = bgColor;
-                  spacer.className = 'pdf-page-separator';
-                  spacer.style.width = '100%';
-
-                  el.parentNode?.insertBefore(spacer, el);
-                }
-              });
-
-              // Apply global padding for first and last page appearance
-              target.style.paddingLeft = '15mm';
-              target.style.paddingRight = '15mm';
-              target.style.paddingTop = '15mm';
-              target.style.paddingBottom = '15mm';
-              target.style.boxSizing = 'border-box';
+              // Keep original template paddings intact; page-level vertical breathing room
+              // is managed by PDF margins for consistency on every page.
               target.style.backgroundColor = bgColor;
               doc.body.style.backgroundColor = bgColor;
 
-              // --- PREVENT EXTRA PAGE HACK ---
-              // 1. Force overflow hidden to cut off any invisible "tails"
-              doc.body.style.overflow = 'hidden';
-              doc.documentElement.style.overflow = 'hidden';
-
-              // 2. Ensure container exactly fits the pages with a tiny 2px safety buffer
-              const finalHeight = target.offsetHeight;
-              const finalPages = Math.ceil(finalHeight / A4_HEIGHT_PX);
-              // Subtracting 2px prevents the "99.0001%" height issue that triggers a blank page
-              target.style.minHeight = `${(finalPages * A4_HEIGHT_PX) - 2}px`;
-              target.style.height = `${(finalPages * A4_HEIGHT_PX) - 2}px`;
-
               win.html2pdf().from(captureElement).set({
-                margin: 0,
+                margin: [pageMarginsMm.top, pageMarginsMm.right, pageMarginsMm.bottom, pageMarginsMm.left],
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
-                  avoid: ['h1', 'h2', 'h3', 'p', 'li', '.section', 'img']
+                  avoid: ['header', 'footer', 'section', 'h1', 'h2', 'h3', 'ul', 'ol', 'li', '.section-title', '.exp-item', '.edu-item', '.projects-item', '.sub-item', '.award-item', 'img']
                 },
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
@@ -246,7 +223,9 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                   backgroundColor: bgColor,
                   width: targetWidth,
                   windowWidth: targetWidth,
-                  scrollY: 0, // Prevent offset shift
+                  height: target.scrollHeight,
+                  windowHeight: target.scrollHeight,
+                  scrollY: 0,
                   x: 0,
                   y: 0,
                   removeContainer: true
