@@ -56,7 +56,6 @@ export async function registerRoutes(
       const templates = await storage.getTemplates();
       res.json(templates);
     } catch (error) {
-      console.error("Error fetching templates:", error);
       res.status(500).json({ message: "Failed to fetch templates" });
     }
   });
@@ -132,7 +131,6 @@ export async function registerRoutes(
       }
 
       // 1. Validate CV content using AI FIRST (before creating anything in DB)
-      console.log(`[VALIDATION] Starting content validation for user ${userId} in ${lang}`);
 
       const validationResult = await validateCVContent(cvText, lang);
 
@@ -141,7 +139,6 @@ export async function registerRoutes(
         const suggestions = formatSuggestionsForUser(validationResult.suggestions || [], lang);
         const fullMessage = userMessage + suggestions;
 
-        console.log(`[VALIDATION] Content rejected: ${validationResult.quality}`);
 
         return res.status(400).json({
           message: fullMessage,
@@ -154,7 +151,6 @@ export async function registerRoutes(
         });
       }
 
-      console.log(`[VALIDATION] Content approved: ${validationResult.quality}`);
       const userFriendlyStatus = generateUserFriendlyMessage(validationResult, lang);
 
       // 2. ONLY NOW create the job in the database
@@ -167,7 +163,6 @@ export async function registerRoutes(
 
       // 3. Start async generation
       generateCvAsync(cv.id, templateId, cvText, lang, sourceInfo).catch(err => {
-        console.error("[ASYNC] generateCvAsync crashed immediately:", err);
       });
 
       res.status(202).json({ jobId: cv.id });
@@ -178,7 +173,6 @@ export async function registerRoutes(
           field: err.errors[0].path.join('.'),
         });
       }
-      console.error("Error starting generation:", err);
       res.status(500).json({ message: "Failed to start generation" });
     }
   });
@@ -204,7 +198,6 @@ export async function registerRoutes(
 
       res.json(response);
     } catch (error) {
-      console.error("Error fetching job status:", error);
       res.status(500).json({ message: "Failed to fetch job status" });
     }
   });
@@ -216,7 +209,6 @@ export async function registerRoutes(
       const cvs = await storage.getUserGeneratedCvs(userId);
       res.json(cvs);
     } catch (error) {
-      console.error("Error fetching resumes:", error);
       res.status(500).json({ message: "Failed to fetch resumes" });
     }
   });
@@ -237,7 +229,6 @@ export async function registerRoutes(
 
       res.json(cv);
     } catch (error) {
-      console.error("Error fetching CV:", error);
       res.status(500).json({ message: "Failed to fetch CV" });
     }
   });
@@ -265,19 +256,15 @@ export async function registerRoutes(
           // Delete HTML file
           if (fsSync.existsSync(htmlPath)) {
             await fs.unlink(htmlPath);
-            console.log(`[DELETE] Removed HTML file: ${htmlPath}`);
           }
         } catch (fileError) {
-          console.error(`[DELETE] Error deleting file ${cv.pdfUrl}:`, fileError);
           // Continue with database deletion even if file deletion fails
         }
       }
 
       await storage.deleteGeneratedCv(id);
-      console.log(`[DELETE] Successfully deleted CV ${id} from database`);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting resume:", error);
       res.status(500).json({ message: "Failed to delete resume" });
     }
   });
@@ -291,7 +278,6 @@ async function seedTemplates() {
   const existing = await storage.getTemplates();
   if (existing.length > 0) return;
 
-  console.log("Seeding CV templates...");
 
   const templates = [
     { name: "Classic Minimalist", fileName: "template-1_1771944300652.html", screenshotUrl: "/images/templates/template-1.png", description: "Clean and professional layout with traditional styling" },
@@ -310,11 +296,9 @@ async function seedTemplates() {
     await storage.createTemplate(template);
   }
 
-  console.log(`Seeded ${templates.length} CV templates`);
 }
 
 async function generateCvAsync(jobId: number, templateId: number, cvText: string, lang: 'ua' | 'en' = 'ua', sourceInfo?: string) {
-  console.log(`[ASYNC] Starting generateCvAsync for job ${jobId} in ${lang}`);
   try {
 
     // Read template HTML
@@ -349,8 +333,6 @@ INSTRUCTIONS:
 OUTPUT:
 Return the complete HTML document with the CV content injected.`;
 
-    console.log(`[AI] Starting OpenAI call for job ${jobId}...`);
-    console.log(`[AI] Using model: meta-llama/llama-3.3-70b-instruct`);
 
     // Update status: Starting AI
     await storage.updateGeneratedCvStatus(jobId, "processing", lang === 'ua' ? "Запуск генерації ШІ..." : "Starting AI generation...");
@@ -366,8 +348,6 @@ Return the complete HTML document with the CV content injected.`;
         temperature: 0.7,
       });
 
-      console.log(`[AI] OpenAI call completed for job ${jobId}`);
-      console.log(`[AI] Response length: ${response.choices[0]?.message?.content?.length || 0} chars`);
 
       let generatedHtml = response.choices[0]?.message?.content || "";
 
@@ -393,12 +373,9 @@ Return the complete HTML document with the CV content injected.`;
       // Update status: Complete
       await storage.updateGeneratedCvStatus(jobId, "complete", lang === 'ua' ? "✅ Резюме успішно створено! Готово до перегляду." : "✅ CV successfully created! Ready to view.", pdfUrl);
 
-      console.log(`Successfully generated CV ${jobId} as HTML`);
     } catch (apiError) {
-      console.error(`[AI] OpenAI API Error for job ${jobId}:`, apiError);
 
       // Fallback: save template without AI processing
-      console.log(`[AI] Using fallback: saving template without AI processing for job ${jobId}`);
 
       try {
         const template = await storage.getTemplate(templateId);
@@ -426,14 +403,11 @@ Return the complete HTML document with the CV content injected.`;
         // Update status: Complete
         await storage.updateGeneratedCvStatus(jobId, "complete", lang === 'ua' ? "⚠️ Резюме створено в базовому режимі (AI недоступний)." : "⚠️ CV created in fallback mode (AI unavailable).", pdfUrl);
 
-        console.log(`Successfully generated CV ${jobId} (fallback mode)`);
       } catch (fallbackError) {
-        console.error(`[AI] Fallback also failed for job ${jobId}:`, fallbackError);
         await storage.updateGeneratedCvStatus(jobId, "failed", lang === 'ua' ? "❌ Помилка: Не вдалося створити резюме." : "❌ Error: Failed to create CV.");
       }
     }
   } catch (error) {
-    console.error(`[ASYNC] Fatal error for job ${jobId}:`, error);
     await storage.updateGeneratedCvStatus(jobId, "failed", lang === 'ua' ? "❌ Критична помилка." : "❌ Critical error.");
   }
 }
