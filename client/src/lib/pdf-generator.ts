@@ -135,7 +135,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
 
           const contentHeight = target.scrollHeight;
           const a4HeightPx = 1123;
-          const pageTopGapPx = 16;
+          const pageTopGapPx = 70;
           const pageBottomSafePx = 62;
           const moveThresholdPx = 420;
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
