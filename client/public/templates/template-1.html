@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV - Citra Barus</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+        :root {
+            --bg-color: #ede2d5;
+            --text-color: #333;
+            --secondary-text: #555;
+            --line-color: #333;
+            --font-main: 'Inter', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: #ccc;
+            color: var(--text-color);
+            line-height: 1.5;
+            display: flex;
+            justify-content: center;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            background-color: var(--bg-color);
+            width: 210mm;
+            min-height: 297mm;
+            padding: 60px 50px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                    margin: 0;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 40px;
+        }
+
+        .header-left h1 {
+            font-size: 42px;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .header-left p {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .header-right {
+            text-align: left;
+            font-size: 13px;
+            color: var(--secondary-text);
+        }
+
+        .header-right p {
+            margin-bottom: 4px;
+        }
+
+        .header-right span {
+            font-style: italic;
+        }
+
+        section {
+            margin-bottom: 40px;
+        }
+
+        .section-separator {
+            border: none;
+            border-top: 2px solid var(--line-color);
+            margin: 15px 0 25px 0;
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+
+        .content-block {
+            margin-bottom: 25px;
+        }
+
+        .content-block h3 {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .content-block .subtitle {
+            font-size: 14px;
+            font-weight: 400;
+            margin-bottom: 10px;
+        }
+
+        ul {
+            list-style-type: disc;
+            margin-left: 20px;
+            font-size: 13px;
+        }
+
+        li {
+            margin-bottom: 5px;
+        }
+
+        .profile-summary {
+            font-size: 14px;
+            text-align: justify;
+        }
+
+        .skills-list {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .skills-list li {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        @media print {
+            body {
+                background-color: white;
+            padding: 0;
+            margin: 0;
+        }
+            .container {
+                box-shadow: none;
+                margin: 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <h1>CITRA BARUS</h1>
+                <p>AHLI PEMASARAN</p>
+            </div>
+            <div class="header-right">
+                <p>Telepon: 011 223 34 56</p>
+                <p><span>Email:</span> halo@situssupercanggih.co.id</p>
+                <p>Alamat: Jalan Bangka No. 8, Manado 12345</p>
+                <p>Portofolio: situssupercanggih.co.id</p>
+            </div>
+        </header>
+
+        <main>
+        <section id="ringkasan-profil">
+            <h2>RINGKASAN PROFIL</h2>
+            <hr class="section-separator">
+            <p class="profile-summary">
+                Lulusan baru bidang pemasaran, mahir dalam riset pasar dan konten media sosial, berkomitmen membantu merek ramah lingkungan menyampaikan cerita mereka melalui kanal yang tepat.
+            </p>
+        </section>
+
+        <section id="pengalaman-kerja">
+            <h2>PENGALAMAN KERJA</h2>
+            <hr class="section-separator">
+            
+            <div class="content-block">
+                <h3>Relawan Media Sosial | 2033–sekarang</h3>
+                <p class="subtitle">Grup Lingkungan Hijau</p>
+                <ul>
+                    <li>Memproduksi video sosial dan menulis teks untuk halaman resmi grup</li>
+                    <li>Melakukan penelitian tren untuk memastikan relevansi konten media sosial</li>
+                    <li>Menyumbang ide selama tahap perencanaan konten</li>
+                    <li>Berkoordinasi dan berkolaborasi dengan beragam mitra merek dan <i>influencer</i></li>
+                </ul>
+            </div>
+
+            <div class="content-block">
+                <h3>Magang Pemasaran | 2033–2034</h3>
+                <p class="subtitle">PT Media Gaya Hidup</p>
+                <ul>
+                    <li>Menulis naskah konten media sosial, artikel web, dan buletin <i>email</i></li>
+                    <li>Mengikuti sesi curah pendapat untuk kampanye pemasaran dan acara</li>
+                    <li>Membantu dalam tugas desain grafis dan penyuntingan video</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="pendidikan">
+            <h2>PENDIDIKAN</h2>
+            <hr class="section-separator">
+            
+            <div class="content-block">
+                <h3>Universitas Negeri | 2030–2034</h3>
+                <p class="subtitle">Sarjana Ilmu Komunikasi (S.I.Kom.)</p>
+                <ul>
+                    <li>IPK: 3,5</li>
+                    <li>Anggota, Asosiasi Mahasiswa Pemasaran</li>
+                    <li>Penghargaan Skripsi Terbaik</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="keterampilan-dan-minat">
+            <h2>KETERAMPILAN DAN MINAT</h2>
+            <hr class="section-separator">
+            <ul class="skills-list">
+                <li>Penulisan naskah</li>
+                <li>Penyuntingan video dasar</li>
+                <li>Penelitian tren</li>
+                <li>Keberlanjutan lingkungan</li>
+                <li>Hidup bersih</li>
+            </ul>
+        </section>
+        
+        <hr class="section-separator">
+        </main>
+    </div>
+</body>
+</html>

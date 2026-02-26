@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV - Mateo Vargas</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+        :root {
+            --header-bg: #000;
+            --header-text: #fff;
+            --body-bg: #fff;
+            --text-main: #333;
+            --text-secondary: #666;
+            --accent-color: #000;
+            --font-main: 'Roboto', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: #f4f4f4;
+            color: var(--text-main);
+            line-height: 1.5;
+            display: flex;
+            justify-content: center;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            background-color: var(--body-bg);
+            width: 210mm;
+            min-height: 297mm;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+                    margin: 0;
+        }
+
+        header {
+            background-color: var(--header-bg);
+            color: var(--header-text);
+            padding: 40px 60px;
+        }
+
+        header h1 {
+            font-size: 38px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .contact-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px 40px;
+            font-size: 14px;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .contact-item span {
+            opacity: 0.9;
+        }
+
+        main {
+            padding: 40px 60px;
+        }
+
+        section {
+            margin-bottom: 30px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+
+        .section-header .icon {
+            font-size: 20px;
+        }
+
+        h2 {
+            font-size: 20px;
+            font-weight: 700;
+            text-transform: capitalize;
+        }
+
+        .profile-text {
+            font-size: 14px;
+            color: var(--text-main);
+            text-align: justify;
+        }
+
+        .experience-item {
+            margin-bottom: 20px;
+        }
+
+        .item-top {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .item-title {
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .item-date {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        ul {
+            list-style: none;
+            padding-left: 15px;
+        }
+
+        li {
+            position: relative;
+            font-size: 13.5px;
+            margin-bottom: 4px;
+            padding-left: 15px;
+        }
+
+        li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: var(--accent-color);
+        }
+
+        .education-item {
+            margin-bottom: 15px;
+        }
+
+        .skills-category {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .skills-category strong {
+            font-weight: 700;
+            margin-right: 5px;
+        }
+
+        @media print {
+            body {
+            padding: 0;
+                background: none;
+            margin: 0;
+        }
+
+            .container {
+                box-shadow: none;
+                width: 100%;
+                        margin: 0;
+        }
+
+            header {
+                -webkit-print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Mateo Vargas</h1>
+            <div class="contact-grid">
+                <div class="contact-item">
+                    <span>✉ mateo.vargas.dev@gmail.com</span>
+                </div>
+                <div class="contact-item">
+                    <span>📞 402-555-0182</span>
+                </div>
+                <div class="contact-item">
+                    <span>📍 Lincoln, NE</span>
+                </div>
+                <div class="contact-item">
+                    <span>🔗 github.com/mateovargas-dev</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <section id="profile">
+                <div class="section-header">
+                    <span class="icon">👤</span>
+                    <h2>Profile</h2>
+                </div>
+                <p class="profile-text">
+                    Senior Software Engineer with over 8 years of experience in developing scalable full-stack cloud
+                    applications using TypeScript, React, Next.js, Node.js, and MongoDB. Skilled in leading 0→1 product
+                    initiatives, boosting user engagement, and building modular, high-availability systems for millions
+                    of transactions. Expertise in JavaScript design patterns, system performance tuning, CI/CD
+                    automation, and AWS infrastructure. Dedicated to creating robust, data-driven platforms that empower
+                    small to medium-sized businesses.
+                </p>
+            </section>
+
+            <section id="experience">
+                <div class="section-header">
+                    <span class="icon">💼</span>
+                    <h2>Professional Experience</h2>
+                </div>
+
+                <div class="experience-item">
+                    <div class="item-top">
+                        <span class="item-title">Senior Software Engineer, BuildRight Solutions</span>
+                        <span class="item-date">02/2022 – Present</span>
+                    </div>
+                    <ul>
+                        <li>Migrated Express app to AWS Lambda, ensuring 99.99% uptime.</li>
+                        <li>Developed CI/CD pipeline with GitHub Actions and Docker, reducing delivery time by 70%.</li>
+                        <li>Enhanced onboarding through A/B testing, increasing new user activation by 35%.</li>
+                        <li>Built real-time analytics dashboards with React, D3.js, and GraphQL, generating $2.5M
+                            annually.</li>
+                        <li>Established performance metrics with Lighthouse and Core Web Vitals, achieving scores over
+                            95.</li>
+                        <li>Mentored team in React/Node development, decreasing production bugs by 60%.</li>
+                    </ul>
+                </div>
+
+                <div class="experience-item">
+                    <div class="item-top">
+                        <span class="item-title">Software Engineer, Pathogenix Diagnostics</span>
+                        <span class="item-date">09/2021 – 01/2022</span>
+                    </div>
+                    <ul>
+                        <li>Developed a TypeScript app with React (Next.js) frontend and Node.js REST API, automating
+                            90% of data entry and saving 50 staff hours weekly.</li>
+                        <li>Architected a high-availability microservices system on AWS ECS using Docker, MongoDB, and
+                            PostgreSQL, cutting report times from 10 to 2 minutes.</li>
+                        <li>Implemented secure authentication for 15,000 daily sessions using JWT and OAuth2.</li>
+                        <li>Designed a multi-tenant RESTful API with caching and rate-limiting, improving data retrieval
+                            by 65%.</li>
+                        <li>Collaborated with DevOps to automate AWS infrastructure with Terraform, reducing cloud
+                            errors by 95%.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="education">
+                <div class="section-header">
+                    <span class="icon">🎓</span>
+                    <h2>Education</h2>
+                </div>
+                <div class="education-item">
+                    <div class="item-top">
+                        <span class="item-title">Master of Science in Software Engineering, University of
+                            Nebraska-Lincoln</span>
+                        <span class="item-date">2016 – 2018</span>
+                    </div>
+                </div>
+                <div class="education-item">
+                    <div class="item-top">
+                        <span class="item-title">Bachelor of Technology in Information Systems, Federal University of
+                            Paraná</span>
+                        <span class="item-date">2012 – 2016</span>
+                    </div>
+                </div>
+            </section>
+
+            <section id="skills">
+                <div class="section-header">
+                    <span class="icon">🧠</span>
+                    <h2>Skills</h2>
+                </div>
+                <div class="skills-category">
+                    <strong>Frontend:</strong> TypeScript, React, Next.js, Redux, Material-UI, GraphQL, Apollo Client,
+                    HTML5, CSS3
+                </div>
+                <div class="skills-category">
+                    <strong>Backend:</strong> Node.js, Express.js, Fastify, MongoDB, PostgreSQL, Redis, REST APIs,
+                    WebSockets
+                </div>
+                <div class="skills-category">
+                    <strong>Cloud & DevOps:</strong> AWS (EC2, Lambda, S3, ECS), Docker, CI/CD (GitHub Actions,
+                    Jenkins), Terraform
+                </div>
+                <div class="skills-category">
+                    <strong>Architecture & Tools:</strong> Microservices, Serverless, Monorepos, Design Patterns, Git,
+                    Jira, Asana
+                </div>
+                <div class="skills-category">
+                    <strong>Testing & Quality:</strong> Jest, React Testing Library, Cypress, Playwright, Postman, Load
+                    Testing, A/B Testing
+                </div>
+                <div class="skills-category">
+                    <strong>Soft Skills:</strong> Technical Leadership, Agile Methodologies, Product Strategy,
+                    Stakeholder Communication
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+
+</html>

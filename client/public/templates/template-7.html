@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV - Lara Miller</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --bg-color: #c9d8d5;
+            --text-main: #1a1a1a;
+            --text-secondary: #4a4a4a;
+            --line-color: #ffffff;
+            --font-main: 'Outfit', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: #a0b0ad;
+            color: var(--text-main);
+            line-height: 1.4;
+            display: flex;
+            justify-content: center;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            background-color: var(--bg-color);
+            width: 210mm;
+            min-height: 297mm;
+            padding: 60px 70px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                    margin: 0;
+        }
+
+        header {
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 42px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        header .subtitle {
+            font-size: 24px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        .contact-info {
+            font-size: 14px;
+            color: var(--text-main);
+        }
+
+        .contact-info div {
+            margin-bottom: 5px;
+        }
+
+        section {
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: capitalize;
+            border-bottom: 2px solid var(--line-color);
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+        }
+
+        .exp-item,
+        .edu-item {
+            margin-bottom: 20px;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 5px;
+        }
+
+        .title-block {
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .title-block span {
+            font-weight: 400;
+            font-style: italic;
+            color: var(--text-secondary);
+        }
+
+        .date-loc {
+            font-size: 13.5px;
+            color: var(--text-main);
+        }
+
+        .description {
+            font-size: 13.5px;
+            color: var(--text-secondary);
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+
+        .sub-section h3 {
+            font-size: 16px;
+            font-weight: 700;
+            border-bottom: 2px solid var(--line-color);
+            padding-bottom: 3px;
+            margin-bottom: 15px;
+        }
+
+        .sub-section p {
+            font-size: 13.5px;
+            margin-bottom: 8px;
+        }
+
+        .sub-item {
+            margin-bottom: 15px;
+        }
+
+        .sub-item strong {
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        li {
+            position: relative;
+            padding-left: 15px;
+            font-size: 13.5px;
+            margin-bottom: 5px;
+        }
+
+        li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        .award-item {
+            margin-bottom: 15px;
+        }
+
+        .award-item strong {
+            font-size: 14px;
+        }
+
+        @media print {
+            body {
+            padding: 0;
+                background: none;
+            margin: 0;
+        }
+
+            .container {
+                box-shadow: none;
+                width: 100%;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Lara Miller</h1>
+            <p class="subtitle">UX/UI Designer</p>
+            <div class="contact-info">
+                <div>Hohenzollerndamm 147, 14199 Berlin, Germany</div>
+                <div>lara@miller.design</div>
+                <div>+49 30 616 714 610</div>
+            </div>
+        </header>
+
+        <main>
+        <section id="experience">
+            <h2>Professional Experience</h2>
+
+            <div class="exp-item">
+                <div class="row">
+                    <p class="title-block">Brandung | Berlin, Germany, <span>Senior UX/UI Designer</span></p>
+                    <p class="date-loc">09/2012 – present</p>
+                </div>
+                <p class="description">Collaborate with cross-functional teams to design and develop user-centered
+                    digital products</p>
+            </div>
+
+            <div class="exp-item">
+                <div class="row">
+                    <p class="title-block">Divante eCommerce, <span>Lead UX/UI Designer</span></p>
+                    <p class="date-loc">08/2014 – 09/2018</p>
+                </div>
+                <div class="row" style="margin-top: -15px;">
+                    <div></div>
+                    <p class="date-loc">Munich, Germany</p>
+                </div>
+                <p class="description">Redesigned the company's e-commerce platform resulting in a 40% increase in
+                    conversion rates and developed a design system to ensure consistency across the website</p>
+            </div>
+        </section>
+
+        <section id="education">
+            <h2>Education</h2>
+            <div class="edu-item">
+                <div class="row">
+                    <p class="title-block">Bachelor of Arts in Graphic Design,</p>
+                    <p class="date-loc">Munich, Germany</p>
+                </div>
+                <p class="description">University of Applied Sciences Munich</p>
+            </div>
+        </section>
+
+        <div class="grid-container">
+            <div class="left-col">
+                <section id="tools">
+                    <h3>Tools</h3>
+                    <div class="sub-item">
+                        <strong>Figma</strong>
+                        <p>UI Design, Prototyping</p>
+                    </div>
+                    <div class="sub-item">
+                        <strong>Maze</strong>
+                        <p>Product Research</p>
+                    </div>
+                    <div class="sub-item">
+                        <strong>Adobe Creative Suite</strong>
+                        <p>Photo, Video, Illustration</p>
+                    </div>
+                    <div class="sub-item">
+                        <strong>Marvel</strong>
+                        <p>UI Design, Prototyping</p>
+                    </div>
+                </section>
+
+                <section id="awards">
+                    <h3>Awards</h3>
+                    <div class="award-item">
+                        <strong>Red Dot Design Award,</strong>
+                        <p>Redesign of Divante's commerce platform</p>
+                        <p>2017</p>
+                    </div>
+                </section>
+            </div>
+
+            <div class="right-col">
+                <section id="languages">
+                    <h3>Languages</h3>
+                    <p>German • English</p>
+                </section>
+
+                <section id="most-proud-of">
+                    <h3>Most Proud Of</h3>
+                    <p>Designed and developed a mobile app for a non-profit organization that helped raise over €50,000
+                        for a charitable cause.</p>
+                </section>
+
+                <section id="skills">
+                    <h3>Skills</h3>
+                    <ul>
+                        <li>User research and testing</li>
+                        <li>Wireframing and prototyping</li>
+                        <li>Front-end development (HTML/CSS/JS)</li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+        </main>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV - Chloé LIANG</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap');
+
+        :root {
+            --header-bg: #333;
+            --header-text: #fff;
+            --accent-color: #f1c40f;
+            --body-bg: #fff;
+            --text-main: #333;
+            --text-secondary: #666;
+            --font-main: 'Montserrat', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: #eee;
+            color: var(--text-main);
+            line-height: 1.4;
+            display: flex;
+            justify-content: center;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            background-color: var(--body-bg);
+            width: 210mm;
+            min-height: 297mm;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+                    margin: 0;
+        }
+
+        header {
+            background-color: var(--header-bg);
+            color: var(--header-text);
+            padding: 40px 60px;
+        }
+
+        .name-role {
+            display: flex;
+            align-items: baseline;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        header h1 {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--accent-color);
+            text-transform: uppercase;
+        }
+
+        header .role {
+            font-size: 24px;
+            color: #ccc;
+        }
+
+        .contact-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px 30px;
+            font-size: 13px;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .contact-item span {
+            color: #ddd;
+        }
+
+        main {
+            padding: 40px 60px;
+        }
+
+        section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        .section-title h2 {
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .summary {
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .exp-item {
+            margin-bottom: 20px;
+        }
+
+        .exp-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .job-title {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .job-title span {
+            font-weight: 400;
+            font-style: italic;
+            color: var(--text-secondary);
+        }
+
+        .date-loc {
+            text-align: right;
+            font-size: 13px;
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        .date-loc div:last-child {
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        ul {
+            list-style: none;
+            padding-left: 15px;
+        }
+
+        li {
+            position: relative;
+            font-size: 13px;
+            margin-bottom: 3px;
+            padding-left: 15px;
+        }
+
+        li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: var(--accent-color);
+        }
+
+        .skills-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .skill-cat h3 {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .skill-cat p {
+            font-size: 12.5px;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+
+        .projects-item {
+            margin-bottom: 20px;
+        }
+
+        @media print {
+            body {
+            padding: 0;
+                background: none;
+            margin: 0;
+        }
+
+            .container {
+                box-shadow: none;
+                width: 100%;
+                        margin: 0;
+        }
+
+            header {
+                background-color: var(--header-bg) !important;
+                -webkit-print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="name-role">
+                <h1>Chloé LIANG</h1>
+                <span class="role">Compositing Artist</span>
+            </div>
+            <div class="contact-info">
+                <div class="contact-item">✉ <span>c.liang@axti.com</span></div>
+                <div class="contact-item">📞 <span>+33 6 52 18 93 45</span></div>
+                <div class="contact-item">📍 <span>Lyon, France</span></div>
+                <div class="contact-item">🔗 <span>artstation.com/chloeliang</span></div>
+                <div class="contact-item">in <span>/chloeliang</span></div>
+            </div>
+        </header>
+
+        <main>
+            <section id="profile">
+                <div class="section-title">
+                    <span>📇</span>
+                    <h2>Profile</h2>
+                </div>
+                <p class="summary">
+                    Skilled in both live-action and 3D animated productions. Proficient in integrating CGI using Nuke,
+                    with a passion for crafting visually compelling narratives that evoke emotion.
+                </p>
+            </section>
+
+            <section id="experience">
+                <div class="section-title">
+                    <span>💼</span>
+                    <h2>Professional Experience</h2>
+                </div>
+
+                <div class="exp-item">
+                    <div class="exp-header">
+                        <p class="job-title">2D/3D Graphic Designer, <span>Pixelize Media - Digital Marketing
+                                Agency</span></p>
+                        <div class="date-loc">
+                            <div>Apr 2025 – Oct 2025</div>
+                            <div>Montreal, QC</div>
+                        </div>
+                    </div>
+                    <ul>
+                        <li>Developed engaging 2D graphics and short 3D animations for social media campaigns for
+                            various clients.</li>
+                    </ul>
+                </div>
+
+                <div class="exp-item">
+                    <div class="exp-header">
+                        <p class="job-title">2D/3D Artist, <span>INSERM Vision Institute - Research Center</span></p>
+                        <div class="date-loc">
+                            <div>Oct 2023 – Jan 2024</div>
+                            <div>Marseille, France</div>
+                        </div>
+                    </div>
+                    <ul>
+                        <li>Performed cleanup and rendering of 2D/3D scientific visualization assets in a clear,
+                            stylized aesthetic.</li>
+                        <li>Animated 2D biological process assets using motion graphics techniques for an educational
+                            video.</li>
+                    </ul>
+                </div>
+
+                <div class="exp-item">
+                    <div class="exp-header">
+                        <p class="job-title">DTP Graphic Designer, <span>SignaGraphix - Print & Signage Solutions</span>
+                        </p>
+                        <div class="date-loc">
+                            <div>Oct 2022 – Jan 2023</div>
+                            <div>Lyon, France</div>
+                        </div>
+                    </div>
+                    <ul>
+                        <li>Created print-ready marketing materials and signage according to client specifications.</li>
+                        <li>Prepared and optimized designs for large-format printing on various materials.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="education">
+                <div class="section-title">
+                    <span>🎓</span>
+                    <h2>Education</h2>
+                </div>
+                <div class="exp-item">
+                    <div class="exp-header">
+                        <p class="job-title">Master's in Digital Arts & Visual Effects, <span>ArtFX School of Digital
+                                Arts</span></p>
+                        <div class="date-loc">
+                            <div>2021 – 2026</div>
+                            <div>Lyon, France</div>
+                        </div>
+                    </div>
+                    <p class="summary" style="font-size: 13px; margin-top: 5px;">Comprehensive training in the entire
+                        VFX and animation pipeline, from concept to final render.</p>
+                </div>
+                <div class="exp-item">
+                    <div class="exp-header">
+                        <p class="job-title">Technical Degree in Digital Illustration, <span>École Supérieure d'Art
+                                Visuel de Lyon</span></p>
+                        <div class="date-loc">
+                            <div>2019 – 2021</div>
+                            <div>Lyon, France</div>
+                        </div>
+                    </div>
+                    <p class="summary" style="font-size: 13px; margin-top: 5px;">Acquired foundational skills in
+                        narrative illustration and graphic design principles.</p>
+                </div>
+            </section>
+
+            <section id="skills">
+                <div class="section-title">
+                    <span>🧠</span>
+                    <h2>Skills</h2>
+                </div>
+                <div class="skills-grid">
+                    <div class="skill-cat">
+                        <h3>Nuke</h3>
+                        <p>Proficient</p>
+                        <ul>
+                            <li>Compositing, Rotoscoping, Keying, AOVs, Projections</li>
+                        </ul>
+                    </div>
+                    <div class="skill-cat">
+                        <h3>Maya</h3>
+                        <p>Proficient</p>
+                        <ul>
+                            <li>Modeling, Lighting, Shading, Camera Projection</li>
+                        </ul>
+                    </div>
+                    <div class="skill-cat">
+                        <h3>Adobe Creative Suite</h3>
+                        <p>Advanced</p>
+                        <ul>
+                            <li>Photoshop, Illustrator, InDesign, After Effects</li>
+                        </ul>
+                    </div>
+                    <div class="skill-cat">
+                        <h3>DaVinci Resolve</h3>
+                        <p>Intermediate</p>
+                        <ul>
+                            <li>Video Editing, Color Correction & Grading</li>
+                        </ul>
+                    </div>
+                    <div class="skill-cat">
+                        <h3>Substance 3D Painter</h3>
+                        <p>Intermediate</p>
+                        <ul>
+                            <li>PBR Texturing, Material Creation</li>
+                        </ul>
+                    </div>
+                    <div class="skill-cat">
+                        <h3>Microsoft Excel</h3>
+                        <p>Proficient</p>
+                        <ul>
+                            <li>Project Tracking, Data Organization</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="projects">
+                <div class="section-title">
+                    <span>📁</span>
+                    <h2>Projects</h2>
+                </div>
+                <div class="projects-item">
+                    <div class="exp-header">
+                        <p class="job-title">VFX Generalist, <span>ArtFX - Final Year Live-Action Short Film
+                                Project</span></p>
+                        <div class="date-loc">Jan 2025 – Present</div>
+                    </div>
+                    <ul>
+                        <li>Executed keying and cleanup of green screen footage for pre-visualization.</li>
+                        <li>Modeled stylized sci-fi architecture inspired by brutalist design.</li>
+                    </ul>
+                </div>
+                <div class="projects-item">
+                    <div class="exp-header">
+                        <p class="job-title">Lighting & Compositing Lead, <span>Project Chimera - Team-based VFX
+                                Shot</span></p>
+                        <div class="date-loc">Mar 2025 – Apr 2025</div>
+                    </div>
+                    <ul>
+                        <li>Responsible for lighting and final compositing of a fantasy creature into a CG environment.
+                        </li>
+                    </ul>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+
+</html>

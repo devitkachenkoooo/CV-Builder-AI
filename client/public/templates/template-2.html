@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV - Andrew O'Sullivan</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
+
+        :root {
+            --text-color: #000;
+            --secondary-text: #333;
+            --line-color: #000;
+            --font-main: 'Source Sans Pro', sans-serif;
+            --font-header: 'Playfair Display', serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: #f0f0f0;
+            color: var(--text-color);
+            line-height: 1.4;
+            display: flex;
+            justify-content: center;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            background-color: #fff;
+            width: 210mm;
+            min-height: 297mm;
+            padding: 50px 60px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                    margin: 0;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-family: var(--font-header);
+            font-size: 36px;
+            margin-bottom: 5px;
+        }
+
+        header .title {
+            font-style: italic;
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: var(--secondary-text);
+        }
+
+        .contact-info {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            font-size: 13px;
+            flex-wrap: wrap;
+        }
+
+        .contact-info div {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        section {
+            margin-bottom: 25px;
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--line-color);
+            padding-bottom: 3px;
+            margin-bottom: 12px;
+        }
+
+        .experience-item,
+        .education-item {
+            margin-bottom: 15px;
+        }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 4px;
+        }
+
+        .item-title {
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .item-date {
+            font-size: 13px;
+        }
+
+        .item-subtitle {
+            display: flex;
+            justify-content: space-between;
+            font-style: italic;
+            font-size: 13px;
+            margin-bottom: 8px;
+            color: var(--secondary-text);
+        }
+
+        ul {
+            list-style: none;
+            padding-left: 15px;
+        }
+
+        li {
+            position: relative;
+            font-size: 13.5px;
+            margin-bottom: 4px;
+            padding-left: 15px;
+        }
+
+        li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        .profile-text {
+            font-size: 13.5px;
+            text-align: justify;
+        }
+
+        .languages-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .lang-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .dots {
+            display: flex;
+            gap: 6px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ddd;
+        }
+
+        .dot.filled {
+            background-color: #000;
+        }
+
+        .awards-item {
+            margin-bottom: 10px;
+        }
+
+        .award-name {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .award-subtitle {
+            font-style: italic;
+            font-size: 13px;
+            color: var(--secondary-text);
+        }
+
+        @media print {
+            body {
+                background: none;
+            padding: 0;
+            margin: 0;
+        }
+
+            .container {
+                box-shadow: none;
+                width: 100%;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Andrew O'Sullivan</h1>
+            <p class="title">Product Manager</p>
+            <div class="contact-info">
+                <div>📍 Obere Lände 23, 12345 Berlin</div>
+                <div>✉ andrew@sulli.com</div>
+                <div>📞 +01 11111155</div>
+                <div>in andrewosullivan</div>
+            </div>
+        </header>
+
+        <main>
+        <section id="profile">
+            <h2>PROFILE</h2>
+            <p class="profile-text">
+                Experienced Product Manager with a proven track record in the development and management of products
+                throughout their lifecycle. Passionate, creative, and results-oriented. Skilled in team leadership and
+                collaboration with cross-functional teams. Excellent communication skills and strategic thinking.
+                Enthusiastic about designing innovative solutions that enhance customer satisfaction.
+            </p>
+        </section>
+
+        <section id="experience">
+            <h2>PROFESSIONAL EXPERIENCE</h2>
+
+            <div class="experience-item">
+                <div class="item-header">
+                    <span class="item-title">Product Manager</span>
+                    <span class="item-date">08/2018 – 07/2023</span>
+                </div>
+                <div class="item-subtitle">
+                    <span>Technite Gmbh</span>
+                    <span>Berlin, Germany</span>
+                </div>
+                <ul>
+                    <li>Led a cross-functional team of 10 people in the development of a new product line, resulting in
+                        a 20% increase in revenue</li>
+                    <li>Conducted market analysis and competitive studies to identify new product opportunities and
+                        expand the product portfolio</li>
+                    <li>Successfully launched two new products in the market, leading to a 15% increase in market share
+                    </li>
+                </ul>
+            </div>
+
+            <div class="experience-item">
+                <div class="item-header">
+                    <span class="item-title">Product Specialist</span>
+                    <span class="item-date">04/2015 – 07/2018</span>
+                </div>
+                <div class="item-subtitle">
+                    <span>Solutions Inc</span>
+                    <span>Munich, Germany</span>
+                </div>
+                <ul>
+                    <li>Developed and implemented a product strategy for the European market, resulting in a 25% revenue
+                        growth</li>
+                    <li>Conducted training sessions and presentations for customers and sales teams to enhance product
+                        knowledge</li>
+                    <li>Analyzed customer feedback and derived product improvements, resulting in a 20% increase in
+                        customer satisfaction</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="education">
+            <h2>EDUCATION</h2>
+
+            <div class="education-item">
+                <div class="item-header">
+                    <span class="item-title">Master of Business Administration (MBA)</span>
+                    <span class="item-date">08/2013 – 07/2015</span>
+                </div>
+                <div class="item-subtitle">
+                    <span>University</span>
+                    <span>Munich, Germany</span>
+                </div>
+            </div>
+
+            <div class="education-item">
+                <div class="item-header">
+                    <span class="item-title">Bachelor of Engineering in Information Technology</span>
+                    <span class="item-date">09/2009 – 07/2013</span>
+                </div>
+                <div class="item-subtitle">
+                    <span>Technical University</span>
+                    <span>Vienna, Austria</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="skills">
+            <h2>SKILLS</h2>
+            <ul>
+                <li>Product development and strategy</li>
+                <li>Project management and team leadership</li>
+                <li>Customer needs analysis and market research</li>
+                <li>Agile methods and Scrum</li>
+                <li>Data analysis</li>
+                <li>Presentation and communication</li>
+            </ul>
+        </section>
+
+        <section id="languages">
+            <h2>LANGUAGES</h2>
+            <div class="languages-grid">
+                <div class="lang-item">
+                    <span>German</span>
+                    <div class="dots">
+                        <span class="dot filled"></span>
+                        <span class="dot filled"></span>
+                        <span class="dot filled"></span>
+                        <span class="dot filled"></span>
+                        <span class="dot filled"></span>
+                    </div>
+                </div>
+                <div class="lang-item">
+                    <span>English</span>
+                    <div class="dots">
+                        <span class="dot filled"></span>
+                        <span class="dot filled"></span>
+                        <span class="dot filled"></span>
+                        <span class="dot filled"></span>
+                        <span class="dot"></span>
+                    </div>
+                </div>
+                <div class="lang-item">
+                    <span>Spanish</span>
+                    <div class="dots">
+                        <span class="dot filled"></span>
+                        <span class="dot filled"></span>
+                        <span class="dot filled"></span>
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="awards">
+            <h2>AWARDS</h2>
+            <div class="awards-item">
+                <p class="award-name">Innovation Award</p>
+                <p class="award-subtitle">The Tech GmbH</p>
+            </div>
+            <div class="awards-item">
+                <p class="award-name">Product Manager of the Year</p>
+                <p class="award-subtitle">Delta Solutions</p>
+            </div>
+        </section>
+        </main>
+    </div>
+</body>
+
+</html>
