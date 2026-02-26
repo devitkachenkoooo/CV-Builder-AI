@@ -135,7 +135,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
 
           const contentHeight = target.scrollHeight;
           const a4HeightPx = 1123;
-          const pageTopGapPx = 6; // very small fixed top gap for page 2+
+          const pageTopGapPx = 18; // standardized top gap for moved blocks on page 2+
           const pageBottomGapPx = 62; // larger bottom breathing room
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
           console.log(`[PDF] Content height: ${contentHeight}px, estimated pages: ${numPages}`);
@@ -152,6 +152,14 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             }
             body {
               display: block !important;
+            }
+            .pdf-moved-block {
+              margin-top: 0 !important;
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+            .pdf-moved-block > :first-child {
+              margin-top: 0 !important;
             }
           `;
           doc.head.appendChild(normalizeStyle);
@@ -224,18 +232,22 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               // First pass: move whole direct container children to the next page
               // when they don't fit the remaining space on the current page.
               const maxSinglePageBlockHeight = a4HeightPx - pageTopGapPx - pageBottomGapPx;
-              const maxTopBlankBeforeMovedBlockPx = 180;
               const directBlocks = Array.from(target.children) as HTMLElement[];
-              const blocksToProcess = (() => {
-                if (directBlocks.length !== 1) return directBlocks;
+              const flowParent: HTMLElement = (() => {
+                if (directBlocks.length !== 1) return target;
                 const onlyChild = directBlocks[0];
                 const hasManyChildren = onlyChild.children.length > 1;
                 const isFlowWrapper = ['MAIN', 'ARTICLE', 'DIV'].includes(onlyChild.tagName);
                 if (hasManyChildren && isFlowWrapper) {
-                  return Array.from(onlyChild.children) as HTMLElement[];
+                  return onlyChild as HTMLElement;
                 }
-                return directBlocks;
+                return target;
               })();
+              const mainCandidate = Array.from(target.children).find(
+                (el) => el instanceof HTMLElement && (el as HTMLElement).tagName === 'MAIN' && (el as HTMLElement).children.length > 1
+              ) as HTMLElement | undefined;
+              const effectiveFlowParent: HTMLElement = mainCandidate || flowParent;
+              const blocksToProcess = Array.from(effectiveFlowParent.children) as HTMLElement[];
 
               blocksToProcess.forEach((block) => {
                 if (block.classList.contains('pdf-page-separator')) return;
@@ -251,11 +263,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 // If a block can fit on a clean page, move it as a whole.
                 if (canFitWholePage && blockBottom > pageBottom - pageBottomGapPx) {
                   const spacerHeight = Math.max(0, (pageBottom - blockTop) + pageTopGapPx);
-                  if (
-                    spacerHeight > 0 &&
-                    spacerHeight < a4HeightPx * 0.9 &&
-                    (pageBottom - blockTop) <= maxTopBlankBeforeMovedBlockPx
-                  ) {
+                  if (spacerHeight > 0 && spacerHeight < a4HeightPx * 0.9) {
                     const spacer = doc.createElement('div');
                     spacer.style.height = `${spacerHeight}px`;
                     spacer.style.width = '100%';
@@ -269,7 +277,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                     block.parentNode?.insertBefore(spacer, block);
 
                     // Keep top spacing deterministic on moved blocks.
-                    block.style.marginTop = '0';
+                    block.classList.add('pdf-moved-block');
                   }
                 }
 
