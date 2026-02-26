@@ -168,6 +168,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
           target.style.transform = 'none';
           target.style.breakInside = 'auto';
           target.style.pageBreakInside = 'auto';
+          target.style.display = 'flow-root'; // prevent margin-collapsing side effects in PDF layout
 
           // Prevent awkward splits for common semantic blocks across all templates.
           const avoidSplitSelectors = [
@@ -251,6 +252,9 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                     spacer.style.pageBreakInside = 'avoid';
                     spacer.className = 'pdf-page-separator';
                     block.parentNode?.insertBefore(spacer, block);
+
+                    // Keep top spacing deterministic on moved blocks.
+                    block.style.marginTop = '0';
                   }
                 }
 
