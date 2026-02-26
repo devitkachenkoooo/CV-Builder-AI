@@ -135,8 +135,9 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
 
           const contentHeight = target.scrollHeight;
           const a4HeightPx = 1123;
+          const pageTopGapPx = 40; // ~10.5mm top breathing room for page 2+
+          const pageBottomGapPx = 52; // ~13.7mm bottom breathing room
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
-          const pageMarginsMm = { top: 0, right: 0, bottom: 14, left: 0 };
           console.log(`[PDF] Content height: ${contentHeight}px, estimated pages: ${numPages}`);
 
           // Keep a deterministic A4 rendering world for every template.
@@ -184,10 +185,16 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             if (!color || color === 'transparent' || color === 'rgba(0, 0, 0, 0)') return null;
             return color;
           };
+          const isWhiteLike = (color: string | null) =>
+            color === 'rgb(255, 255, 255)' || color === 'rgba(255, 255, 255, 1)';
+          const captureBg = parseBackground(captureElement);
+          const bodyBg = parseBackground(doc.body);
+          const htmlBg = parseBackground(doc.documentElement);
           const bgColor =
-            parseBackground(captureElement) ||
-            parseBackground(doc.body) ||
-            parseBackground(doc.documentElement) ||
+            (!isWhiteLike(captureBg || null) ? captureBg : null) ||
+            bodyBg ||
+            htmlBg ||
+            captureBg ||
             '#ffffff';
           doc.body.style.backgroundColor = bgColor;
           doc.documentElement.style.backgroundColor = bgColor;
@@ -212,15 +219,50 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
 
               target.style.backgroundColor = bgColor;
               doc.body.style.backgroundColor = bgColor;
-              const pdfMargin = win.Array.from([
-                pageMarginsMm.top,
-                pageMarginsMm.right,
-                pageMarginsMm.bottom,
-                pageMarginsMm.left
-              ]);
+
+              // Add soft page boundaries with colored spacers:
+              // no gap on page 1 top, but keep top gap for page 2+ and bottom gap per page.
+              const flowBlocks = Array.from(
+                target.querySelectorAll(
+                  'section, .section, .section-title, .exp-item, .edu-item, .projects-item, .sub-item, .award-item, h1, h2, h3, ul, ol'
+                )
+              ) as HTMLElement[];
+
+              flowBlocks.forEach((el) => {
+                if (el.closest('.pdf-page-separator')) return;
+                const rect = el.getBoundingClientRect();
+                const containerRect = target.getBoundingClientRect();
+                const elTop = rect.top - containerRect.top;
+                const elBottom = rect.bottom - containerRect.top;
+                const currentPage = Math.floor(elTop / a4HeightPx);
+                const pageBottom = (currentPage + 1) * a4HeightPx;
+
+                if (elBottom > pageBottom - pageBottomGapPx) {
+                  const spacerHeight = Math.max(0, (pageBottom - elTop) + pageTopGapPx);
+                  if (spacerHeight > 0 && spacerHeight < a4HeightPx * 0.75) {
+                    const spacer = doc.createElement('div');
+                    spacer.style.height = `${spacerHeight}px`;
+                    spacer.style.width = '100%';
+                    spacer.style.display = 'block';
+                    spacer.style.backgroundColor = bgColor;
+                    spacer.style.fontSize = '0';
+                    spacer.style.lineHeight = '0';
+                    spacer.style.breakInside = 'avoid';
+                    spacer.style.pageBreakInside = 'avoid';
+                    spacer.className = 'pdf-page-separator';
+                    el.parentNode?.insertBefore(spacer, el);
+                  }
+                }
+              });
+
+              // Ensure the final page is fully painted with the background color.
+              const finalPages = Math.max(1, Math.ceil(target.scrollHeight / a4HeightPx));
+              target.style.minHeight = `${finalPages * a4HeightPx}px`;
+              target.style.paddingBottom = `${pageBottomGapPx}px`;
+              target.style.boxSizing = 'border-box';
 
               win.html2pdf().from(captureElement).set({
-                margin: pdfMargin,
+                margin: 0,
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
