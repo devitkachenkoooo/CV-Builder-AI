@@ -300,56 +300,45 @@ async function seedTemplates() {
 
 async function generateCvAsync(jobId: number, templateId: number, cvText: string, lang: 'ua' | 'en' = 'ua', sourceInfo?: string) {
   try {
-    console.log("--- 🚀 ДІАГНОСТИКА ГЕНЕРАЦІЇ СТАРТ ---");
-    console.log("1. Поточна робоча директорія (cwd):", process.cwd());
-
     const template = await storage.getTemplate(templateId);
     if (!template) {
       throw new Error("Template not found in DB");
     }
 
-    // Список шляхів, які ми перевіримо
-    const pathsToCheck = [
-      { name: "КОРІНЬ/templates", path: path.join(process.cwd(), "templates", template.fileName) },
-      { name: "CLIENT/PUBLIC/TEMPLATES", path: path.join(process.cwd(), "client", "public", "templates", template.fileName) },
-      { name: "SERVER/TEMPLATES", path: path.join(process.cwd(), "server", "templates", template.fileName) }
-    ];
+    // Очищаємо назву файлу від можливих timestamp (template-1_123.html -> template-1.html)
+    const cleanFileName = template.fileName.split('_')[0].replace('.html', '') + '.html';
 
-    let templateHtml = "";
-    let finalPath = "";
+    // Визначаємо шлях до шаблону (пріоритет на public папку)
+    const templatePath = path.join(process.cwd(), "client", "public", "templates", cleanFileName);
 
-    console.log("2. Перевірка наявності файлів:");
-    for (const item of pathsToCheck) {
-      const exists = fsSync.existsSync(item.path);
-      console.log(`   - [${exists ? "✅ ЗНАЙДЕНО" : "❌ НЕМАЄ"}] ${item.name}: ${item.path}`);
-      if (exists && !templateHtml) {
-        templateHtml = await fs.readFile(item.path, "utf-8");
-        finalPath = item.path;
-      }
+    if (!fsSync.existsSync(templatePath)) {
+      throw new Error(`Template file ${cleanFileName} not found in templates directory`);
     }
 
-    if (!templateHtml) {
-      console.error("3. ❌ КРИТИЧНО: Файл не знайдено в жодному з місць!");
-      throw new Error(`ENOENT: No template file found for ${template.fileName}`);
-    }
+    const templateHtml = await fs.readFile(templatePath, "utf-8");
 
-    console.log("4. ✅ Файл успішно зчитано з:", finalPath);
+    // Оновлюємо статус для користувача
+    await storage.updateGeneratedCvStatus(
+      jobId, 
+      "processing", 
+      lang === 'ua' ? "ШІ аналізує та форматує резюме..." : "AI is analyzing and formatting your CV..."
+    );
 
-    // Оновлення статусу (з новим текстом для перевірки деплою)
-    await storage.updateGeneratedCvStatus(jobId, "processing", lang === 'ua' ? "🚀 ПОЇХАЛИ! ШІ працює..." : "🚀 GO! AI is working...");
-
-    // Далі йде логіка з AI...
-    const prompt = `You are a CV expert... Template: ${templateHtml.substring(0, 100)}...`; // Короткий шматок для тесту
+    const prompt = `You are a CV expert. Inject the provided CV content into the HTML template. 
+      Return ONLY the final HTML code.
+      TEMPLATE: ${templateHtml}
+      CONTENT: ${cvText}`;
 
     try {
       const response = await openrouter.chat.completions.create({
         model: "meta-llama/llama-3.3-70b-instruct",
-        messages: [{ role: "user", content: `Inject content into this template: ${templateHtml} \n\n Content: ${cvText}` }],
+        messages: [{ role: "user", content: prompt }],
         max_tokens: 8192,
         temperature: 0.7,
       });
 
       let generatedHtml = response.choices[0]?.message?.content || "";
+      // Очищаємо від Markdown тегів, якщо ШІ їх додав
       generatedHtml = generatedHtml.replace(/```html\n?/g, "").replace(/```\n?$/g, "").trim();
 
       const outputDir = path.join(process.cwd(), "client", "public", "generated");
@@ -359,16 +348,29 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
       const outputPath = path.join(outputDir, filename);
       await fs.writeFile(outputPath, generatedHtml, "utf-8");
 
-      await storage.updateGeneratedCvStatus(jobId, "complete", "✅ Готово!", `/generated/${filename}`);
-      console.log("5. 🎉 ГЕНЕРАЦІЯ ЗАВЕРШЕНА УСПІШНО");
+      const pdfUrl = `/generated/${filename}`;
+      await storage.updateGeneratedCvStatus(
+        jobId, 
+        "complete", 
+        lang === 'ua' ? "✅ Резюме успішно створено!" : "✅ CV successfully created!", 
+        pdfUrl
+      );
 
     } catch (apiError: any) {
-      console.error("❌ Помилка AI:", apiError.message);
-      throw apiError;
+      console.error("AI Generation Error:", apiError.message);
+      await storage.updateGeneratedCvStatus(
+        jobId, 
+        "failed", 
+        lang === 'ua' ? "❌ Помилка штучного інтелекту" : "❌ AI generation failed"
+      );
     }
 
   } catch (error: any) {
-    console.error("❌ КРИТИЧНА ПОМИЛКА:", error.message);
-    await storage.updateGeneratedCvStatus(jobId, "failed", `❌ Помилка: ${error.message}`);
+    console.error("Critical CV Generation Error:", error.message);
+    await storage.updateGeneratedCvStatus(
+      jobId, 
+      "failed", 
+      lang === 'ua' ? "❌ Критична помилка генерації" : "❌ Critical generation error"
+    );
   }
 }
