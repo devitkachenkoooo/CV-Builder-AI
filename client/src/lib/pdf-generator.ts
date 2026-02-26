@@ -136,7 +136,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
           const contentHeight = target.scrollHeight;
           const a4HeightPx = 1123;
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
-          const pageMarginsMm = { top: 12, right: 0, bottom: 12, left: 0 };
+          const pageMarginsMm = { vertical: 12, horizontal: 0 };
 
           console.log(`[PDF] Content height: ${contentHeight}px, estimated pages: ${numPages}`);
 
@@ -210,7 +210,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               doc.body.style.backgroundColor = bgColor;
 
               win.html2pdf().from(captureElement).set({
-                margin: [pageMarginsMm.top, pageMarginsMm.right, pageMarginsMm.bottom, pageMarginsMm.left],
+                margin: [pageMarginsMm.vertical, pageMarginsMm.horizontal],
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
