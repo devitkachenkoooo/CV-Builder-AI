@@ -175,6 +175,10 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               padding: 0 !important;
               background: transparent !important;
             }
+            .pdf-keep-block {
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
+            }
           `;
           doc.head.appendChild(normalizeStyle);
 
@@ -251,23 +255,33 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               flowBlocks.forEach((child) => {
                 if (!(child instanceof HTMLElement)) return;
                 child.classList.remove('pdf-page-start');
+                child.classList.remove('pdf-keep-block');
                 child.style.breakBefore = '';
                 child.style.pageBreakBefore = '';
                 child.style.breakInside = 'avoid';
                 child.style.pageBreakInside = 'avoid';
+                child.classList.add('pdf-keep-block');
               });
 
               flowBlocks.forEach((block, index) => {
                 if (index === 0) return;
                 const rect = block.getBoundingClientRect();
+                if (rect.height < 4) return;
                 const containerRect = target.getBoundingClientRect();
                 const blockTop = rect.top - containerRect.top;
                 const blockBottom = rect.bottom - containerRect.top;
                 const pageBottom = (Math.floor(blockTop / a4HeightPx) + 1) * a4HeightPx;
                 const remainingOnPage = pageBottom - blockTop;
+                const blockHeight = rect.height;
+                const offsetInPage = blockTop % a4HeightPx;
+                const isNearPageTop = offsetInPage <= pageTopGapPx + 16;
+                const maxUsableHeight = a4HeightPx - pageTopGapPx - pageBottomSafePx;
+                const canFitOnSinglePage = blockHeight <= maxUsableHeight;
                 const shouldMoveToNextPage =
                   blockBottom > pageBottom - pageBottomSafePx &&
-                  remainingOnPage <= moveThresholdPx;
+                  remainingOnPage <= moveThresholdPx &&
+                  !isNearPageTop &&
+                  canFitOnSinglePage;
 
                 if (shouldMoveToNextPage) {
                   const prev = block.previousElementSibling as HTMLElement | null;
@@ -289,7 +303,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
-                  avoid: ['h1', 'h2', 'h3', '.section-title', 'img']
+                  avoid: ['.pdf-keep-block', 'h1', 'h2', 'h3', '.section-title', 'img']
                 },
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
