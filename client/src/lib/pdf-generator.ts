@@ -220,10 +220,17 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               target.style.backgroundColor = bgColor;
               doc.body.style.backgroundColor = bgColor;
 
-              // Ensure container exactly fits the pages
+              // --- PREVENT EXTRA PAGE HACK ---
+              // 1. Force overflow hidden to cut off any invisible "tails"
+              doc.body.style.overflow = 'hidden';
+              doc.documentElement.style.overflow = 'hidden';
+
+              // 2. Ensure container exactly fits the pages with a tiny 2px safety buffer
               const finalHeight = target.offsetHeight;
               const finalPages = Math.ceil(finalHeight / A4_HEIGHT_PX);
-              target.style.minHeight = `${finalPages * A4_HEIGHT_PX}px`;
+              // Subtracting 2px prevents the "99.0001%" height issue that triggers a blank page
+              target.style.minHeight = `${(finalPages * A4_HEIGHT_PX) - 2}px`;
+              target.style.height = `${(finalPages * A4_HEIGHT_PX) - 2}px`;
 
               win.html2pdf().from(captureElement).set({
                 margin: 0,
@@ -238,7 +245,9 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                   useCORS: true,
                   backgroundColor: bgColor,
                   width: targetWidth,
-                  scrollY: 0,
+                  windowWidth: targetWidth,
+                  scrollY: 0, // Prevent offset shift
+                  x: 0,
                   y: 0,
                   removeContainer: true
                 },
