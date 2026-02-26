@@ -9,6 +9,11 @@ const openrouter = new OpenAI({
 });
 
 export function registerChatRoutes(app: Express): void {
+  const parseRouteId = (value: string | string[]): number => {
+    const raw = Array.isArray(value) ? value[0] : value;
+    return Number.parseInt(raw, 10);
+  };
+
   // Get all conversations
   app.get("/api/conversations", async (req: Request, res: Response) => {
     try {
@@ -23,7 +28,10 @@ export function registerChatRoutes(app: Express): void {
   // Get single conversation with messages
   app.get("/api/conversations/:id", async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseRouteId(req.params.id);
+      if (Number.isNaN(id)) {
+        return res.status(400).json({ error: "Invalid conversation id" });
+      }
       const conversation = await chatStorage.getConversation(id);
       if (!conversation) {
         return res.status(404).json({ error: "Conversation not found" });
@@ -51,7 +59,10 @@ export function registerChatRoutes(app: Express): void {
   // Delete conversation
   app.delete("/api/conversations/:id", async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseRouteId(req.params.id);
+      if (Number.isNaN(id)) {
+        return res.status(400).json({ error: "Invalid conversation id" });
+      }
       await chatStorage.deleteConversation(id);
       res.status(204).send();
     } catch (error) {
@@ -65,7 +76,10 @@ export function registerChatRoutes(app: Express): void {
   // Use the OpenRouter API to find available models.
   app.post("/api/conversations/:id/messages", async (req: Request, res: Response) => {
     try {
-      const conversationId = parseInt(req.params.id);
+      const conversationId = parseRouteId(req.params.id);
+      if (Number.isNaN(conversationId)) {
+        return res.status(400).json({ error: "Invalid conversation id" });
+      }
       const { content, model = "meta-llama/llama-3.3-70b-instruct" } = req.body;
 
       // Save user message

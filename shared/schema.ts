@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 
 // Re-export auth models
 export * from "./models/auth";
+export * from "./models/chat";
 
 // CV Templates table
 export const cvTemplates = pgTable("cv_templates", {
