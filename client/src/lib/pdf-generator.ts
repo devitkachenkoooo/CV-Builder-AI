@@ -202,6 +202,12 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             console.log('[PDF] Library loaded, starting generation');
             if (win.html2pdf) {
               statusText.textContent = `Rendering ${numPages} page(s)...`;
+              const pdfMargin = win.Array.from([
+                pageMarginsMm.vertical,
+                pageMarginsMm.horizontal,
+                pageMarginsMm.vertical,
+                pageMarginsMm.horizontal
+              ]);
 
               // --- REFINED GRANULAR "FLOW INJECTION" ---
               // Keep original template paddings intact; page-level vertical breathing room
@@ -210,7 +216,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               doc.body.style.backgroundColor = bgColor;
 
               win.html2pdf().from(captureElement).set({
-                margin: [pageMarginsMm.vertical, pageMarginsMm.horizontal],
+                margin: pdfMargin,
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
