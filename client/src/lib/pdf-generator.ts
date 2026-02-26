@@ -220,28 +220,24 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               target.style.backgroundColor = bgColor;
               doc.body.style.backgroundColor = bgColor;
 
-              // First pass: move whole major sections to the next page when they
-              // don't fit the remaining space on the current page.
-              const maxSinglePageSectionHeight = a4HeightPx - pageTopGapPx - pageBottomGapPx;
-              const majorSections = Array.from(
-                target.querySelectorAll(
-                  'section, .section, #skills, #experience, #projects, #education, #tools, #awards, .skills-grid'
-                )
-              ) as HTMLElement[];
+              // First pass: move whole direct container children to the next page
+              // when they don't fit the remaining space on the current page.
+              const maxSinglePageBlockHeight = a4HeightPx - pageTopGapPx - pageBottomGapPx;
+              const directBlocks = Array.from(target.children) as HTMLElement[];
 
-              majorSections.forEach((section) => {
-                if (section.closest('.pdf-page-separator')) return;
-                const rect = section.getBoundingClientRect();
+              directBlocks.forEach((block) => {
+                if (block.classList.contains('pdf-page-separator')) return;
+                const rect = block.getBoundingClientRect();
                 const containerRect = target.getBoundingClientRect();
-                const sectionTop = rect.top - containerRect.top;
-                const sectionBottom = rect.bottom - containerRect.top;
-                const sectionHeight = rect.height;
-                const currentPage = Math.floor(sectionTop / a4HeightPx);
+                const blockTop = rect.top - containerRect.top;
+                const blockBottom = rect.bottom - containerRect.top;
+                const blockHeight = rect.height;
+                const currentPage = Math.floor(blockTop / a4HeightPx);
                 const pageBottom = (currentPage + 1) * a4HeightPx;
 
-                // If a section can fit on a clean page, move it as a whole.
-                if (sectionHeight <= maxSinglePageSectionHeight && sectionBottom > pageBottom - pageBottomGapPx) {
-                  const spacerHeight = Math.max(0, (pageBottom - sectionTop) + pageTopGapPx);
+                // If a block can fit on a clean page, move it as a whole.
+                if (blockHeight <= maxSinglePageBlockHeight && blockBottom > pageBottom - pageBottomGapPx) {
+                  const spacerHeight = Math.max(0, (pageBottom - blockTop) + pageTopGapPx);
                   if (spacerHeight > 0 && spacerHeight < a4HeightPx * 0.9) {
                     const spacer = doc.createElement('div');
                     spacer.style.height = `${spacerHeight}px`;
@@ -253,7 +249,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                     spacer.style.breakInside = 'avoid';
                     spacer.style.pageBreakInside = 'avoid';
                     spacer.className = 'pdf-page-separator';
-                    section.parentNode?.insertBefore(spacer, section);
+                    block.parentNode?.insertBefore(spacer, block);
                   }
                 }
               });
