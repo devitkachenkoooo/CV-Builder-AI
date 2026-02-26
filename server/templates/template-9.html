@@ -23,25 +23,25 @@
             margin: 0;
             padding: 0;
         }
-
-        body {
-            font-family: var(--font-text);
-            background-color: #f4f4f4;
-            color: var(--text-main);
-            line-height: 1.4;
-            display: flex;
-            justify-content: center;
-            padding: 0;
-        }
-
-        .container {
-            background-color: var(--bg-body);
-            width: 210mm;
-            min-height: 297mm;
-            padding: 60px 70px;
-            /* Для PDF краще без тіні, або дуже слабка */
-            box-shadow: 0 0 10px rgba(0,0,0,0.05);
-        }
+body {
+    font-family: var(--font-main);
+    background-color: transparent;
+    color: var(--text-color);
+    line-height: 1.4;
+    display: flex;
+    justify-content: center;
+    margin: 0;
+    padding: 0 !important;
+    overflow-x: hidden;
+}
+.container {
+    background-color: var(--body-bg);
+    width: 210mm;
+    min-height: 297mm;
+    padding: 50px 60px;
+    box-sizing: border-box;
+    box-shadow: none;
+}
 
         header {
             text-align: center;
@@ -77,10 +77,9 @@
             color: var(--accent-red);
             font-size: 14px;
         }
-
-        section {
-            margin-bottom: 25px;
-        }
+section {
+    margin-bottom: 25px;
+}
 
         h2 {
             font-family: var(--font-headers);
@@ -211,18 +210,26 @@
             color: var(--text-secondary);
         }
 
-        @media print {
-            body {
-                padding: 0;
-                background: none;
-            }
-
-            .container {
-                box-shadow: none;
-                width: 100%;
-                margin: 0;
-                padding: 40px 50px;
-            }
+        @media@media print {
+    body {
+        background: none;
+        padding: 0;
+    }
+    .container {
+        box-shadow: none;
+        width: 100%;
+        margin: 0;
+        padding: 50px 60px;
+    }
+}
+.container {
+    background-color: var(--body-bg);
+    width: 210mm;
+    min-height: 297mm;
+    padding: 50px 60px;
+    box-sizing: border-box;
+    box-shadow: none;
+}
 
             h2 {
                 -webkit-print-color-adjust: exact;

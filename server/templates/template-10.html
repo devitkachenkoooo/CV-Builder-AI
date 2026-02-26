@@ -24,24 +24,25 @@
             margin: 0;
             padding: 0;
         }
-
-        body {
-            font-family: var(--font-main);
-            background-color: #000;
-            color: var(--text-ice); /* Весь текст за замовчуванням голубуватий */
-            line-height: 1.5;
-            display: flex;
-            justify-content: center;
-            padding: 40px 0;
-        }
-
-        .container {
-            background-color: var(--bg-dark);
-            width: 210mm;
-            min-height: 297mm;
-            padding: 60px 80px;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-        }
+body {
+    font-family: var(--font-main);
+    background-color: transparent;
+    color: var(--text-color);
+    line-height: 1.4;
+    display: flex;
+    justify-content: center;
+    margin: 0;
+    padding: 0 !important;
+    overflow-x: hidden;
+}
+.container {
+    background-color: var(--body-bg);
+    width: 210mm;
+    min-height: 297mm;
+    padding: 50px 60px;
+    box-sizing: border-box;
+    box-shadow: none;
+}
 
         header {
             display: flex;
@@ -77,10 +78,9 @@
             color: var(--text-ice);
             text-align: justify;
         }
-
-        section {
-            margin-bottom: 40px;
-        }
+section {
+    margin-bottom: 25px;
+}
 
         h2 {
             color: var(--text-white); /* Заголовки секцій білі */
@@ -139,18 +139,26 @@
             transition: all 0.3s ease;
         }
 
-        @media print {
-            body {
-                padding: 0;
-                background: none;
-            }
-
-            .container {
-                box-shadow: none;
-                width: 100%;
-                margin: 0;
-                -webkit-print-color-adjust: exact;
-            }
+        @media@media print {
+    body {
+        background: none;
+        padding: 0;
+    }
+    .container {
+        box-shadow: none;
+        width: 100%;
+        margin: 0;
+        padding: 50px 60px;
+    }
+}
+.container {
+    background-color: var(--body-bg);
+    width: 210mm;
+    min-height: 297mm;
+    padding: 50px 60px;
+    box-sizing: border-box;
+    box-shadow: none;
+}
 
             header,
             section,

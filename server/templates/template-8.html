@@ -21,27 +21,25 @@
             margin: 0;
             padding: 0;
         }
-
-        body {
-            font-family: var(--font-main);
-            background-color: transparent;
-            color: var(--text-main);
-            line-height: 1.5;
-            display: flex;
-            justify-content: center;
-            margin: 0;
-            padding: 0 !important;
-            overflow-x: hidden;
-        }
-
-        .container {
-            background-color: var(--bg-body);
-            width: 210mm;
-            min-height: 297mm;
-            padding: 60px 80px;
-            box-sizing: border-box;
-            box-shadow: none;
-        }
+body {
+    font-family: var(--font-main);
+    background-color: transparent;
+    color: var(--text-color);
+    line-height: 1.4;
+    display: flex;
+    justify-content: center;
+    margin: 0;
+    padding: 0 !important;
+    overflow-x: hidden;
+}
+.container {
+    background-color: var(--body-bg);
+    width: 210mm;
+    min-height: 297mm;
+    padding: 50px 60px;
+    box-sizing: border-box;
+    box-shadow: none;
+}
 
         header {
             margin-bottom: 40px;
@@ -75,10 +73,9 @@
             align-items: center;
             gap: 12px;
         }
-
-        section {
-            margin-bottom: 35px;
-        }
+section {
+    margin-bottom: 25px;
+}
 
         h2 {
             font-size: 18px;
@@ -149,17 +146,26 @@
             color: var(--text-main);
         }
 
-        @media print {
-            body {
-                padding: 0;
-                background: none;
-            }
-
-            .container {
-                box-shadow: none;
-                width: 100%;
-                margin: 0;
-            }
+        @media@media print {
+    body {
+        background: none;
+        padding: 0;
+    }
+    .container {
+        box-shadow: none;
+        width: 100%;
+        margin: 0;
+        padding: 50px 60px;
+    }
+}
+.container {
+    background-color: var(--body-bg);
+    width: 210mm;
+    min-height: 297mm;
+    padding: 50px 60px;
+    box-sizing: border-box;
+    box-shadow: none;
+}
         }
     </style>
 </head>
