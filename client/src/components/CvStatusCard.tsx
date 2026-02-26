@@ -192,7 +192,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
           </div>
 
           {/* Info Area */}
-          <div className="p-5 flex-1 flex flex-col justify-between bg-card">
+          <div className="p-5 h-[150px] flex flex-col justify-between bg-card">
             <div>
               <div className="flex justify-between items-start mb-2">
                 <h3 className="font-display font-bold text-foreground line-clamp-1">{templateName}</h3>
@@ -231,7 +231,9 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
             {/* Progress Text */}
             {isProcessing && (
               <div className="mt-2 text-xs text-muted-foreground text-center">
-                {displayData.progress || t("cv_card.processing")}
+                <span className="block truncate" title={displayData.progress || t("cv_card.processing")}>
+                  {displayData.progress || t("cv_card.processing")}
+                </span>
               </div>
             )}
           </div>
