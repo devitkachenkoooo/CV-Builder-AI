@@ -177,46 +177,37 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             if (win.html2pdf) {
               statusText.textContent = `Rendering ${numPages} page(s)...`;
 
-              // --- ADVANCED "PHYSICAL FLOW INJECTION" ---
-              // We target top-level sections to avoid breaking nested layouts (like flex/grid sidebars).
+              // --- REFINED GRANULAR "FLOW INJECTION" ---
+              // Higher granularity: we target smaller elements like paragraphs and list items
+              // so that we don't push entire sections if only their end is at a boundary.
               const A4_HEIGHT_PX = 1123;
-              const SAFE_ZONE_PX = 60; // ~15mm safety margin
+              const SAFE_ZONE_PX = 45; // ~12mm safety margin
 
-              // Only target elements that are likely to be main blocks
-              const mainBlocks = Array.from(target.querySelectorAll('.section, header, footer, .container > div, .container > section')) as HTMLElement[];
+              // More granular selection: sections, headings, paragraphs, and list items.
+              const flowBlocks = Array.from(target.querySelectorAll('.section, header, footer, h1, h2, h3, p, li, .contact-item')) as HTMLElement[];
 
-              let accumulatedShift = 0;
-
-              mainBlocks.forEach((el) => {
+              flowBlocks.forEach((el) => {
                 const rect = el.getBoundingClientRect();
                 const containerRect = target.getBoundingClientRect();
 
-                // Current absolute position including shifts from previous spacers
                 const elTop = rect.top - containerRect.top;
                 const elBottom = rect.bottom - containerRect.top;
 
-                // Which page is this element currently on?
                 const pageNum = Math.floor((elTop + 1) / A4_HEIGHT_PX);
                 const pageBottom = (pageNum + 1) * A4_HEIGHT_PX;
 
-                // If the element's bottom is too close to the page end
-                // OR it already straddles the boundary
+                // If this specific smaller element crosses the boundary or is too close to the end
                 if (elBottom > (pageBottom - SAFE_ZONE_PX)) {
-                  // We need to push this element (and everything below it) 
-                  // to the next page, leaving room for margins.
+                  // Calculate dynamic jump to the start of the next page + top padding
                   const spacerHeight = (pageBottom - elTop) + SAFE_ZONE_PX;
 
                   const spacer = doc.createElement('div');
                   spacer.style.height = `${spacerHeight}px`;
                   spacer.style.backgroundColor = bgColor;
-                  spacer.className = 'pdf-page-spacer';
+                  spacer.className = 'pdf-page-separator';
                   spacer.style.width = '100%';
 
-                  // Insert spacer before the element to jump to next page + padding
                   el.parentNode?.insertBefore(spacer, el);
-
-                  // This shift doesn't need to be manually tracked for coordinates 
-                  // since getBoundingClientRect will reflect the new positions in the next iteration.
                 }
               });
 
