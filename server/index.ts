@@ -2,9 +2,11 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import rateLimit from "express-rate-limit";
 
 const app = express();
 const httpServer = createServer(app);
+app.set("trust proxy", 1);
 
 declare module "http" {
   interface IncomingMessage {
@@ -21,6 +23,25 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many requests, please try again later." },
+});
+
+const generateStartLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many generation attempts, please try again later." },
+});
+
+app.use("/api", apiLimiter);
+app.use("/api/generate/start", generateStartLimiter);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
