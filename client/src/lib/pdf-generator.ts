@@ -220,11 +220,49 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               target.style.backgroundColor = bgColor;
               doc.body.style.backgroundColor = bgColor;
 
+              // First pass: move whole major sections to the next page when they
+              // don't fit the remaining space on the current page.
+              const maxSinglePageSectionHeight = a4HeightPx - pageTopGapPx - pageBottomGapPx;
+              const majorSections = Array.from(
+                target.querySelectorAll(
+                  'section, .section, #skills, #experience, #projects, #education, #tools, #awards, .skills-grid'
+                )
+              ) as HTMLElement[];
+
+              majorSections.forEach((section) => {
+                if (section.closest('.pdf-page-separator')) return;
+                const rect = section.getBoundingClientRect();
+                const containerRect = target.getBoundingClientRect();
+                const sectionTop = rect.top - containerRect.top;
+                const sectionBottom = rect.bottom - containerRect.top;
+                const sectionHeight = rect.height;
+                const currentPage = Math.floor(sectionTop / a4HeightPx);
+                const pageBottom = (currentPage + 1) * a4HeightPx;
+
+                // If a section can fit on a clean page, move it as a whole.
+                if (sectionHeight <= maxSinglePageSectionHeight && sectionBottom > pageBottom - pageBottomGapPx) {
+                  const spacerHeight = Math.max(0, (pageBottom - sectionTop) + pageTopGapPx);
+                  if (spacerHeight > 0 && spacerHeight < a4HeightPx * 0.9) {
+                    const spacer = doc.createElement('div');
+                    spacer.style.height = `${spacerHeight}px`;
+                    spacer.style.width = '100%';
+                    spacer.style.display = 'block';
+                    spacer.style.backgroundColor = bgColor;
+                    spacer.style.fontSize = '0';
+                    spacer.style.lineHeight = '0';
+                    spacer.style.breakInside = 'avoid';
+                    spacer.style.pageBreakInside = 'avoid';
+                    spacer.className = 'pdf-page-separator';
+                    section.parentNode?.insertBefore(spacer, section);
+                  }
+                }
+              });
+
               // Add soft page boundaries with colored spacers:
               // no gap on page 1 top, but keep top gap for page 2+ and bottom gap per page.
               const flowBlocks = Array.from(
                 target.querySelectorAll(
-                  'section, .section, .section-title, .exp-item, .edu-item, .projects-item, .sub-item, .award-item, h1, h2, h3, ul, ol'
+                  '.section-title, .exp-item, .edu-item, .projects-item, .sub-item, .award-item, h1, h2, h3, ul, ol'
                 )
               ) as HTMLElement[];
 
@@ -271,7 +309,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
-                  avoid: ['h1', 'h2', 'h3', '.section-title', 'img']
+                  avoid: ['section', '.section', '#skills', '#experience', '#projects', '#education', '#tools', '#awards', 'h1', 'h2', 'h3', '.section-title', 'img']
                 },
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
