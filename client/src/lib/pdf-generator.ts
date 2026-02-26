@@ -135,7 +135,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
 
           const contentHeight = target.scrollHeight;
           const a4HeightPx = 1123;
-          const pageTopGapPx = 10; // strongly reduced top gap for page 2+
+          const pageTopGapPx = 6; // very small fixed top gap for page 2+
           const pageBottomGapPx = 62; // larger bottom breathing room
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
           console.log(`[PDF] Content height: ${contentHeight}px, estimated pages: ${numPages}`);
@@ -283,7 +283,9 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
-                  avoid: ['section', '.section', '#skills', '#experience', '#projects', '#education', '#tools', '#awards', 'h1', 'h2', 'h3', '.section-title', 'img']
+                  // Avoid only small semantic elements. Large container blocks are handled
+                  // by our direct-child transfer logic above.
+                  avoid: ['h1', 'h2', 'h3', '.section-title', 'img']
                 },
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
