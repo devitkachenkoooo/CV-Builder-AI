@@ -1,7 +1,8 @@
 import html2pdf from 'html2pdf.js';
 
 interface PdfFromUrlOptions {
-  url: string;
+  url?: string;
+  htmlContent?: string;
   filename?: string;
   onLoadingChange?: (loading: boolean) => void;
   windowWidth?: number;
@@ -340,11 +341,23 @@ export async function generatePdfFromElement(options: PdfFromElementOptions): Pr
 }
 
 export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<void> {
-  const { url, onLoadingChange, filename } = options;
+  const { url, htmlContent, onLoadingChange, filename } = options;
   if (onLoadingChange) onLoadingChange(true);
   try {
-    const res = await fetch(url);
-    const html = await res.text();
+    let html = htmlContent;
+
+    if (!html) {
+      if (!url) {
+        throw new Error('Either url or htmlContent must be provided');
+      }
+
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) {
+        throw new Error(`Failed to fetch HTML for PDF generation: ${res.status}`);
+      }
+      html = await res.text();
+    }
+
     createPdfModal(html, filename);
     await new Promise(r => setTimeout(r, 2000));
   } finally {

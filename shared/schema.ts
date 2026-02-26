@@ -24,6 +24,7 @@ export const generatedCvs = pgTable("generated_cvs", {
   status: text("status").notNull().default("pending"), // pending, processing, complete, failed
   progress: text("progress"), // Current step: "Processing DOCX...", "AI Formatting...", "Generating PDF..."
   pdfUrl: text("pdf_url"), // URL to generated PDF
+  htmlContent: text("html_content"), // Generated HTML content stored in DB
   errorMessage: text("error_message"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
@@ -74,6 +75,7 @@ export interface JobStatusResponse {
   status: "pending" | "processing" | "complete" | "failed";
   progress?: string;
   pdfUrl?: string;
+  htmlContent?: string;
   errorMessage?: string;
   template?: CvTemplate;
 }

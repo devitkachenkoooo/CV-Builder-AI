@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
-import { api } from "@shared/routes";
+import { api, buildUrl } from "@shared/routes";
 import { z } from "zod";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { processUploadedFile } from "./lib/file-processor";
@@ -233,6 +233,30 @@ export async function registerRoutes(
     }
   });
 
+  // Render generated CV HTML from database
+  app.get(api.generatedCv.render.path, isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      const cv = await storage.getGeneratedCv(id);
+      if (!cv) {
+        return res.status(404).json({ message: "CV not found" });
+      }
+      if (cv.userId !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      if (!cv.htmlContent) {
+        return res.status(404).json({ message: "Generated CV HTML not found" });
+      }
+
+      res.setHeader("Content-Type", "text/html");
+      res.send(cv.htmlContent);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to render CV" });
+    }
+  });
+
   // Delete a resume
   app.delete(api.resumes.delete.path, isAuthenticated, async (req: any, res) => {
     try {
@@ -246,20 +270,6 @@ export async function registerRoutes(
       }
       if (cv.userId !== userId) {
         return res.status(403).json({ message: 'Forbidden' });
-      }
-
-      // Delete generated HTML file
-      if (cv.pdfUrl) {
-        try {
-          const htmlPath = path.join(process.cwd(), "client", "public", cv.pdfUrl);
-
-          // Delete HTML file
-          if (fsSync.existsSync(htmlPath)) {
-            await fs.unlink(htmlPath);
-          }
-        } catch (fileError) {
-          // Continue with database deletion even if file deletion fails
-        }
       }
 
       await storage.deleteGeneratedCv(id);
@@ -341,19 +351,13 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
       // Очищаємо від Markdown тегів, якщо ШІ їх додав
       generatedHtml = generatedHtml.replace(/```html\n?/g, "").replace(/```\n?$/g, "").trim();
 
-      const outputDir = path.join(process.cwd(), "client", "public", "generated");
-      await fs.mkdir(outputDir, { recursive: true });
-
-      const filename = `cv-${jobId}-${Date.now()}.html`;
-      const outputPath = path.join(outputDir, filename);
-      await fs.writeFile(outputPath, generatedHtml, "utf-8");
-
-      const pdfUrl = `/generated/${filename}`;
+      const pdfUrl = buildUrl(api.generatedCv.render.path, { id: jobId });
       await storage.updateGeneratedCvStatus(
         jobId, 
         "complete", 
         lang === 'ua' ? "✅ Резюме успішно створено!" : "✅ CV successfully created!", 
-        pdfUrl
+        pdfUrl,
+        generatedHtml
       );
 
     } catch (apiError: any) {

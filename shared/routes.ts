@@ -95,6 +95,17 @@ export const api = {
       },
     },
   },
+  generatedCv: {
+    render: {
+      method: 'GET' as const,
+      path: '/api/generated-cv/:id/render' as const,
+      responses: {
+        200: z.string(),
+        404: errorSchemas.notFound,
+        401: errorSchemas.unauthorized,
+      },
+    },
+  },
 };
 
 // ============================================

@@ -27,6 +27,7 @@ export interface IStorage {
     status: string,
     progress?: string,
     pdfUrl?: string,
+    htmlContent?: string,
     errorMessage?: string
   ): Promise<GeneratedCv>;
   deleteGeneratedCv(id: number): Promise<void>;
@@ -111,6 +112,7 @@ export class DatabaseStorage implements IStorage {
     status: string,
     progress?: string,
     pdfUrl?: string,
+    htmlContent?: string,
     errorMessage?: string
   ): Promise<GeneratedCv> {
     const [updated] = await db
@@ -119,6 +121,7 @@ export class DatabaseStorage implements IStorage {
         status,
         progress,
         pdfUrl,
+        htmlContent,
         errorMessage,
         updatedAt: new Date(),
       })
