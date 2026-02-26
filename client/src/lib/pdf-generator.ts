@@ -169,6 +169,16 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               margin-top: 0 !important;
               box-sizing: border-box !important;
             }
+            .pdf-page-break-marker {
+              break-before: page !important;
+              page-break-before: always !important;
+              display: block !important;
+              width: 100% !important;
+              height: ${pageTopGapPx}px !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: transparent !important;
+            }
           `;
           doc.head.appendChild(normalizeStyle);
 
@@ -241,6 +251,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               const mainFlow = (target.querySelector(':scope > main') || target.querySelector('main')) as HTMLElement | null;
               const flowRoot = mainFlow || target;
               const flowBlocks = Array.from(flowRoot.children) as HTMLElement[];
+              Array.from(flowRoot.querySelectorAll('.pdf-page-break-marker')).forEach((node) => node.remove());
               flowBlocks.forEach((child) => {
                 if (!(child instanceof HTMLElement)) return;
                 child.classList.remove('pdf-page-start');
@@ -263,17 +274,17 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                   remainingOnPage <= moveThresholdPx;
 
                 if (shouldMoveToNextPage) {
-                  block.classList.add('pdf-page-start');
+                  const prev = block.previousElementSibling as HTMLElement | null;
+                  if (!prev || !prev.classList.contains('pdf-page-break-marker')) {
+                    const marker = doc.createElement('div');
+                    marker.className = 'pdf-page-break-marker';
+                    flowRoot.insertBefore(marker, block);
+                  }
                 }
               });
 
               target.style.boxSizing = 'border-box';
-              const fullPageCount = Math.max(1, Math.ceil(target.scrollHeight / a4HeightPx));
-              const fullCanvasHeight = fullPageCount * a4HeightPx;
-              target.style.minHeight = `${fullCanvasHeight}px`;
               target.style.backgroundColor = bgColor;
-              doc.body.style.minHeight = `${fullCanvasHeight}px`;
-              doc.documentElement.style.minHeight = `${fullCanvasHeight}px`;
               doc.body.style.backgroundColor = bgColor;
               doc.documentElement.style.backgroundColor = bgColor;
 
@@ -291,8 +302,6 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                   backgroundColor: bgColor,
                   width: targetWidth,
                   windowWidth: targetWidth,
-                  height: fullCanvasHeight,
-                  windowHeight: fullCanvasHeight,
                   scrollY: 0,
                   x: 0,
                   y: 0,
