@@ -1,3 +1,4 @@
+import React from "react";
 import { useMyResumes } from "@/hooks/use-cvs";
 import { Navbar } from "@/components/layout/Navbar";
 import { CvStatusCard } from "@/components/CvStatusCard";
@@ -9,6 +10,11 @@ import { useTranslation } from "react-i18next";
 export default function MyResumesPage() {
   const { t } = useTranslation();
   const { data: resumes, isLoading, error } = useMyResumes();
+
+  // Scroll to top on mount to ensure user sees the latest CVs (newest at top)
+  React.useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   return (
     <div className="min-h-screen bg-mesh pb-20 pt-24">

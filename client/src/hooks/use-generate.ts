@@ -52,6 +52,8 @@ export function useGenerateCv() {
     onSuccess: () => {
       // Invalidate the resumes list to show the new pending CV
       queryClient.invalidateQueries({ queryKey: [api.resumes.list.path] });
+      // Scroll to top to show the new CV being generated
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   });
 }
