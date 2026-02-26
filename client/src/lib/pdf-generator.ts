@@ -234,9 +234,10 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 const blockHeight = rect.height;
                 const currentPage = Math.floor(blockTop / a4HeightPx);
                 const pageBottom = (currentPage + 1) * a4HeightPx;
+                const canFitWholePage = blockHeight <= maxSinglePageBlockHeight;
 
                 // If a block can fit on a clean page, move it as a whole.
-                if (blockHeight <= maxSinglePageBlockHeight && blockBottom > pageBottom - pageBottomGapPx) {
+                if (canFitWholePage && blockBottom > pageBottom - pageBottomGapPx) {
                   const spacerHeight = Math.max(0, (pageBottom - blockTop) + pageTopGapPx);
                   if (spacerHeight > 0 && spacerHeight < a4HeightPx * 0.9) {
                     const spacer = doc.createElement('div');
@@ -252,41 +253,18 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                     block.parentNode?.insertBefore(spacer, block);
                   }
                 }
+
+                block.style.breakInside = canFitWholePage ? 'avoid' : 'auto';
+                block.style.pageBreakInside = canFitWholePage ? 'avoid' : 'auto';
               });
 
-              // Add soft page boundaries with colored spacers:
-              // no gap on page 1 top, but keep top gap for page 2+ and bottom gap per page.
-              const flowBlocks = Array.from(
-                target.querySelectorAll(
-                  '.section-title, .exp-item, .edu-item, .projects-item, .sub-item, .award-item, h1, h2, h3, ul, ol'
-                )
-              ) as HTMLElement[];
-
-              flowBlocks.forEach((el) => {
-                if (el.closest('.pdf-page-separator')) return;
-                const rect = el.getBoundingClientRect();
-                const containerRect = target.getBoundingClientRect();
-                const elTop = rect.top - containerRect.top;
-                const elBottom = rect.bottom - containerRect.top;
-                const currentPage = Math.floor(elTop / a4HeightPx);
-                const pageBottom = (currentPage + 1) * a4HeightPx;
-
-                if (elBottom > pageBottom - pageBottomGapPx) {
-                  const spacerHeight = Math.max(0, (pageBottom - elTop) + pageTopGapPx);
-                  if (spacerHeight > 0 && spacerHeight < a4HeightPx * 0.75) {
-                    const spacer = doc.createElement('div');
-                    spacer.style.height = `${spacerHeight}px`;
-                    spacer.style.width = '100%';
-                    spacer.style.display = 'block';
-                    spacer.style.backgroundColor = bgColor;
-                    spacer.style.fontSize = '0';
-                    spacer.style.lineHeight = '0';
-                    spacer.style.breakInside = 'avoid';
-                    spacer.style.pageBreakInside = 'avoid';
-                    spacer.className = 'pdf-page-separator';
-                    el.parentNode?.insertBefore(spacer, el);
-                  }
-                }
+              // Enforce block-level splitting policy only on direct container children.
+              // This keeps top offset deterministic across templates.
+              Array.from(target.children).forEach((child) => {
+                if (!(child instanceof HTMLElement)) return;
+                if (child.classList.contains('pdf-page-separator')) return;
+                if (!child.style.breakInside) child.style.breakInside = 'avoid';
+                if (!child.style.pageBreakInside) child.style.pageBreakInside = 'avoid';
               });
 
               // Remove trailing separators that can create an empty final page.
