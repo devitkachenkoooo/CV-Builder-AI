@@ -12,7 +12,9 @@
             --bg-dark: #050720;
             --accent-blue: #3498db;
             --text-white: #ffffff;
-            --text-muted: #bdc3c7;
+            /* Світло-голубий відтінок для основного тексту */
+            --text-ice: #d1e5f4; 
+            --text-muted: #8ba4b7; /* Більш голубуватий приглушений текст */
             --pill-bg: #1a2a40;
             --font-main: 'Public Sans', sans-serif;
         }
@@ -25,14 +27,12 @@
 
         body {
             font-family: var(--font-main);
-            background-color: transparent;
-            color: var(--text-white);
+            background-color: #000;
+            color: var(--text-ice); /* Весь текст за замовчуванням голубуватий */
             line-height: 1.5;
             display: flex;
             justify-content: center;
-            margin: 0;
-            padding: 0 !important;
-            overflow-x: hidden;
+            padding: 40px 0;
         }
 
         .container {
@@ -40,8 +40,7 @@
             width: 210mm;
             min-height: 297mm;
             padding: 60px 80px;
-            box-sizing: border-box;
-            box-shadow: none;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
         }
 
         header {
@@ -55,7 +54,9 @@
             width: 40%;
         }
 
+        /* Ім'я залишаємо чисто білим для акценту */
         .header-left h1 {
+            color: var(--text-white);
             font-size: 38px;
             font-weight: 700;
             margin-bottom: 20px;
@@ -63,7 +64,7 @@
 
         .contact-info {
             font-size: 14px;
-            color: var(--text-white);
+            color: var(--text-ice);
         }
 
         .contact-info div {
@@ -73,7 +74,7 @@
         .header-right {
             width: 60%;
             font-size: 15px;
-            color: var(--text-white);
+            color: var(--text-ice);
             text-align: justify;
         }
 
@@ -82,6 +83,7 @@
         }
 
         h2 {
+            color: var(--text-white); /* Заголовки секцій білі */
             font-size: 18px;
             font-weight: 700;
             text-transform: uppercase;
@@ -94,7 +96,7 @@
             background-color: var(--accent-blue);
             width: 60px;
             margin-bottom: 20px;
-            opacity: 0.5;
+            opacity: 0.6;
         }
 
         .item {
@@ -102,6 +104,7 @@
         }
 
         .item h3 {
+            color: var(--text-white); /* Назви компаній/дипломів білі */
             font-size: 16px;
             font-weight: 700;
             margin-bottom: 4px;
@@ -109,7 +112,7 @@
 
         .item .role {
             font-size: 15px;
-            color: var(--text-muted);
+            color: var(--accent-blue); /* Роль підсвітимо голубим акцентом */
             margin-bottom: 4px;
         }
 
@@ -124,6 +127,7 @@
             gap: 12px;
         }
 
+        /* Плитки залишаємо з білим текстом */
         .pill {
             background-color: var(--pill-bg);
             color: var(--text-white);
@@ -131,7 +135,8 @@
             border-radius: 6px;
             font-size: 14px;
             font-weight: 600;
-            border: 1px solid rgba(52, 152, 219, 0.3);
+            border: 1px solid rgba(52, 152, 219, 0.4);
+            transition: all 0.3s ease;
         }
 
         @media print {
@@ -145,14 +150,13 @@
                 width: 100%;
                 margin: 0;
                 -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
             }
 
             header,
             section,
-            .pill {
+            .pill,
+            .section-underline {
                 -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
             }
         }
     </style>
