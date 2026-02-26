@@ -161,6 +161,23 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             .pdf-moved-block > :first-child {
               margin-top: 0 !important;
             }
+            .pdf-page-break {
+              break-before: page;
+              page-break-before: always;
+              height: 0 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            .pdf-top-gap {
+              width: 100%;
+              margin: 0 !important;
+              padding: 0 !important;
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+            .container, .cv-container, .resume, main {
+              overflow: visible !important;
+            }
           `;
           doc.head.appendChild(normalizeStyle);
 
@@ -229,10 +246,9 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               target.style.backgroundColor = bgColor;
               doc.body.style.backgroundColor = bgColor;
 
-              // First pass: move whole direct container children to the next page
-              // when they don't fit the remaining space on the current page.
+              // First pass: explicit page breaks for direct flow blocks.
               const maxSinglePageBlockHeight = a4HeightPx - pageTopGapPx - pageBottomGapPx;
-              const moveThresholdPx = 280;
+              const moveThresholdPx = 420;
               const directBlocks = Array.from(target.children) as HTMLElement[];
               const flowParent: HTMLElement = (() => {
                 if (directBlocks.length !== 1) return target;
@@ -248,10 +264,12 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 (el) => el instanceof HTMLElement && (el as HTMLElement).tagName === 'MAIN' && (el as HTMLElement).children.length > 1
               ) as HTMLElement | undefined;
               const effectiveFlowParent: HTMLElement = mainCandidate || flowParent;
-              const blocksToProcess = Array.from(effectiveFlowParent.children) as HTMLElement[];
+              Array.from(effectiveFlowParent.querySelectorAll('.pdf-page-break, .pdf-top-gap, .pdf-page-separator')).forEach((el) => el.remove());
+              const blocksToProcess = Array.from(effectiveFlowParent.children).filter(
+                (el) => !el.classList.contains('pdf-page-break') && !el.classList.contains('pdf-top-gap')
+              ) as HTMLElement[];
 
               blocksToProcess.forEach((block) => {
-                if (block.classList.contains('pdf-page-separator')) return;
                 const rect = block.getBoundingClientRect();
                 const containerRect = target.getBoundingClientRect();
                 const blockTop = rect.top - containerRect.top;
@@ -262,26 +280,20 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 const canFitWholePage = blockHeight <= maxSinglePageBlockHeight;
                 const remainingOnPage = pageBottom - blockTop;
 
-                // Move a block start to the next page when it's near the page end.
-                // This works for both small and large sections and prevents hard cuts.
+                // Move block to next page using explicit page-break and fixed top gap.
                 if (blockBottom > pageBottom - pageBottomGapPx && remainingOnPage <= moveThresholdPx) {
-                  const spacerHeight = Math.max(0, (pageBottom - blockTop) + pageTopGapPx);
-                  if (spacerHeight > 0 && spacerHeight < a4HeightPx * 0.9) {
-                    const spacer = doc.createElement('div');
-                    spacer.style.height = `${spacerHeight}px`;
-                    spacer.style.width = '100%';
-                    spacer.style.display = 'block';
-                    spacer.style.backgroundColor = bgColor;
-                    spacer.style.fontSize = '0';
-                    spacer.style.lineHeight = '0';
-                    spacer.style.breakInside = 'avoid';
-                    spacer.style.pageBreakInside = 'avoid';
-                    spacer.className = 'pdf-page-separator';
-                    block.parentNode?.insertBefore(spacer, block);
+                  const pageBreak = doc.createElement('div');
+                  pageBreak.className = 'pdf-page-break';
+                  pageBreak.style.backgroundColor = bgColor;
 
-                    // Keep top spacing deterministic on moved blocks.
-                    block.classList.add('pdf-moved-block');
-                  }
+                  const topGap = doc.createElement('div');
+                  topGap.className = 'pdf-top-gap';
+                  topGap.style.height = `${pageTopGapPx}px`;
+                  topGap.style.backgroundColor = bgColor;
+
+                  block.parentNode?.insertBefore(pageBreak, block);
+                  block.parentNode?.insertBefore(topGap, block);
+                  block.classList.add('pdf-moved-block');
                 }
 
                 block.style.breakInside = canFitWholePage ? 'avoid' : 'auto';
@@ -297,9 +309,13 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 if (!child.style.pageBreakInside) child.style.pageBreakInside = 'avoid';
               });
 
-              // Remove trailing separators that can create an empty final page.
-              while (target.lastElementChild?.classList.contains('pdf-page-separator')) {
-                target.lastElementChild.remove();
+              // Remove trailing helper nodes that can create an empty final page.
+              while (
+                effectiveFlowParent.lastElementChild?.classList.contains('pdf-page-break') ||
+                effectiveFlowParent.lastElementChild?.classList.contains('pdf-top-gap') ||
+                effectiveFlowParent.lastElementChild?.classList.contains('pdf-page-separator')
+              ) {
+                effectiveFlowParent.lastElementChild.remove();
               }
 
               // Paint the last page to the bottom, but keep 1px safety to avoid page overflow.
