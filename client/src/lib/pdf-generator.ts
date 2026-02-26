@@ -135,7 +135,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
 
           const contentHeight = target.scrollHeight;
           const a4HeightPx = 1123;
-          const pageTopGapPx = 28; // smaller top breathing room for page 2+
+          const pageTopGapPx = 17; // reduced by ~40%
           const pageBottomGapPx = 62; // larger bottom breathing room
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
           console.log(`[PDF] Content height: ${contentHeight}px, estimated pages: ${numPages}`);
@@ -255,7 +255,11 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 }
               });
 
-              // Keep natural content height to avoid accidental extra trailing blank page.
+              // Paint the whole last rendered page without forcing an extra blank page.
+              // Align to page grid with a small epsilon to avoid +1 page from sub-pixel overflow.
+              const renderedHeight = target.scrollHeight;
+              const pageCountForPaint = Math.max(1, Math.ceil((renderedHeight - 2) / a4HeightPx));
+              target.style.minHeight = `${pageCountForPaint * a4HeightPx}px`;
               target.style.boxSizing = 'border-box';
 
               win.html2pdf().from(captureElement).set({
