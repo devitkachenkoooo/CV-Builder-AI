@@ -232,6 +232,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               // First pass: move whole direct container children to the next page
               // when they don't fit the remaining space on the current page.
               const maxSinglePageBlockHeight = a4HeightPx - pageTopGapPx - pageBottomGapPx;
+              const moveThresholdPx = 280;
               const directBlocks = Array.from(target.children) as HTMLElement[];
               const flowParent: HTMLElement = (() => {
                 if (directBlocks.length !== 1) return target;
@@ -259,9 +260,11 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 const currentPage = Math.floor(blockTop / a4HeightPx);
                 const pageBottom = (currentPage + 1) * a4HeightPx;
                 const canFitWholePage = blockHeight <= maxSinglePageBlockHeight;
+                const remainingOnPage = pageBottom - blockTop;
 
-                // If a block can fit on a clean page, move it as a whole.
-                if (canFitWholePage && blockBottom > pageBottom - pageBottomGapPx) {
+                // Move a block start to the next page when it's near the page end.
+                // This works for both small and large sections and prevents hard cuts.
+                if (blockBottom > pageBottom - pageBottomGapPx && remainingOnPage <= moveThresholdPx) {
                   const spacerHeight = Math.max(0, (pageBottom - blockTop) + pageTopGapPx);
                   if (spacerHeight > 0 && spacerHeight < a4HeightPx * 0.9) {
                     const spacer = doc.createElement('div');
