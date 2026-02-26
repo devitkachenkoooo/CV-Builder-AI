@@ -136,7 +136,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
           const contentHeight = target.scrollHeight;
           const a4HeightPx = 1123;
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
-          const pageMarginsMm = { vertical: 12, horizontal: 0 };
+          const pageSafeZonePx = 45; // ~12mm at 96dpi
 
           console.log(`[PDF] Content height: ${contentHeight}px, estimated pages: ${numPages}`);
 
@@ -202,21 +202,43 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             console.log('[PDF] Library loaded, starting generation');
             if (win.html2pdf) {
               statusText.textContent = `Rendering ${numPages} page(s)...`;
-              const pdfMargin = win.Array.from([
-                pageMarginsMm.vertical,
-                pageMarginsMm.horizontal,
-                pageMarginsMm.vertical,
-                pageMarginsMm.horizontal
-              ]);
 
-              // --- REFINED GRANULAR "FLOW INJECTION" ---
-              // Keep original template paddings intact; page-level vertical breathing room
-              // is managed by PDF margins for consistency on every page.
+              // Insert deterministic separators only when an element would collide with
+              // the bottom safe zone. This keeps page 1 top flush, while page 2+ gets
+              // breathing room at the top via spacer carryover.
+              const flowBlocks = Array.from(
+                target.querySelectorAll(
+                  'section, .section, .section-title, .exp-item, .edu-item, .projects-item, .sub-item, .award-item, h1, h2, h3, p, li'
+                )
+              ) as HTMLElement[];
+
+              flowBlocks.forEach((el) => {
+                const rect = el.getBoundingClientRect();
+                const containerRect = target.getBoundingClientRect();
+                const elTop = rect.top - containerRect.top;
+                const elBottom = rect.bottom - containerRect.top;
+                const pageBottom = (Math.floor(elTop / a4HeightPx) + 1) * a4HeightPx;
+
+                if (elBottom > pageBottom - pageSafeZonePx) {
+                  const spacerHeight = Math.max(0, (pageBottom - elTop) + pageSafeZonePx);
+                  if (spacerHeight > 0 && spacerHeight < a4HeightPx * 0.9) {
+                    const spacer = doc.createElement('div');
+                    spacer.style.height = `${spacerHeight}px`;
+                    spacer.style.width = '100%';
+                    spacer.style.backgroundColor = bgColor;
+                    spacer.style.breakInside = 'avoid';
+                    spacer.style.pageBreakInside = 'avoid';
+                    spacer.className = 'pdf-page-separator';
+                    el.parentNode?.insertBefore(spacer, el);
+                  }
+                }
+              });
+
               target.style.backgroundColor = bgColor;
               doc.body.style.backgroundColor = bgColor;
 
               win.html2pdf().from(captureElement).set({
-                margin: pdfMargin,
+                margin: 0,
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
