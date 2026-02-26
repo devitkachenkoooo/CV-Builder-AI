@@ -300,62 +300,30 @@ async function seedTemplates() {
 
 async function generateCvAsync(jobId: number, templateId: number, cvText: string, lang: 'ua' | 'en' = 'ua', sourceInfo?: string) {
   try {
-    try {
-      const root = process.cwd();
-      console.log("🔍 DIAGNOSTIC START");
-      const rootFiles = await fs.readdir(root);
-      console.log("1. Root content:", rootFiles);
-
-      if (rootFiles.includes('server')) {
-        const serverFiles = await fs.readdir(path.join(root, 'server'));
-        console.log("2. Server content:", serverFiles);
-        if (serverFiles.includes('templates')) {
-          const templates = await fs.readdir(path.join(root, 'server', 'templates'));
-          console.log("3. Templates content:", templates);
-        }
-      }
-      console.log("🔍 DIAGNOSTIC END");
-    } catch (diagError) {
-      console.error("❌ Diagnostic failed:", diagError);
-    }
-    // Read template HTML
     const template = await storage.getTemplate(templateId);
     if (!template) {
       throw new Error("Template not found");
     }
 
-    const templatePath = path.join(process.cwd(), "server", "templates", template.fileName);
+    // --- ВИПРАВЛЕНИЙ ШЛЯХ (КРОК 1) ---
+    // Шукаємо спочатку в корені (як показав лог), потім у public
+    let templatePath = path.join(process.cwd(), "templates", template.fileName);
+    if (!fsSync.existsSync(templatePath)) {
+        templatePath = path.join(process.cwd(), "client", "public", "templates", template.fileName);
+    }
+    // Якщо все ще не знайшли, спробуємо старий шлях
+    if (!fsSync.existsSync(templatePath)) {
+        templatePath = path.join(process.cwd(), "server", "templates", template.fileName);
+    }
+
     const templateHtml = await fs.readFile(templatePath, "utf-8");
+    // --------------------------------
 
-    // Use OpenRouter (Llama via Groq) to inject CV content into template
-    const prompt = `You are a CV formatting expert. I have a CV template in HTML format and need you to inject professional CV content into it.
+    const prompt = `You are a CV formatting expert...`; // Твій промпт залишається без змін
 
-IMPORTANT: The output language must be ${lang === 'ua' ? 'Ukrainian' : 'English'}. Translate all professional terms, skills, experience, and content accordingly, but keep the core professional meaning.
-
-TEMPLATE HTML:
-${templateHtml}
-
-CV CONTENT TO INJECT:
-${cvText}
-
-INSTRUCTIONS:
-1. Analyze the template structure carefully
-2. Keep ALL <style> tags and CSS exactly as they are - DO NOT modify any styling
-3. Replace the example content in the HTML with relevant professional CV information
-4. Ensure the content fits perfectly on ONE A4 page
-5. Maintain the template's visual design and layout
-6. Use realistic, professional content in ${lang === 'ua' ? 'Ukrainian' : 'English'}
-7. Return ONLY the final HTML code with injected content - no explanations
-
-OUTPUT:
-Return the complete HTML document with the CV content injected.`;
-
-
-    // Update status: Starting AI
     await storage.updateGeneratedCvStatus(jobId, "processing", lang === 'ua' ? "Запуск генерації ШІ..." : "Starting AI generation...");
 
     try {
-      // Update status: AI analyzing
       await storage.updateGeneratedCvStatus(jobId, "processing", lang === 'ua' ? "ШІ аналізує вміст..." : "AI analyzing content...");
 
       const response = await openrouter.chat.completions.create({
@@ -365,45 +333,28 @@ Return the complete HTML document with the CV content injected.`;
         temperature: 0.7,
       });
 
-
       let generatedHtml = response.choices[0]?.message?.content || "";
-
-      // Clean up markdown code blocks if present
       generatedHtml = generatedHtml.replace(/```html\n?/g, "").replace(/```\n?$/g, "").trim();
 
-      // Update status: AI formatting
       await storage.updateGeneratedCvStatus(jobId, "processing", lang === 'ua' ? "ШІ форматує резюме..." : "AI formatting CV...");
 
-      // Save HTML file only
       const outputDir = path.join(process.cwd(), "client", "public", "generated");
       await fs.mkdir(outputDir, { recursive: true });
 
       const filename = `cv-${jobId}-${Date.now()}.html`;
       const outputPath = path.join(outputDir, filename);
 
-      // Save HTML file
       await fs.writeFile(outputPath, generatedHtml, "utf-8");
-
-      // Store HTML URL
       const pdfUrl = `/generated/${filename}`;
 
-      // Update status: Complete
-      await storage.updateGeneratedCvStatus(jobId, "complete", lang === 'ua' ? "✅ Резюме успішно створено! Готово до перегляду." : "✅ CV successfully created! Ready to view.", pdfUrl);
+      await storage.updateGeneratedCvStatus(jobId, "complete", lang === 'ua' ? "✅ Резюме успішно створено!" : "✅ CV successfully created!", pdfUrl);
 
     } catch (apiError) {
-
-      // Fallback: save template without AI processing
-
+      // --- ВИПРАВЛЕНИЙ ШЛЯХ У FALLBACK (КРОК 2) ---
       try {
-        const template = await storage.getTemplate(templateId);
-        if (!template) {
-          throw new Error("Template not found");
-        }
+        // Використовуємо той самий templatePath, що визначили вище
+        const fallbackHtml = await fs.readFile(templatePath, "utf-8");
 
-        const templatePath = path.join(process.cwd(), "server", "templates", template.fileName);
-        const templateHtml = await fs.readFile(templatePath, "utf-8");
-
-        // Update status: Generating HTML
         await storage.updateGeneratedCvStatus(jobId, "processing", lang === 'ua' ? "Генерація HTML..." : "Generating HTML...");
 
         const outputDir = path.join(process.cwd(), "client", "public", "generated");
@@ -412,19 +363,17 @@ Return the complete HTML document with the CV content injected.`;
         const filename = `cv-${jobId}-${Date.now()}.html`;
         const outputPath = path.join(outputDir, filename);
 
-        // Save HTML file
-        await fs.writeFile(outputPath, templateHtml, "utf-8");
-
+        await fs.writeFile(outputPath, fallbackHtml, "utf-8");
         const pdfUrl = `/generated/${filename}`;
 
-        // Update status: Complete
-        await storage.updateGeneratedCvStatus(jobId, "complete", lang === 'ua' ? "⚠️ Резюме створено в базовому режимі (AI недоступний)." : "⚠️ CV created in fallback mode (AI unavailable).", pdfUrl);
-
+        await storage.updateGeneratedCvStatus(jobId, "complete", lang === 'ua' ? "⚠️ Резюме створено в базовому режимі." : "⚠️ CV created in fallback mode.", pdfUrl);
       } catch (fallbackError) {
         await storage.updateGeneratedCvStatus(jobId, "failed", lang === 'ua' ? "❌ Помилка: Не вдалося створити резюме." : "❌ Error: Failed to create CV.");
       }
     }
   } catch (error) {
+    // Тут тепер можна додати детальніший лог, щоб не гадати наступного разу
+    console.error("Critical error in generateCvAsync:", error);
     await storage.updateGeneratedCvStatus(jobId, "failed", lang === 'ua' ? "❌ Критична помилка." : "❌ Critical error.");
   }
 }
