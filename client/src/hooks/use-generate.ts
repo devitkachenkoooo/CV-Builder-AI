@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { api, buildUrl } from "@shared/routes";
 import { z } from "zod";
 import i18n from "@/lib/i18n";
@@ -61,7 +62,7 @@ export function usePollingJob(jobId: number, initialStatus: string) {
   console.log(`[usePollingJob] Hook called with jobId: ${jobId}, initialStatus: ${initialStatus}, isPolling: ${isPolling}`);
   const queryClient = useQueryClient();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: [api.generate.status.path, jobId],
     queryFn: async () => {
       console.log(`[usePollingJob] Polling status for job ${jobId}`);
@@ -81,12 +82,6 @@ export function usePollingJob(jobId: number, initialStatus: string) {
       console.log(`[usePollingJob] Job ${jobId} status:`, parsed.status);
       console.log(`[usePollingJob] Job ${jobId} full response:`, parsed);
 
-      // If we just completed, invalidate the main resumes list to ensure everything is in sync
-      if (parsed.status === "complete" || parsed.status === "failed") {
-        console.log(`[usePollingJob] Job ${jobId} finished with status: ${parsed.status}`);
-        queryClient.invalidateQueries({ queryKey: [api.resumes.list.path] });
-      }
-
       return parsed;
     },
     // Poll every 2 seconds if status is still pending or processing
@@ -101,7 +96,15 @@ export function usePollingJob(jobId: number, initialStatus: string) {
     enabled: isPolling, // Only enable if we're polling AND have a valid jobId
   });
 
-  console.log(`[usePollingJob] Query enabled: ${isPolling}`);
+  // Handle side effects (like invalidating queries) in useEffect, not in queryFn
+  useEffect(() => {
+    if (query.data?.status === "complete" || query.data?.status === "failed") {
+      console.log(`[usePollingJob] Job ${jobId} finished with status: ${query.data.status}, invalidating list`);
+      queryClient.invalidateQueries({ queryKey: [api.resumes.list.path] });
+    }
+  }, [query.data?.status, queryClient]);
+
+  return query;
 }
 
 // Hook for deleting a resume

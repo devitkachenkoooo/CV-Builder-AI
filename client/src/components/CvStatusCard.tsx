@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePollingJob } from "@/hooks/use-generate";
 import { FileText, Loader2, CheckCircle2, AlertCircle, Calendar, Eye, Download, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { api } from "@shared/routes";
 import type { GeneratedCvResponse } from "@shared/routes";
 import { useTranslation } from "react-i18next";
 
@@ -24,6 +26,7 @@ function getProgressWidth(progress?: string | null): string {
 
 export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   // Poll if status is pending/processing
   const { data: polledJob } = usePollingJob(cv.id, cv.status);
 
@@ -49,8 +52,8 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
           description: t("toast.cv_deleted_desc"),
         });
         setIsDeleteDialogOpen(false);
-        // Refresh page or update context (reload is simplest here)
-        window.location.reload();
+        // Refresh the resumes list without page reload
+        queryClient.invalidateQueries({ queryKey: [api.resumes.list.path] });
       } else {
         throw new Error('Failed to delete CV');
       }
