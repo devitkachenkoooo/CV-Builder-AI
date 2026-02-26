@@ -135,6 +135,9 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
 
           const contentHeight = target.scrollHeight;
           const a4HeightPx = 1123;
+          const pageTopGapPx = 16;
+          const pageBottomSafePx = 62;
+          const moveThresholdPx = 420;
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
           console.log(`[PDF] Content height: ${contentHeight}px, estimated pages: ${numPages}`);
 
@@ -157,6 +160,13 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             main > * {
               break-inside: avoid;
               page-break-inside: avoid;
+            }
+            .pdf-page-start {
+              break-before: page !important;
+              page-break-before: always !important;
+              padding-top: ${pageTopGapPx}px !important;
+              margin-top: 0 !important;
+              box-sizing: border-box !important;
             }
           `;
           doc.head.appendChild(normalizeStyle);
@@ -227,14 +237,36 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               doc.body.style.backgroundColor = bgColor;
               const mainFlow = (target.querySelector(':scope > main') || target.querySelector('main')) as HTMLElement | null;
               const flowRoot = mainFlow || target;
-              Array.from(flowRoot.children).forEach((child) => {
+              const flowBlocks = Array.from(flowRoot.children) as HTMLElement[];
+              flowBlocks.forEach((child) => {
                 if (!(child instanceof HTMLElement)) return;
+                child.classList.remove('pdf-page-start');
+                child.style.breakBefore = '';
+                child.style.pageBreakBefore = '';
                 child.style.breakInside = 'avoid';
                 child.style.pageBreakInside = 'avoid';
               });
 
+              flowBlocks.forEach((block, index) => {
+                if (index === 0) return;
+                const rect = block.getBoundingClientRect();
+                const containerRect = target.getBoundingClientRect();
+                const blockTop = rect.top - containerRect.top;
+                const blockBottom = rect.bottom - containerRect.top;
+                const pageBottom = (Math.floor(blockTop / a4HeightPx) + 1) * a4HeightPx;
+                const remainingOnPage = pageBottom - blockTop;
+                const shouldMoveToNextPage =
+                  blockBottom > pageBottom - pageBottomSafePx &&
+                  remainingOnPage <= moveThresholdPx;
+
+                if (shouldMoveToNextPage) {
+                  block.classList.add('pdf-page-start');
+                }
+              });
+
               target.style.boxSizing = 'border-box';
-              target.style.minHeight = '0';
+              const fullPageCount = Math.max(1, Math.ceil((target.scrollHeight - 1) / a4HeightPx));
+              target.style.minHeight = `${(fullPageCount * a4HeightPx) - 1}px`;
 
               win.html2pdf().from(captureElement).set({
                 margin: 0,
