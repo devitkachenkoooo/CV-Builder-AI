@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -21,25 +20,26 @@
             margin: 0;
             padding: 0;
         }
-body {
-    font-family: var(--font-main);
-    background-color: transparent;
-    color: var(--text-color);
-    line-height: 1.4;
-    display: flex;
-    justify-content: center;
-    margin: 0;
-    padding: 0 !important;
-    overflow-x: hidden;
-}
-.container {
-    background-color: var(--body-bg);
-    width: 210mm;
-    min-height: 297mm;
-    padding: 50px 60px;
-    box-sizing: border-box;
-    box-shadow: none;
-}
+
+        body {
+            font-family: var(--font-main);
+            background-color: #ccc;
+            color: var(--text-color);
+            line-height: 1.5;
+            display: flex;
+            justify-content: center;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            background-color: var(--bg-color);
+            width: 210mm;
+            min-height: 297mm;
+            padding: 60px 50px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                    margin: 0;
+        }
 
         header {
             display: flex;
@@ -76,9 +76,10 @@ body {
         .header-right span {
             font-style: italic;
         }
-section {
-    margin-bottom: 25px;
-}
+
+        section {
+            margin-bottom: 40px;
+        }
 
         .section-separator {
             border: none;
@@ -135,30 +136,20 @@ section {
             margin-bottom: 8px;
         }
 
-        @media@media print {
-    body {
-        background: none;
-        padding: 0;
-    }
-    .container {
-        box-shadow: none;
-        width: 100%;
-        margin: 0;
-        padding: 50px 60px;
-    }
-}
-.container {
-    background-color: var(--body-bg);
-    width: 210mm;
-    min-height: 297mm;
-    padding: 50px 60px;
-    box-sizing: border-box;
-    box-shadow: none;
-}
+        @media print {
+            body {
+                background-color: white;
+            padding: 0;
+            margin: 0;
+        }
+            .container {
+                box-shadow: none;
+                margin: 0;
+                width: 100%;
+            }
         }
     </style>
 </head>
-
 <body>
     <div class="container">
         <header>
@@ -178,15 +169,14 @@ section {
             <h2>RINGKASAN PROFIL</h2>
             <hr class="section-separator">
             <p class="profile-summary">
-                Lulusan baru bidang pemasaran, mahir dalam riset pasar dan konten media sosial, berkomitmen membantu
-                merek ramah lingkungan menyampaikan cerita mereka melalui kanal yang tepat.
+                Lulusan baru bidang pemasaran, mahir dalam riset pasar dan konten media sosial, berkomitmen membantu merek ramah lingkungan menyampaikan cerita mereka melalui kanal yang tepat.
             </p>
         </section>
 
         <section id="pengalaman-kerja">
             <h2>PENGALAMAN KERJA</h2>
             <hr class="section-separator">
-
+            
             <div class="content-block">
                 <h3>Relawan Media Sosial | 2033–sekarang</h3>
                 <p class="subtitle">Grup Lingkungan Hijau</p>
@@ -212,7 +202,7 @@ section {
         <section id="pendidikan">
             <h2>PENDIDIKAN</h2>
             <hr class="section-separator">
-
+            
             <div class="content-block">
                 <h3>Universitas Negeri | 2030–2034</h3>
                 <p class="subtitle">Sarjana Ilmu Komunikasi (S.I.Kom.)</p>
@@ -235,9 +225,8 @@ section {
                 <li>Hidup bersih</li>
             </ul>
         </section>
-
+        
         <hr class="section-separator">
     </div>
 </body>
-
 </html>

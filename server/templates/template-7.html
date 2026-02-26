@@ -9,7 +9,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
         :root {
-            --bg-color: #BAD6D1;
+            --bg-color: #c9d8d5;
             --text-main: #1a1a1a;
             --text-secondary: #4a4a4a;
             --line-color: #ffffff;
@@ -29,7 +29,8 @@
             line-height: 1.4;
             display: flex;
             justify-content: center;
-            padding: 40px 0;
+            padding: 0;
+            margin: 0;
         }
 
         .container {
@@ -38,6 +39,7 @@
             min-height: 297mm;
             padding: 60px 70px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                    margin: 0;
         }
 
         header {
@@ -64,9 +66,10 @@
         .contact-info div {
             margin-bottom: 5px;
         }
-section {
-    margin-bottom: 25px;
-}
+
+        section {
+            margin-bottom: 30px;
+        }
 
         h2 {
             font-size: 18px;
@@ -79,52 +82,35 @@ section {
 
         .exp-item,
         .edu-item {
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
 
-        /* ВИПРАВЛЕНИЙ БЛОК ROW */
         .row {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start; /* Вирівнювання по верху, якщо текст переноситься */
-            gap: 20px;
-            margin-bottom: 4px;
+            align-items: baseline;
+            margin-bottom: 5px;
         }
 
         .title-block {
             font-size: 15px;
             font-weight: 700;
-            flex: 1; /* Займає весь вільний простір */
         }
 
         .title-block span {
             font-weight: 400;
             font-style: italic;
             color: var(--text-secondary);
-            display: block; /* Роль тепер під назвою компанії для кращого читання */
-            margin-top: 2px;
         }
 
         .date-loc {
             font-size: 13.5px;
             color: var(--text-main);
-            text-align: right;
-            white-space: nowrap; /* Забороняє даті розриватися на два рядки */
-            flex-shrink: 0; /* Не дає назві компанії "стиснути" дату */
-        }
-
-        .location-sub {
-            font-size: 12px;
-            color: var(--text-secondary);
-            font-weight: 400;
-            display: block;
         }
 
         .description {
             font-size: 13.5px;
             color: var(--text-secondary);
-            margin-top: 6px;
-            padding-right: 50px; /* Відступ, щоб текст не підлазив під дату */
         }
 
         .grid-container {
@@ -133,14 +119,17 @@ section {
             gap: 40px;
         }
 
-        /* Заголовки в колонках тепер як h2 */
-        .grid-container h3 {
-            font-size: 18px;
+        .sub-section h3 {
+            font-size: 16px;
             font-weight: 700;
             border-bottom: 2px solid var(--line-color);
-            padding-bottom: 5px;
+            padding-bottom: 3px;
             margin-bottom: 15px;
-            text-transform: capitalize;
+        }
+
+        .sub-section p {
+            font-size: 13.5px;
+            margin-bottom: 8px;
         }
 
         .sub-item {
@@ -149,13 +138,7 @@ section {
 
         .sub-item strong {
             display: block;
-            font-size: 14px;
             margin-bottom: 2px;
-        }
-
-        .sub-item p {
-            font-size: 13px;
-            color: var(--text-secondary);
         }
 
         ul {
@@ -177,16 +160,25 @@ section {
             font-weight: bold;
         }
 
+        .award-item {
+            margin-bottom: 15px;
+        }
+
+        .award-item strong {
+            font-size: 14px;
+        }
+
         @media print {
             body {
+            padding: 0;
                 background: none;
-                padding: 0;
-            }
+            margin: 0;
+        }
+
             .container {
                 box-shadow: none;
                 width: 100%;
                 margin: 0;
-                padding: 50px 60px;
             }
         }
     </style>
@@ -209,30 +201,24 @@ section {
 
             <div class="exp-item">
                 <div class="row">
-                    <div class="title-block">
-                        Brandung
-                        <span>Senior UX/UI Designer</span>
-                    </div>
-                    <div class="date-loc">
-                        09/2012 – present
-                        <span class="location-sub">Berlin, Germany</span>
-                    </div>
+                    <p class="title-block">Brandung | Berlin, Germany, <span>Senior UX/UI Designer</span></p>
+                    <p class="date-loc">09/2012 – present</p>
                 </div>
-                <p class="description">Collaborate with cross-functional teams to design and develop user-centered digital products.</p>
+                <p class="description">Collaborate with cross-functional teams to design and develop user-centered
+                    digital products</p>
             </div>
 
             <div class="exp-item">
                 <div class="row">
-                    <div class="title-block">
-                        Divante eCommerce
-                        <span>Lead UX/UI Designer</span>
-                    </div>
-                    <div class="date-loc">
-                        08/2014 – 09/2018
-                        <span class="location-sub">Munich, Germany</span>
-                    </div>
+                    <p class="title-block">Divante eCommerce, <span>Lead UX/UI Designer</span></p>
+                    <p class="date-loc">08/2014 – 09/2018</p>
                 </div>
-                <p class="description">Redesigned the company's e-commerce platform resulting in a 40% increase in conversion rates and developed a design system to ensure consistency across the website.</p>
+                <div class="row" style="margin-top: -15px;">
+                    <div></div>
+                    <p class="date-loc">Munich, Germany</p>
+                </div>
+                <p class="description">Redesigned the company's e-commerce platform resulting in a 40% increase in
+                    conversion rates and developed a design system to ensure consistency across the website</p>
             </div>
         </section>
 
@@ -240,15 +226,10 @@ section {
             <h2>Education</h2>
             <div class="edu-item">
                 <div class="row">
-                    <div class="title-block">
-                        University of Applied Sciences Munich
-                        <span>Bachelor of Arts in Graphic Design</span>
-                    </div>
-                    <div class="date-loc">
-                        09/2009 – 07/2012
-                        <span class="location-sub">Munich, Germany</span>
-                    </div>
+                    <p class="title-block">Bachelor of Arts in Graphic Design,</p>
+                    <p class="date-loc">Munich, Germany</p>
                 </div>
+                <p class="description">University of Applied Sciences Munich</p>
             </div>
         </section>
 
@@ -261,16 +242,25 @@ section {
                         <p>UI Design, Prototyping</p>
                     </div>
                     <div class="sub-item">
+                        <strong>Maze</strong>
+                        <p>Product Research</p>
+                    </div>
+                    <div class="sub-item">
                         <strong>Adobe Creative Suite</strong>
                         <p>Photo, Video, Illustration</p>
+                    </div>
+                    <div class="sub-item">
+                        <strong>Marvel</strong>
+                        <p>UI Design, Prototyping</p>
                     </div>
                 </section>
 
                 <section id="awards">
                     <h3>Awards</h3>
-                    <div class="sub-item">
-                        <strong>Red Dot Design Award</strong>
-                        <p>Redesign of Divante's commerce platform (2017)</p>
+                    <div class="award-item">
+                        <strong>Red Dot Design Award,</strong>
+                        <p>Redesign of Divante's commerce platform</p>
+                        <p>2017</p>
                     </div>
                 </section>
             </div>
@@ -278,7 +268,13 @@ section {
             <div class="right-col">
                 <section id="languages">
                     <h3>Languages</h3>
-                    <p style="font-size: 13.5px;">German • English</p>
+                    <p>German • English</p>
+                </section>
+
+                <section id="most-proud-of">
+                    <h3>Most Proud Of</h3>
+                    <p>Designed and developed a mobile app for a non-profit organization that helped raise over €50,000
+                        for a charitable cause.</p>
                 </section>
 
                 <section id="skills">

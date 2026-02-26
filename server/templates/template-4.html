@@ -23,25 +23,25 @@
             margin: 0;
             padding: 0;
         }
-body {
-    font-family: var(--font-main);
-    background-color: transparent;
-    color: var(--text-color);
-    line-height: 1.4;
-    display: flex;
-    justify-content: center;
-    margin: 0;
-    padding: 0 !important;
-    overflow-x: hidden;
-}
-.container {
-    background-color: var(--body-bg);
-    width: 210mm;
-    min-height: 297mm;
-    padding: 50px 60px;
-    box-sizing: border-box;
-    box-shadow: none;
-}
+
+        body {
+            font-family: var(--font-main);
+            background-color: #eee;
+            color: var(--text-main);
+            line-height: 1.4;
+            display: flex;
+            justify-content: center;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            background-color: var(--body-bg);
+            width: 210mm;
+            min-height: 297mm;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+                    margin: 0;
+        }
 
         header {
             background-color: var(--header-bg);
@@ -88,9 +88,10 @@ body {
         main {
             padding: 40px 60px;
         }
-section {
-    margin-bottom: 25px;
-}
+
+        section {
+            margin-bottom: 30px;
+        }
 
         .section-title {
             display: flex;
@@ -186,31 +187,22 @@ section {
             margin-bottom: 20px;
         }
 
-        @media@media print {
-    body {
-        background: none;
-        padding: 0;
-    }
-    .container {
-        box-shadow: none;
-        width: 100%;
-        margin: 0;
-        padding: 50px 60px;
-    }
-}
-.container {
-    background-color: var(--body-bg);
-    width: 210mm;
-    min-height: 297mm;
-    padding: 50px 60px;
-    box-sizing: border-box;
-    box-shadow: none;
-}
+        @media print {
+            body {
+            padding: 0;
+                background: none;
+            margin: 0;
+        }
+
+            .container {
+                box-shadow: none;
+                width: 100%;
+                        margin: 0;
+        }
 
             header {
                 background-color: var(--header-bg) !important;
                 -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
             }
         }
     </style>

@@ -1,21 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CV - Andrew O'Sullivan (Modern Red)</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
         :root {
             --accent-red: #e74c3c;
-            --header-bg: #ececec;
-            --text-main: #2c3e50;
-            --text-secondary: #7f8c8d;
+            --header-bg: #eee;
+            --text-main: #333;
+            --text-secondary: #666;
             --bg-body: #fff;
-            --font-headers: 'Montserrat', sans-serif;
-            --font-text: 'Open Sans', sans-serif;
+            --font-main: 'Roboto', sans-serif;
         }
 
         * {
@@ -23,25 +22,26 @@
             margin: 0;
             padding: 0;
         }
-body {
-    font-family: var(--font-main);
-    background-color: transparent;
-    color: var(--text-color);
-    line-height: 1.4;
-    display: flex;
-    justify-content: center;
-    margin: 0;
-    padding: 0 !important;
-    overflow-x: hidden;
-}
-.container {
-    background-color: var(--body-bg);
-    width: 210mm;
-    min-height: 297mm;
-    padding: 50px 60px;
-    box-sizing: border-box;
-    box-shadow: none;
-}
+
+        body {
+            font-family: var(--font-main);
+            background-color: #f4f4f4;
+            color: var(--text-main);
+            line-height: 1.4;
+            display: flex;
+            justify-content: center;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            background-color: var(--bg-body);
+            width: 210mm;
+            min-height: 297mm;
+            padding: 60px 70px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                    margin: 0;
+        }
 
         header {
             text-align: center;
@@ -49,13 +49,11 @@ body {
         }
 
         header h1 {
-            font-family: var(--font-headers);
             font-size: 44px;
-            font-weight: 500; 
+            font-weight: 700;
             color: var(--accent-red);
-            margin-bottom: 12px;
-            letter-spacing: -0.5px;
-            text-transform: none;
+            margin-bottom: 15px;
+            letter-spacing: 1px;
         }
 
         .contact-row {
@@ -63,7 +61,7 @@ body {
             justify-content: center;
             flex-wrap: wrap;
             gap: 20px;
-            font-size: 13px;
+            font-size: 13.5px;
             color: var(--text-main);
         }
 
@@ -73,16 +71,11 @@ body {
             gap: 8px;
         }
 
-        .contact-item i {
-            color: var(--accent-red);
-            font-size: 14px;
+        section {
+            margin-bottom: 25px;
         }
-section {
-    margin-bottom: 25px;
-}
 
         h2 {
-            font-family: var(--font-headers);
             background-color: var(--header-bg);
             padding: 6px 0;
             text-align: center;
@@ -90,25 +83,23 @@ section {
             font-weight: 700;
             text-transform: capitalize;
             letter-spacing: 1.5px;
-            margin-bottom: 18px;
-            border-radius: 2px;
+            margin-bottom: 15px;
         }
 
         .profile-text {
             font-size: 14px;
             text-align: justify;
             margin-bottom: 10px;
-            color: #444;
         }
 
         .item {
-            margin-bottom: 18px;
+            margin-bottom: 15px;
         }
 
         .item-row {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: baseline;
             margin-bottom: 4px;
         }
 
@@ -127,13 +118,6 @@ section {
             font-size: 13px;
             text-align: right;
             color: var(--text-main);
-            font-weight: 600;
-        }
-
-        .location {
-            font-weight: 400;
-            color: var(--text-secondary);
-            font-size: 12.5px;
         }
 
         ul {
@@ -144,9 +128,8 @@ section {
         li {
             position: relative;
             font-size: 13.5px;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
             padding-left: 15px;
-            color: #333;
         }
 
         li::before {
@@ -154,10 +137,8 @@ section {
             position: absolute;
             left: 0;
             color: #000;
-            font-weight: bold;
         }
 
-        /* --- SKILLS SECTION --- */
         .skills-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -166,27 +147,23 @@ section {
 
         .skill-item {
             display: flex;
-            align-items: center; /* Центрує прогрес-бар по тексту */
+            align-items: center;
+            justify-content: space-between;
             margin-bottom: 12px;
         }
 
         .skill-name {
             font-size: 13.5px;
-            font-weight: 500;
-            width: 170px; /* Фіксована ширина для вирівнювання лівої межі барів */
-            margin-right: 15px; /* Відступ до бару */
-            line-height: 1.2;
-            flex-shrink: 0;
+            width: 140px;
         }
 
         .progress-bar {
             flex-grow: 1;
-            height: 7px;
-            background-color: #fdeaea; /* Блідо-рожевий фон як на скріні */
-            border-radius: 0; 
+            height: 6px;
+            background-color: #f1f1f1;
+            border-radius: 3px;
             overflow: hidden;
-            position: relative;
-            top: 1px; /* Ювелірне вирівнювання по центру літер */
+            background-image: linear-gradient(to right, #f1f1f1, #fbdada);
         }
 
         .progress-fill {
@@ -194,9 +171,8 @@ section {
             background-color: var(--accent-red);
         }
 
-        /* --- AWARDS --- */
         .awards-item {
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         .award-title {
@@ -204,46 +180,28 @@ section {
             font-size: 14px;
         }
 
-        .award-title span {
-            font-weight: 400;
+        .award-subtitle {
             font-style: italic;
+            font-size: 13px;
             color: var(--text-secondary);
         }
 
-        @media@media print {
-    body {
-        background: none;
-        padding: 0;
-    }
-    .container {
-        box-shadow: none;
-        width: 100%;
-        margin: 0;
-        padding: 50px 60px;
-    }
-}
-.container {
-    background-color: var(--body-bg);
-    width: 210mm;
-    min-height: 297mm;
-    padding: 50px 60px;
-    box-sizing: border-box;
-    box-shadow: none;
-}
+        @media print {
+            body {
+            padding: 0;
+                background: none;
+            margin: 0;
+        }
+
+            .container {
+                box-shadow: none;
+                width: 100%;
+                margin: 0;
+            }
 
             h2 {
                 -webkit-print-color-adjust: exact;
                 background-color: var(--header-bg) !important;
-            }
-
-            .progress-bar {
-                -webkit-print-color-adjust: exact;
-                background-color: #fdeaea !important;
-            }
-
-            .progress-fill {
-                -webkit-print-color-adjust: exact;
-                background-color: #e74c3c !important;
             }
         }
     </style>
@@ -254,9 +212,9 @@ section {
         <header>
             <h1>Andrew O'Sullivan</h1>
             <div class="contact-row">
-                <div class="contact-item"><i class="fas fa-map-marker-alt"></i> 4 Noel Street, London W1F 8GB England</div>
-                <div class="contact-item"><i class="fas fa-envelope"></i> andrew@sulli.com</div>
-                <div class="contact-item"><i class="fas fa-phone"></i> +01 11111155</div>
+                <div class="contact-item">📍 4 Noel Street, London W1F 8GB England</div>
+                <div class="contact-item">✉ andrew@sulli.com</div>
+                <div class="contact-item">📞 +01 11111155</div>
             </div>
         </header>
 
@@ -278,7 +236,7 @@ section {
                     <p class="item-title">Product Manager, <span>Technite Gmbh</span></p>
                     <div class="item-right">
                         <div>08/2018 – 07/2023</div>
-                        <div class="location">Berlin, Germany</div>
+                        <div>Berlin, Germany</div>
                     </div>
                 </div>
                 <ul>
@@ -294,7 +252,7 @@ section {
                     <p class="item-title">Product Specialist, <span>Solutions Inc</span></p>
                     <div class="item-right">
                         <div>04/2015 – 07/2018</div>
-                        <div class="location">Munich, Germany</div>
+                        <div>Munich, Germany</div>
                     </div>
                 </div>
                 <ul>
@@ -313,7 +271,7 @@ section {
                     <p class="item-title">Master of Business Administration (MBA), <span>University</span></p>
                     <div class="item-right">
                         <div>08/2013 – 07/2015</div>
-                        <div class="location">Munic, Germany</div>
+                        <div>Munic, Germany</div>
                     </div>
                 </div>
             </div>
@@ -323,7 +281,7 @@ section {
                             University</span></p>
                     <div class="item-right">
                         <div>09/2009 – 07/2013</div>
-                        <div class="location">Vienna, Austria</div>
+                        <div>Vienna, Austria</div>
                     </div>
                 </div>
             </div>
@@ -334,13 +292,13 @@ section {
             <div class="skills-grid">
                 <div>
                     <div class="skill-item">
-                        <span class="skill-name">Product development and strategy</span>
+                        <span class="skill-name">Product development strategy</span>
                         <div class="progress-bar">
                             <div class="progress-fill" style="width: 85%;"></div>
                         </div>
                     </div>
                     <div class="skill-item">
-                        <span class="skill-name">Customer needs analysis and market research</span>
+                        <span class="skill-name">Customer needs analysis</span>
                         <div class="progress-bar">
                             <div class="progress-fill" style="width: 70%;"></div>
                         </div>
@@ -354,7 +312,7 @@ section {
                 </div>
                 <div>
                     <div class="skill-item">
-                        <span class="skill-name">Project management and team leadership</span>
+                        <span class="skill-name">Project management</span>
                         <div class="progress-bar">
                             <div class="progress-fill" style="width: 90%;"></div>
                         </div>
@@ -372,26 +330,22 @@ section {
         <section id="languages">
             <h2>Languages</h2>
             <div class="skills-grid">
-                <div>
-                    <div class="skill-item">
-                        <span class="skill-name">German</span>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: 100%;"></div>
-                        </div>
-                    </div>
-                    <div class="skill-item">
-                        <span class="skill-name">Spanish</span>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: 60%;"></div>
-                        </div>
+                <div class="skill-item">
+                    <span class="skill-name">German</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 100%;"></div>
                     </div>
                 </div>
-                <div>
-                    <div class="skill-item">
-                        <span class="skill-name">English</span>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: 90%;"></div>
-                        </div>
+                <div class="skill-item">
+                    <span class="skill-name">Spanish</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 60%;"></div>
+                    </div>
+                </div>
+                <div class="skill-item">
+                    <span class="skill-name">English</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 90%;"></div>
                     </div>
                 </div>
             </div>
@@ -408,4 +362,5 @@ section {
         </section>
     </div>
 </body>
+
 </html>

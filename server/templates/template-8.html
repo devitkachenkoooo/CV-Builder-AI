@@ -9,7 +9,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap');
 
         :root {
-            --accent-green: #036E21;
+            --accent-green: #27ae60;
             --text-main: #333;
             --text-secondary: #555;
             --bg-body: #fff;
@@ -21,25 +21,26 @@
             margin: 0;
             padding: 0;
         }
-body {
-    font-family: var(--font-main);
-    background-color: transparent;
-    color: var(--text-color);
-    line-height: 1.4;
-    display: flex;
-    justify-content: center;
-    margin: 0;
-    padding: 0 !important;
-    overflow-x: hidden;
-}
-.container {
-    background-color: var(--body-bg);
-    width: 210mm;
-    min-height: 297mm;
-    padding: 50px 60px;
-    box-sizing: border-box;
-    box-shadow: none;
-}
+
+        body {
+            font-family: var(--font-main);
+            background-color: #f0f0f0;
+            color: var(--text-main);
+            line-height: 1.5;
+            display: flex;
+            justify-content: center;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            background-color: var(--bg-body);
+            width: 210mm;
+            min-height: 297mm;
+            padding: 60px 80px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                    margin: 0;
+        }
 
         header {
             margin-bottom: 40px;
@@ -73,9 +74,10 @@ body {
             align-items: center;
             gap: 12px;
         }
-section {
-    margin-bottom: 25px;
-}
+
+        section {
+            margin-bottom: 35px;
+        }
 
         h2 {
             font-size: 18px;
@@ -146,26 +148,18 @@ section {
             color: var(--text-main);
         }
 
-        @media@media print {
-    body {
-        background: none;
-        padding: 0;
-    }
-    .container {
-        box-shadow: none;
-        width: 100%;
-        margin: 0;
-        padding: 50px 60px;
-    }
-}
-.container {
-    background-color: var(--body-bg);
-    width: 210mm;
-    min-height: 297mm;
-    padding: 50px 60px;
-    box-sizing: border-box;
-    box-shadow: none;
-}
+        @media print {
+            body {
+            padding: 0;
+                background: none;
+            margin: 0;
+        }
+
+            .container {
+                box-shadow: none;
+                width: 100%;
+                margin: 0;
+            }
         }
     </style>
 </head>
