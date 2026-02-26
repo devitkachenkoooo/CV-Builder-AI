@@ -224,9 +224,20 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               // First pass: move whole direct container children to the next page
               // when they don't fit the remaining space on the current page.
               const maxSinglePageBlockHeight = a4HeightPx - pageTopGapPx - pageBottomGapPx;
+              const maxTopBlankBeforeMovedBlockPx = 180;
               const directBlocks = Array.from(target.children) as HTMLElement[];
+              const blocksToProcess = (() => {
+                if (directBlocks.length !== 1) return directBlocks;
+                const onlyChild = directBlocks[0];
+                const hasManyChildren = onlyChild.children.length > 1;
+                const isFlowWrapper = ['MAIN', 'ARTICLE', 'DIV'].includes(onlyChild.tagName);
+                if (hasManyChildren && isFlowWrapper) {
+                  return Array.from(onlyChild.children) as HTMLElement[];
+                }
+                return directBlocks;
+              })();
 
-              directBlocks.forEach((block) => {
+              blocksToProcess.forEach((block) => {
                 if (block.classList.contains('pdf-page-separator')) return;
                 const rect = block.getBoundingClientRect();
                 const containerRect = target.getBoundingClientRect();
@@ -240,7 +251,11 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 // If a block can fit on a clean page, move it as a whole.
                 if (canFitWholePage && blockBottom > pageBottom - pageBottomGapPx) {
                   const spacerHeight = Math.max(0, (pageBottom - blockTop) + pageTopGapPx);
-                  if (spacerHeight > 0 && spacerHeight < a4HeightPx * 0.9) {
+                  if (
+                    spacerHeight > 0 &&
+                    spacerHeight < a4HeightPx * 0.9 &&
+                    (pageBottom - blockTop) <= maxTopBlankBeforeMovedBlockPx
+                  ) {
                     const spacer = doc.createElement('div');
                     spacer.style.height = `${spacerHeight}px`;
                     spacer.style.width = '100%';
@@ -264,7 +279,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
 
               // Enforce block-level splitting policy only on direct container children.
               // This keeps top offset deterministic across templates.
-              Array.from(target.children).forEach((child) => {
+              blocksToProcess.forEach((child) => {
                 if (!(child instanceof HTMLElement)) return;
                 if (child.classList.contains('pdf-page-separator')) return;
                 if (!child.style.breakInside) child.style.breakInside = 'avoid';
