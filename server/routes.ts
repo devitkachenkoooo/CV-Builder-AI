@@ -300,7 +300,24 @@ async function seedTemplates() {
 
 async function generateCvAsync(jobId: number, templateId: number, cvText: string, lang: 'ua' | 'en' = 'ua', sourceInfo?: string) {
   try {
+    try {
+      const root = process.cwd();
+      console.log("🔍 DIAGNOSTIC START");
+      const rootFiles = await fs.readdir(root);
+      console.log("1. Root content:", rootFiles);
 
+      if (rootFiles.includes('server')) {
+        const serverFiles = await fs.readdir(path.join(root, 'server'));
+        console.log("2. Server content:", serverFiles);
+        if (serverFiles.includes('templates')) {
+          const templates = await fs.readdir(path.join(root, 'server', 'templates'));
+          console.log("3. Templates content:", templates);
+        }
+      }
+      console.log("🔍 DIAGNOSTIC END");
+    } catch (diagError) {
+      console.error("❌ Diagnostic failed:", diagError);
+    }
     // Read template HTML
     const template = await storage.getTemplate(templateId);
     if (!template) {
