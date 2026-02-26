@@ -177,49 +177,39 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             if (win.html2pdf) {
               statusText.textContent = `Rendering ${numPages} page(s)...`;
 
-              // --- PHYSICAL SPACER INJECTION (RELIABLE PADDING) ---
-              // Instead of just margins (which are often ignored by html2pdf's splitter),
-              // we inject real DIV elements that take up space at the top and bottom of each page.
+              // --- CLEAN PADDING APPROACH ---
+              // Instead of absolute spacers which cover content, we use generous padding
+              // and rely on the page-break avoidance logic.
               const A4_HEIGHT_PX = 1123;
-              const PADDING_PX = 60; // 15-20mm safety zone
 
-              // We need to work backwards to not mess up coordinates of elements we haven't processed yet
-              const numSafetyPages = Math.ceil(target.offsetHeight / A4_HEIGHT_PX) + 1;
+              // Apply internal padding to the CV container itself
+              // This handles the top of page 1 and the bottom of the last page beautifully
+              target.style.paddingLeft = '15mm';
+              target.style.paddingRight = '15mm';
+              target.style.paddingTop = '15mm';
+              target.style.paddingBottom = '15mm';
+              target.style.boxSizing = 'border-box';
 
-              for (let i = 1; i < numSafetyPages; i++) {
-                // Bottom of page i
-                const bottomSpacer = doc.createElement('div');
-                bottomSpacer.className = 'pdf-spacer';
-                bottomSpacer.style.height = `${PADDING_PX}px`;
-                bottomSpacer.style.width = '100%';
-                bottomSpacer.style.backgroundColor = bgColor;
-                bottomSpacer.style.position = 'absolute';
-                bottomSpacer.style.top = `${(i * A4_HEIGHT_PX) - PADDING_PX}px`;
-                bottomSpacer.style.zIndex = '999';
-                target.appendChild(bottomSpacer);
+              // Force background on the entire iframe world
+              doc.body.style.backgroundColor = bgColor;
+              doc.documentElement.style.backgroundColor = bgColor;
+              target.style.backgroundColor = bgColor;
 
-                // Top of page i+1
-                const topSpacer = doc.createElement('div');
-                topSpacer.className = 'pdf-spacer';
-                topSpacer.style.height = `${PADDING_PX}px`;
-                topSpacer.style.width = '100%';
-                topSpacer.style.backgroundColor = bgColor;
-                topSpacer.style.position = 'absolute';
-                topSpacer.style.top = `${i * A4_HEIGHT_PX}px`;
-                topSpacer.style.zIndex = '999';
-                target.appendChild(topSpacer);
-              }
-
-              // Re-calculate height after injection for safety
-              target.style.minHeight = `${numPages * A4_HEIGHT_PX}px`;
+              // Re-calculate height after padding for safety
+              const newContentHeight = target.offsetHeight;
+              const newNumPages = Math.max(1, Math.ceil(newContentHeight / A4_HEIGHT_PX));
+              target.style.minHeight = `${newNumPages * A4_HEIGHT_PX}px`;
 
               win.html2pdf().from(captureElement).set({
-                // Strict 0 margin for full edge-to-edge background color
+                // Margin 0 ensures the background color is full-bleed
                 margin: 0,
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
-                  avoid: ['p', 'li', 'h1', 'h2', 'h3', '.section', 'img', '.contact-item']
+                  // This is the key: by avoiding breaks in these elements,
+                  // we force the library to push content to the next page,
+                  // leaving a colored gap at the bottom of the previous page.
+                  avoid: ['p', 'li', 'h1', 'h2', 'h3', '.section', 'img', '.contact-item', 'tr', 'blockquote']
                 },
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
