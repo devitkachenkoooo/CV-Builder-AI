@@ -136,8 +136,6 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
           const contentHeight = target.scrollHeight;
           const a4HeightPx = 1123;
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
-          const pageSafeZonePx = 45; // ~12mm at 96dpi
-
           console.log(`[PDF] Content height: ${contentHeight}px, estimated pages: ${numPages}`);
 
           // Keep a deterministic A4 rendering world for every template.
@@ -180,8 +178,17 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             block.style.pageBreakInside = 'avoid';
           });
 
-          const computedStyle = iframe.contentWindow?.getComputedStyle(captureElement);
-          const bgColor = computedStyle?.backgroundColor || '#ffffff';
+          const parseBackground = (el: Element | null): string | null => {
+            if (!el || !iframe.contentWindow) return null;
+            const color = iframe.contentWindow.getComputedStyle(el).backgroundColor;
+            if (!color || color === 'transparent' || color === 'rgba(0, 0, 0, 0)') return null;
+            return color;
+          };
+          const bgColor =
+            parseBackground(captureElement) ||
+            parseBackground(doc.body) ||
+            parseBackground(doc.documentElement) ||
+            '#ffffff';
           doc.body.style.backgroundColor = bgColor;
           doc.documentElement.style.backgroundColor = bgColor;
 
@@ -202,40 +209,6 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             console.log('[PDF] Library loaded, starting generation');
             if (win.html2pdf) {
               statusText.textContent = `Rendering ${numPages} page(s)...`;
-
-              // Insert deterministic separators only when an element would collide with
-              // the bottom safe zone. This keeps page 1 top flush, while page 2+ gets
-              // breathing room at the top via spacer carryover.
-              const flowBlocks = Array.from(
-                target.querySelectorAll(
-                  'section, .section, .section-title, .exp-item, .edu-item, .projects-item, .sub-item, .award-item, h1, h2, h3'
-                )
-              ) as HTMLElement[];
-
-              flowBlocks.forEach((el) => {
-                const rect = el.getBoundingClientRect();
-                const containerRect = target.getBoundingClientRect();
-                const elTop = rect.top - containerRect.top;
-                const elBottom = rect.bottom - containerRect.top;
-                const pageBottom = (Math.floor(elTop / a4HeightPx) + 1) * a4HeightPx;
-
-                if (elBottom > pageBottom - pageSafeZonePx) {
-                  const spacerHeight = Math.max(0, (pageBottom - elTop) + pageSafeZonePx);
-                  if (spacerHeight > 0 && spacerHeight < a4HeightPx * 0.9) {
-                    const spacer = doc.createElement('div');
-                    spacer.style.height = `${spacerHeight}px`;
-                    spacer.style.width = '100%';
-                    spacer.style.display = 'block';
-                    spacer.style.fontSize = '0';
-                    spacer.style.lineHeight = '0';
-                    spacer.style.backgroundColor = bgColor;
-                    spacer.style.breakInside = 'avoid';
-                    spacer.style.pageBreakInside = 'avoid';
-                    spacer.className = 'pdf-page-separator';
-                    el.parentNode?.insertBefore(spacer, el);
-                  }
-                }
-              });
 
               target.style.backgroundColor = bgColor;
               doc.body.style.backgroundColor = bgColor;
