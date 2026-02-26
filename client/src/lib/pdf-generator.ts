@@ -135,8 +135,6 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
 
           const contentHeight = target.scrollHeight;
           const a4HeightPx = 1123;
-          const pageTopGapPx = 18; // standardized top gap for moved blocks on page 2+
-          const pageBottomGapPx = 62; // larger bottom breathing room
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
           console.log(`[PDF] Content height: ${contentHeight}px, estimated pages: ${numPages}`);
 
@@ -153,30 +151,12 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             body {
               display: block !important;
             }
-            .pdf-moved-block {
-              margin-top: 0 !important;
-              break-inside: avoid;
-              page-break-inside: avoid;
-            }
-            .pdf-moved-block > :first-child {
-              margin-top: 0 !important;
-            }
-            .pdf-page-break {
-              break-before: page;
-              page-break-before: always;
-              height: 0 !important;
-              margin: 0 !important;
-              padding: 0 !important;
-            }
-            .pdf-top-gap {
-              width: 100%;
-              margin: 0 !important;
-              padding: 0 !important;
-              break-inside: avoid;
-              page-break-inside: avoid;
-            }
             .container, .cv-container, .resume, main {
               overflow: visible !important;
+            }
+            main > * {
+              break-inside: avoid;
+              page-break-inside: avoid;
             }
           `;
           doc.head.appendChild(normalizeStyle);
@@ -245,93 +225,23 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
 
               target.style.backgroundColor = bgColor;
               doc.body.style.backgroundColor = bgColor;
-
-              // First pass: explicit page breaks for direct flow blocks.
-              const maxSinglePageBlockHeight = a4HeightPx - pageTopGapPx - pageBottomGapPx;
-              const moveThresholdPx = 420;
-              const directBlocks = Array.from(target.children) as HTMLElement[];
-              const flowParent: HTMLElement = (() => {
-                if (directBlocks.length !== 1) return target;
-                const onlyChild = directBlocks[0];
-                const hasManyChildren = onlyChild.children.length > 1;
-                const isFlowWrapper = ['MAIN', 'ARTICLE', 'DIV'].includes(onlyChild.tagName);
-                if (hasManyChildren && isFlowWrapper) {
-                  return onlyChild as HTMLElement;
-                }
-                return target;
-              })();
-              const mainCandidate = Array.from(target.children).find(
-                (el) => el instanceof HTMLElement && (el as HTMLElement).tagName === 'MAIN' && (el as HTMLElement).children.length > 1
-              ) as HTMLElement | undefined;
-              const effectiveFlowParent: HTMLElement = mainCandidate || flowParent;
-              Array.from(effectiveFlowParent.querySelectorAll('.pdf-page-break, .pdf-top-gap, .pdf-page-separator')).forEach((el) => el.remove());
-              const blocksToProcess = Array.from(effectiveFlowParent.children).filter(
-                (el) => !el.classList.contains('pdf-page-break') && !el.classList.contains('pdf-top-gap')
-              ) as HTMLElement[];
-
-              blocksToProcess.forEach((block) => {
-                const rect = block.getBoundingClientRect();
-                const containerRect = target.getBoundingClientRect();
-                const blockTop = rect.top - containerRect.top;
-                const blockBottom = rect.bottom - containerRect.top;
-                const blockHeight = rect.height;
-                const currentPage = Math.floor(blockTop / a4HeightPx);
-                const pageBottom = (currentPage + 1) * a4HeightPx;
-                const canFitWholePage = blockHeight <= maxSinglePageBlockHeight;
-                const remainingOnPage = pageBottom - blockTop;
-
-                // Move block to next page using explicit page-break and fixed top gap.
-                if (blockBottom > pageBottom - pageBottomGapPx && remainingOnPage <= moveThresholdPx) {
-                  const pageBreak = doc.createElement('div');
-                  pageBreak.className = 'pdf-page-break';
-                  pageBreak.style.backgroundColor = bgColor;
-
-                  const topGap = doc.createElement('div');
-                  topGap.className = 'pdf-top-gap';
-                  topGap.style.height = `${pageTopGapPx}px`;
-                  topGap.style.backgroundColor = bgColor;
-
-                  block.parentNode?.insertBefore(pageBreak, block);
-                  block.parentNode?.insertBefore(topGap, block);
-                  block.classList.add('pdf-moved-block');
-                }
-
-                block.style.breakInside = canFitWholePage ? 'avoid' : 'auto';
-                block.style.pageBreakInside = canFitWholePage ? 'avoid' : 'auto';
-              });
-
-              // Enforce block-level splitting policy only on direct container children.
-              // This keeps top offset deterministic across templates.
-              blocksToProcess.forEach((child) => {
+              const mainFlow = (target.querySelector(':scope > main') || target.querySelector('main')) as HTMLElement | null;
+              const flowRoot = mainFlow || target;
+              Array.from(flowRoot.children).forEach((child) => {
                 if (!(child instanceof HTMLElement)) return;
-                if (child.classList.contains('pdf-page-separator')) return;
-                if (!child.style.breakInside) child.style.breakInside = 'avoid';
-                if (!child.style.pageBreakInside) child.style.pageBreakInside = 'avoid';
+                child.style.breakInside = 'avoid';
+                child.style.pageBreakInside = 'avoid';
               });
 
-              // Remove trailing helper nodes that can create an empty final page.
-              while (
-                effectiveFlowParent.lastElementChild?.classList.contains('pdf-page-break') ||
-                effectiveFlowParent.lastElementChild?.classList.contains('pdf-top-gap') ||
-                effectiveFlowParent.lastElementChild?.classList.contains('pdf-page-separator')
-              ) {
-                effectiveFlowParent.lastElementChild.remove();
-              }
-
-              // Paint the last page to the bottom, but keep 1px safety to avoid page overflow.
-              const renderedHeight = target.scrollHeight;
-              const pageCountForPaint = Math.max(1, Math.ceil((renderedHeight - 2) / a4HeightPx));
-              target.style.minHeight = `${(pageCountForPaint * a4HeightPx) - 1}px`;
               target.style.boxSizing = 'border-box';
+              target.style.minHeight = '0';
 
               win.html2pdf().from(captureElement).set({
                 margin: 0,
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
-                  // Avoid only small semantic elements. Large container blocks are handled
-                  // by our direct-child transfer logic above.
-                  avoid: ['h1', 'h2', 'h3', '.section-title', 'img']
+                  avoid: ['main > *', 'h1', 'h2', 'h3', '.section-title', 'img']
                 },
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
