@@ -177,39 +177,69 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             if (win.html2pdf) {
               statusText.textContent = `Rendering ${numPages} page(s)...`;
 
-              // --- CLEAN PADDING APPROACH ---
-              // Instead of absolute spacers which cover content, we use generous padding
-              // and rely on the page-break avoidance logic.
+              // --- ADVANCED "PHYSICAL FLOW INJECTION" ---
+              // We target top-level sections to avoid breaking nested layouts (like flex/grid sidebars).
               const A4_HEIGHT_PX = 1123;
+              const SAFE_ZONE_PX = 60; // ~15mm safety margin
 
-              // Apply internal padding to the CV container itself
-              // This handles the top of page 1 and the bottom of the last page beautifully
+              // Only target elements that are likely to be main blocks
+              const mainBlocks = Array.from(target.querySelectorAll('.section, header, footer, .container > div, .container > section')) as HTMLElement[];
+
+              let accumulatedShift = 0;
+
+              mainBlocks.forEach((el) => {
+                const rect = el.getBoundingClientRect();
+                const containerRect = target.getBoundingClientRect();
+
+                // Current absolute position including shifts from previous spacers
+                const elTop = rect.top - containerRect.top;
+                const elBottom = rect.bottom - containerRect.top;
+
+                // Which page is this element currently on?
+                const pageNum = Math.floor((elTop + 1) / A4_HEIGHT_PX);
+                const pageBottom = (pageNum + 1) * A4_HEIGHT_PX;
+
+                // If the element's bottom is too close to the page end
+                // OR it already straddles the boundary
+                if (elBottom > (pageBottom - SAFE_ZONE_PX)) {
+                  // We need to push this element (and everything below it) 
+                  // to the next page, leaving room for margins.
+                  const spacerHeight = (pageBottom - elTop) + SAFE_ZONE_PX;
+
+                  const spacer = doc.createElement('div');
+                  spacer.style.height = `${spacerHeight}px`;
+                  spacer.style.backgroundColor = bgColor;
+                  spacer.className = 'pdf-page-spacer';
+                  spacer.style.width = '100%';
+
+                  // Insert spacer before the element to jump to next page + padding
+                  el.parentNode?.insertBefore(spacer, el);
+
+                  // This shift doesn't need to be manually tracked for coordinates 
+                  // since getBoundingClientRect will reflect the new positions in the next iteration.
+                }
+              });
+
+              // Apply global padding for first and last page appearance
               target.style.paddingLeft = '15mm';
               target.style.paddingRight = '15mm';
               target.style.paddingTop = '15mm';
               target.style.paddingBottom = '15mm';
               target.style.boxSizing = 'border-box';
-
-              // Force background on the entire iframe world
-              doc.body.style.backgroundColor = bgColor;
-              doc.documentElement.style.backgroundColor = bgColor;
               target.style.backgroundColor = bgColor;
+              doc.body.style.backgroundColor = bgColor;
 
-              // Re-calculate height after padding for safety
-              const newContentHeight = target.offsetHeight;
-              const newNumPages = Math.max(1, Math.ceil(newContentHeight / A4_HEIGHT_PX));
-              target.style.minHeight = `${newNumPages * A4_HEIGHT_PX}px`;
+              // Ensure container exactly fits the pages
+              const finalHeight = target.offsetHeight;
+              const finalPages = Math.ceil(finalHeight / A4_HEIGHT_PX);
+              target.style.minHeight = `${finalPages * A4_HEIGHT_PX}px`;
 
               win.html2pdf().from(captureElement).set({
-                // Margin 0 ensures the background color is full-bleed
                 margin: 0,
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
-                  // This is the key: by avoiding breaks in these elements,
-                  // we force the library to push content to the next page,
-                  // leaving a colored gap at the bottom of the previous page.
-                  avoid: ['p', 'li', 'h1', 'h2', 'h3', '.section', 'img', '.contact-item', 'tr', 'blockquote']
+                  avoid: ['h1', 'h2', 'h3', 'p', 'li', '.section', 'img']
                 },
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
