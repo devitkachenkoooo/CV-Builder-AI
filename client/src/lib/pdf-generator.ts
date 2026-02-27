@@ -15,11 +15,45 @@ interface PdfFromElementOptions {
   onLoadingChange?: (loading: boolean) => void;
 }
 
+const PDF_TRACE_VERSION = 'v-debug-1';
+
+function makeTraceId(): string {
+  return `pdf-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function shortHash(input: string): string {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = ((hash << 5) - hash + input.charCodeAt(i)) | 0;
+  }
+  return (hash >>> 0).toString(16);
+}
+
+function pdfLog(traceId: string, step: string, details?: Record<string, unknown>) {
+  if (details) {
+    console.log(`[PDF][${PDF_TRACE_VERSION}][${traceId}] ${step}`, details);
+    return;
+  }
+  console.log(`[PDF][${PDF_TRACE_VERSION}][${traceId}] ${step}`);
+}
+
 /**
  * Creates a dedicated, fixed-size environment for PDF generation.
  * Uses visual scaling to fit any screen while maintaining internal A4 dimensions.
  */
-function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
+function createPdfModal(
+  html: string,
+  filename: string = 'resume.pdf',
+  traceId: string = makeTraceId(),
+  source: 'url' | 'htmlContent' | 'element' = 'htmlContent',
+): void {
+  pdfLog(traceId, 'createPdfModal:start', {
+    source,
+    filename,
+    htmlLength: html.length,
+    htmlHash: shortHash(html),
+  });
+
   // 1. Dark Overlay
   const overlay = document.createElement('div');
   overlay.id = 'pdf-generation-overlay';
@@ -103,11 +137,13 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
   const style = document.createElement('style');
   style.textContent = `@keyframes pdf-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
   document.head.appendChild(style);
+  pdfLog(traceId, 'ui:overlay-and-iframe-created', { targetWidth, visualScale });
 
   document.body.appendChild(overlay);
   document.body.appendChild(iframe);
 
   iframe.onload = () => {
+    pdfLog(traceId, 'iframe:onload');
     try {
       const doc = iframe.contentDocument || iframe.contentWindow?.document;
       if (!doc) throw new Error('Iframe access denied');
@@ -119,7 +155,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
 
       setTimeout(() => {
         try {
-          console.log('[PDF] Starting analysis phase');
+          pdfLog(traceId, 'analysis:start');
           statusText.textContent = 'Preparing content...';
 
           const captureElement = doc.querySelector('.container') ||
@@ -132,14 +168,23 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
           }
 
           const target = captureElement as HTMLElement;
-          console.log('[PDF] Found capture element:', target.className || 'body');
+          pdfLog(traceId, 'analysis:capture-element', {
+            tag: target.tagName,
+            className: target.className || 'body',
+          });
 
           const contentHeight = target.scrollHeight;
           const a4HeightPx = 1123;
           const pageTopGapPx = 50;
           const pageBottomSafePx = 50;
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
-          console.log(`[PDF] Content height: ${contentHeight}px, estimated pages: ${numPages}`);
+          pdfLog(traceId, 'analysis:dimensions', {
+            contentHeight,
+            a4HeightPx,
+            pageTopGapPx,
+            pageBottomSafePx,
+            estimatedPages: numPages,
+          });
 
           // Keep a deterministic A4 rendering world for every template.
           const normalizeStyle = doc.createElement('style');
@@ -221,8 +266,12 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
             '#ffffff';
           doc.body.style.backgroundColor = bgColor;
           doc.documentElement.style.backgroundColor = bgColor;
-
-          console.log('[PDF] Background color detected:', bgColor);
+          pdfLog(traceId, 'analysis:background', {
+            captureBg,
+            bodyBg,
+            htmlBg,
+            chosen: bgColor,
+          });
 
           // 3. Load Library
           const win = iframe.contentWindow as any;
@@ -230,13 +279,13 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
           script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
 
           script.onerror = () => {
-            console.error('[PDF] Failed to load html2pdf library');
+            console.error(`[PDF][${PDF_TRACE_VERSION}][${traceId}] library:load-error`);
             statusText.textContent = 'Library load failed. Check your internet.';
             setTimeout(() => { overlay.remove(); iframe.remove(); }, 3000);
           };
 
           script.onload = () => {
-            console.log('[PDF] Library loaded, starting generation');
+            pdfLog(traceId, 'library:loaded');
             if (win.html2pdf) {
               statusText.textContent = `Rendering ${numPages} page(s)...`;
 
@@ -244,6 +293,12 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               doc.body.style.backgroundColor = bgColor;
               const mainFlow = (target.querySelector(':scope > main') || target.querySelector('main')) as HTMLElement | null;
               const flowRoot = mainFlow || target;
+              pdfLog(traceId, 'flow:root-selected', {
+                hasMain: Boolean(mainFlow),
+                flowRootTag: flowRoot.tagName,
+                flowRootClass: flowRoot.className || null,
+                flowChildren: flowRoot.children.length,
+              });
               Array.from(flowRoot.querySelectorAll('.pdf-break-before, .pdf-page-start, .pdf-keep-block, .pdf-page-break-marker')).forEach((node) => {
                 if (!(node instanceof HTMLElement)) return;
                 node.classList.remove('pdf-break-before');
@@ -320,6 +375,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                   .filter((el): el is HTMLElement => el instanceof HTMLElement)
                   .filter((el) => !el.classList.contains('pdf-break-before'))
                   .filter((el) => el.offsetHeight > 8);
+                pdfLog(traceId, 'flow:candidates', { selector, count: candidates.length });
 
                 for (const candidate of candidates) {
                   candidate.classList.add('pdf-keep-block');
@@ -334,21 +390,35 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               };
 
               levels.forEach((level) => {
+                let insertedForLevel = 0;
                 for (let i = 0; i < level.maxBreaks; i++) {
                   const candidate = findFirstOverflowCandidate(level.selector);
                   if (!candidate) break;
-                  markBreakBefore(candidate);
+                  if (markBreakBefore(candidate)) insertedForLevel++;
                 }
+                pdfLog(traceId, 'flow:level-complete', {
+                  selector: level.selector,
+                  maxBreaks: level.maxBreaks,
+                  inserted: insertedForLevel,
+                });
               });
+              const totalBreaks = flowRoot.querySelectorAll('.pdf-break-before').length;
+              const totalKeepBlocks = flowRoot.querySelectorAll('.pdf-keep-block').length;
+              pdfLog(traceId, 'flow:summary', { totalBreaks, totalKeepBlocks });
 
               target.style.boxSizing = 'border-box';
               target.style.backgroundColor = bgColor;
               const fullPageCount = Math.max(1, Math.ceil((target.scrollHeight + pageBottomSafePx) / a4HeightPx));
               target.style.minHeight = `${(fullPageCount * a4HeightPx) - 1}px`;
+              pdfLog(traceId, 'layout:final-height', {
+                targetScrollHeight: target.scrollHeight,
+                fullPageCount,
+                minHeight: target.style.minHeight,
+              });
               doc.body.style.backgroundColor = bgColor;
               doc.documentElement.style.backgroundColor = bgColor;
 
-              win.html2pdf().from(captureElement).set({
+              const pdfOptions = {
                 margin: 0,
                 filename: filename,
                 pagebreak: {
@@ -369,35 +439,49 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                   removeContainer: true
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
-              }).save().then(() => {
-                console.log('[PDF] Generation successful');
+              };
+              pdfLog(traceId, 'render:html2pdf-set', {
+                margin: pdfOptions.margin,
+                pagebreakMode: pdfOptions.pagebreak.mode,
+                beforeSelectors: pdfOptions.pagebreak.before,
+                avoidCount: pdfOptions.pagebreak.avoid.length,
+                html2canvas: {
+                  scale: pdfOptions.html2canvas.scale,
+                  width: pdfOptions.html2canvas.width,
+                  windowWidth: pdfOptions.html2canvas.windowWidth,
+                },
+              });
+
+              win.html2pdf().from(captureElement).set(pdfOptions).save().then(() => {
+                pdfLog(traceId, 'render:success');
                 statusText.textContent = 'Success!';
                 setTimeout(() => {
+                  pdfLog(traceId, 'cleanup:success');
                   overlay.remove();
                   iframe.remove();
                   style.remove();
                 }, 800);
               }).catch((err: any) => {
-                console.error('[PDF] Final Error:', err);
+                console.error(`[PDF][${PDF_TRACE_VERSION}][${traceId}] render:error`, err);
                 statusText.textContent = 'Generation failed';
                 setTimeout(() => { overlay.remove(); iframe.remove(); }, 2000);
               });
             } else {
-              console.error('[PDF] html2pdf not found on window');
+              console.error(`[PDF][${PDF_TRACE_VERSION}][${traceId}] library:not-found`);
               statusText.textContent = 'Plugin Error';
               setTimeout(() => { overlay.remove(); iframe.remove(); }, 2000);
             }
           };
           doc.head.appendChild(script);
         } catch (innerErr: any) {
-          console.error('[PDF] Analysis Error:', innerErr);
+          console.error(`[PDF][${PDF_TRACE_VERSION}][${traceId}] analysis:error`, innerErr);
           statusText.textContent = 'Analysis failed';
           setTimeout(() => { overlay.remove(); iframe.remove(); }, 2000);
         }
       }, 1500);
 
     } catch (err) {
-      console.error('PDF Setup Error:', err);
+      console.error(`[PDF][${PDF_TRACE_VERSION}][${traceId}] setup:error`, err);
       // NOTE: Here overlay and iframe might not be initialized if error happens before they are created,
       // but if the error threw from doc operations, they exist. Best effort cleanup:
       try {
@@ -410,9 +494,17 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
 
 export async function generatePdfFromElement(options: PdfFromElementOptions): Promise<void> {
   const { element, onLoadingChange, filename } = options;
+  const traceId = makeTraceId();
+  pdfLog(traceId, 'entry:generatePdfFromElement', {
+    filename: filename || 'resume.pdf',
+    elementTag: element.tagName,
+    elementClass: element.className || null,
+    outerHtmlLength: element.outerHTML.length,
+    outerHtmlHash: shortHash(element.outerHTML),
+  });
   if (onLoadingChange) onLoadingChange(true);
   try {
-    createPdfModal(element.outerHTML, filename);
+    createPdfModal(element.outerHTML, filename, traceId, 'element');
     // Modal cleans itself up
     await new Promise(r => setTimeout(r, 2000));
   } finally {
@@ -422,23 +514,41 @@ export async function generatePdfFromElement(options: PdfFromElementOptions): Pr
 
 export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<void> {
   const { url, htmlContent, onLoadingChange, filename } = options;
+  const traceId = makeTraceId();
+  pdfLog(traceId, 'entry:generatePdfFromUrl', {
+    hasUrl: Boolean(url),
+    hasHtmlContent: Boolean(htmlContent),
+    filename: filename || 'resume.pdf',
+    url: url || null,
+  });
   if (onLoadingChange) onLoadingChange(true);
   try {
     let html = htmlContent;
 
     if (!html) {
       if (!url) {
+        pdfLog(traceId, 'input:error-no-url-no-html');
         throw new Error('Either url or htmlContent must be provided');
       }
 
       const res = await fetch(url, { credentials: 'include' });
+      pdfLog(traceId, 'source:fetch-url', { url, status: res.status, ok: res.ok });
       if (!res.ok) {
         throw new Error(`Failed to fetch HTML for PDF generation: ${res.status}`);
       }
       html = await res.text();
+      pdfLog(traceId, 'source:html-from-url', {
+        htmlLength: html.length,
+        htmlHash: shortHash(html),
+      });
+    } else {
+      pdfLog(traceId, 'source:html-from-db', {
+        htmlLength: html.length,
+        htmlHash: shortHash(html),
+      });
     }
 
-    createPdfModal(html, filename);
+    createPdfModal(html, filename, traceId, htmlContent ? 'htmlContent' : 'url');
     await new Promise(r => setTimeout(r, 2000));
   } finally {
     if (onLoadingChange) onLoadingChange(false);
