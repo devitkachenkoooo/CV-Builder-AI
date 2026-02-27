@@ -232,8 +232,6 @@ function createPdfModal(
               box-sizing: border-box !important;
             }
             .pdf-break-before {
-              break-before: page !important;
-              page-break-before: always !important;
               padding-top: ${pageTopGapPx}px !important;
               margin-top: 0 !important;
               box-sizing: border-box !important;
@@ -391,34 +389,43 @@ function createPdfModal(
                 return true;
               };
 
-              // Flexible but deterministic strategy: split by levels from larger chunks to smaller ones.
-              // Large candidates can create huge empty bottoms, so each level has a size cap.
-              const levels: Array<{ selector: string; maxBreaks: number; maxNodeHeightPx: number }> = [
+              // Universal strategy: walk DOM depth levels instead of template-specific class selectors.
+              const levels: Array<{
+                label: string;
+                maxBreaks: number;
+                maxNodeHeightPx: number;
+                getCandidates: () => HTMLElement[];
+              }> = [
                 {
-                  selector: ':scope > section, :scope > article, :scope > div, :scope > .grid-container, :scope > .split-layout',
+                  label: 'depth-1-direct-children',
                   maxBreaks: 8,
                   maxNodeHeightPx: 420,
+                  getCandidates: () =>
+                    Array.from(flowRoot.children).filter((el): el is HTMLElement => isHtmlElementNode(el)),
                 },
                 {
-                  selector: '.exp-item, .edu-item, .projects-item, .content-block, .sub-item, .item, .split-layout, .left-col > section, .right-col > section',
+                  label: 'depth-2-inner-blocks',
                   maxBreaks: 14,
                   maxNodeHeightPx: 320,
+                  getCandidates: () =>
+                    Array.from(flowRoot.querySelectorAll(':scope > * > *')).filter((el): el is HTMLElement => isHtmlElementNode(el)),
                 },
                 {
-                  selector: '.row, .item-row, .meta-col, .content-col, ul > li, ol > li, p',
+                  label: 'depth-3-small-blocks-and-text',
                   maxBreaks: 24,
                   maxNodeHeightPx: 220,
+                  getCandidates: () =>
+                    Array.from(flowRoot.querySelectorAll(':scope > * > * > *, p, li')).filter((el): el is HTMLElement => isHtmlElementNode(el)),
                 },
               ];
 
-              const findFirstOverflowCandidate = (selector: string, maxNodeHeightPx: number): HTMLElement | null => {
-                const candidates = Array.from(flowRoot.querySelectorAll(selector))
-                  .filter((el): el is HTMLElement => isHtmlElementNode(el))
+              const findFirstOverflowCandidate = (label: string, maxNodeHeightPx: number, getCandidates: () => HTMLElement[]): HTMLElement | null => {
+                const candidates = getCandidates()
                   .filter((el) => !el.classList.contains('pdf-break-before'))
                   .filter((el) => !el.classList.contains('pdf-page-break-marker'))
                   .filter((el) => el.offsetHeight > 8)
                   .filter((el) => el.offsetHeight <= maxNodeHeightPx);
-                pdfLog(traceId, 'flow:candidates', { selector, maxNodeHeightPx, count: candidates.length });
+                pdfLog(traceId, 'flow:candidates', { label, maxNodeHeightPx, count: candidates.length });
 
                 for (const candidate of candidates) {
                   candidate.classList.add('pdf-keep-block');
@@ -435,12 +442,12 @@ function createPdfModal(
               levels.forEach((level) => {
                 let insertedForLevel = 0;
                 for (let i = 0; i < level.maxBreaks; i++) {
-                  const candidate = findFirstOverflowCandidate(level.selector, level.maxNodeHeightPx);
+                  const candidate = findFirstOverflowCandidate(level.label, level.maxNodeHeightPx, level.getCandidates);
                   if (!candidate) break;
                   if (markBreakBefore(candidate)) insertedForLevel++;
                 }
                 pdfLog(traceId, 'flow:level-complete', {
-                  selector: level.selector,
+                  label: level.label,
                   maxBreaks: level.maxBreaks,
                   maxNodeHeightPx: level.maxNodeHeightPx,
                   inserted: insertedForLevel,
@@ -453,11 +460,16 @@ function createPdfModal(
                 .filter((el): el is HTMLElement => isHtmlElementNode(el));
               const markerMetrics = markerNodes.slice(0, 5).map((marker, idx) => {
                 const style = win.getComputedStyle(marker);
+                const parent = marker.parentElement;
+                const parentStyle = parent ? win.getComputedStyle(parent) : null;
                 return {
                   idx,
                   offsetHeight: marker.offsetHeight,
                   cssHeight: style.height,
                   breakBefore: style.breakBefore || style.pageBreakBefore || null,
+                  parentTag: parent?.tagName || null,
+                  parentClass: parent?.className || null,
+                  parentDisplay: parentStyle?.display || null,
                 };
               });
               pdfLog(traceId, 'flow:markers-metrics', {
@@ -482,7 +494,7 @@ function createPdfModal(
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
-                  before: ['.pdf-break-before', '.pdf-page-break-marker'],
+                  before: ['.pdf-page-break-marker'],
                   avoid: ['.pdf-keep-block', 'h1', 'h2', 'h3', '.section-title', 'img', 'tr', 'thead', 'tbody']
                 },
                 image: { type: 'jpeg', quality: 0.98 },
