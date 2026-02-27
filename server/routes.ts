@@ -351,7 +351,6 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
 1. Preserve the EXACT HTML structure and styling
 2. Replace ONLY the text content within appropriate elements
 3. DO NOT add, remove, or modify any CSS classes
-4. DO NOT add pdf-flow-break classes - these will be added automatically
 5. Maintain responsive design and layout
 6. Return ONLY the final HTML code without markdown formatting
 
