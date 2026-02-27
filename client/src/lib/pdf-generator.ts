@@ -373,9 +373,14 @@ function createPdfModal(
               z-index: -1 !important;
             }
             .pdf-break-before {
-              padding-top: ${pageTopGapPx}px !important;
               margin-top: 0 !important;
               box-sizing: border-box !important;
+            }
+            .pdf-break-first-page {
+              padding-top: 0px !important;
+            }
+            .pdf-break-other-page {
+              padding-top: ${pageTopGapPx}px !important;
             }
             .pdf-keep-block {
               break-inside: avoid !important;
@@ -601,11 +606,12 @@ function createPdfModal(
                 
                 // Add break class to the node itself
                 node.classList.add('pdf-break-before');
-                node.style.cssText += `
-                  padding-top: ${isFirstPage ? '0px' : `${pageTopGapPx}px`} !important;
-                  margin-top: 0 !important;
-                  box-sizing: border-box !important;
-                `;
+                node.classList.add(isFirstPage ? 'pdf-break-first-page' : 'pdf-break-other-page');
+                
+                // Force padding-top using setProperty for higher specificity
+                node.style.setProperty('padding-top', `${isFirstPage ? '0px' : `${pageTopGapPx}px`}`, 'important');
+                node.style.setProperty('margin-top', '0px', 'important');
+                node.style.setProperty('box-sizing', 'border-box', 'important');
                 
                 if (DEBUG_MODE) {
                   pdfLog(traceId, 'debug:break-marker-created', {
@@ -882,6 +888,41 @@ function createPdfModal(
                 marker.style.backgroundColor = bgColor;
                 marker.style.setProperty('background-color', bgColor, 'important');
               });
+              
+              // Ensure last page has proper background
+              const ensureLastPageBackground = () => {
+                const totalHeight = target.scrollHeight;
+                const fullPages = Math.floor(totalHeight / a4HeightPx);
+                const lastPageTop = fullPages * a4HeightPx;
+                const lastPageHeight = totalHeight - lastPageTop;
+                
+                // If last page has less than 20% of page height, extend it
+                if (lastPageHeight > 0 && lastPageHeight < a4HeightPx * 0.2) {
+                  const spacer = doc.createElement('div');
+                  spacer.className = 'pdf-last-page-spacer';
+                  spacer.style.cssText = `
+                    height: ${a4HeightPx - lastPageHeight}px !important;
+                    min-height: ${a4HeightPx - lastPageHeight}px !important;
+                    width: 100% !important;
+                    background-color: ${bgColor} !important;
+                    display: block !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    box-sizing: border-box !important;
+                  `;
+                  target.appendChild(spacer);
+                  
+                  if (DEBUG_MODE) {
+                    pdfLog(traceId, 'debug:last-page-spacer-added', {
+                      lastPageHeight,
+                      spacerHeight: a4HeightPx - lastPageHeight,
+                      totalHeightAfter: target.scrollHeight
+                    });
+                  }
+                }
+              };
+              
+              ensureLastPageBackground();
               
               pdfLog(traceId, 'layout:final-height', {
                 targetScrollHeight: target.scrollHeight,
