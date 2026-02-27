@@ -1,4 +1,4 @@
-import html2pdf from 'html2pdf.js';
+﻿import html2pdf from 'html2pdf.js';
 
 interface PdfFromUrlOptions {
   url?: string;
@@ -70,10 +70,10 @@ function autoAddPdfFlowBreakClasses(doc: Document, target: HTMLElement, traceId:
   return totalAdded;
 }
 
-// Get layout metrics for an element
-function getLayoutMetrics(element: HTMLElement) {
+// Get layout metrics for an element — must pass the correct window context (iframe or main)
+function getLayoutMetrics(element: HTMLElement, win: Window = window) {
   const rect = element.getBoundingClientRect();
-  const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+  const scrollTop = win.pageYOffset || win.document.documentElement.scrollTop;
 
   return {
     nodeTop: rect.top + scrollTop,
@@ -85,26 +85,35 @@ function getLayoutMetrics(element: HTMLElement) {
 }
 
 // Check if element should be moved to next page
-function shouldMoveToNextPage(element: HTMLElement, traceId: string): boolean {
-  const metrics = getLayoutMetrics(element);
+function shouldMoveToNextPage(element: HTMLElement, win: Window, traceId: string): boolean {
+  const metrics = getLayoutMetrics(element, win);
   if (!metrics) return false;
 
-  // Refined math as per task requirements
-  const pageBottom = Math.ceil((metrics.nodeTop + 1) / A4_HEIGHT_PX) * A4_HEIGHT_PX;
-  const pageTop = pageBottom - A4_HEIGHT_PX;
-  const bottomSafeBoundary = pageBottom - PAGE_BOTTOM_SAFE_PX;
+  // Calculate which page we are currently on based on nodeTop
+  const currentPageIndex = Math.floor(metrics.nodeTop / A4_HEIGHT_PX);
+  const currentPageBottom = (currentPageIndex + 1) * A4_HEIGHT_PX;
+  const bottomSafeBoundary = currentPageBottom - PAGE_BOTTOM_SAFE_PX;
 
-  // Move element to the next page if it crosses the safe boundary 
-  // and is not already at the top of a page (to avoid double breaks)
-  const shouldMove = metrics.nodeBottom > bottomSafeBoundary && metrics.nodeTop > pageTop + 50;
+  // Relative position within current page
+  const relTop = metrics.nodeTop % A4_HEIGHT_PX;
+
+  // Element is at top of a page if its relative position is small.
+  // Use PAGE_TOP_GAP_PX + a buffer so that freshly-moved elements (with padding-top) aren't re-evaluated
+  const isAlreadyAtTop = relTop < (PAGE_TOP_GAP_PX + 20);
+  const crossesSafeBoundary = metrics.nodeBottom > bottomSafeBoundary;
+
+  const shouldMove = crossesSafeBoundary && !isAlreadyAtTop;
 
   if (DEBUG_MODE) {
-    pdfLog(traceId, 'move-check', {
+    pdfLog(traceId, 'move-debug', {
       tagName: element.tagName,
-      nodeTop: metrics.nodeTop,
-      nodeBottom: metrics.nodeBottom,
-      pageBottom,
+      nodeTop: Math.round(metrics.nodeTop),
+      nodeBottom: Math.round(metrics.nodeBottom),
+      relTop: Math.round(relTop),
+      currentPageIndex,
+      currentPageBottom,
       bottomSafeBoundary,
+      isAlreadyAtTop,
       shouldMove
     });
   }
@@ -121,14 +130,14 @@ function addPageBreakMarker(doc: Document, element: HTMLElement, bgColor: string
   marker.className = 'pdf-page-break-marker';
   marker.innerHTML = '&nbsp;';
 
-  // Refined marker style: 1px height, transparent, forced break
+  // 1px transparent marker that forces a page break
   marker.style.cssText = `
     background-color: transparent !important;
     height: 1px !important;
     min-height: 1px !important;
     display: block !important;
     width: 100% !important;
-    margin: -1px 0 0 0 !important;
+    margin: 0 !important;
     padding: 0 !important;
     box-sizing: border-box !important;
     line-height: 0 !important;
@@ -139,14 +148,13 @@ function addPageBreakMarker(doc: Document, element: HTMLElement, bgColor: string
 
   parent.insertBefore(marker, element);
 
-  // Add padding to the element after the marker to ensure top gap on the new page
+  // Apply top gap to the element itself so content starts with padding on new page
   element.classList.add('pdf-break-after-marker');
   element.style.setProperty('padding-top', `${PAGE_TOP_GAP_PX}px`, 'important');
   element.style.setProperty('margin-top', '0px', 'important');
 
   pdfLog(traceId, 'marker-added', {
     tagName: element.tagName,
-    markerHeight: PAGE_TOP_GAP_PX,
     paddingTop: PAGE_TOP_GAP_PX
   });
 
@@ -167,12 +175,13 @@ function ensureFullPageBackgrounds(doc: Document, target: HTMLElement, bgColor: 
     diff: targetHeight - totalHeight
   });
 
+  // Always ensure background color is applied globally
+  target.style.setProperty('background-color', bgColor, 'important');
+  doc.documentElement.style.setProperty('background-color', bgColor, 'important');
+  doc.body.style.setProperty('background-color', bgColor, 'important');
+
   if (targetHeight > totalHeight) {
-    // Fill background for html, body and target container
-    doc.documentElement.style.setProperty('background-color', bgColor, 'important');
-    doc.body.style.setProperty('background-color', bgColor, 'important');
     target.style.setProperty('min-height', `${targetHeight}px`, 'important');
-    target.style.setProperty('background-color', bgColor, 'important');
     pdfLog(traceId, 'min-height-applied', { minHeight: targetHeight, bgColor });
   }
 }
@@ -383,27 +392,23 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
           });
 
           let breaksAdded = 0;
-          candidates.forEach((element, index) => {
-            if (shouldMoveToNextPage(element, traceId)) {
-              pdfLog(traceId, `processing-candidate-${index}`, {
+          // Process candidates one by one and RECALCULATE positions after each break
+          for (let i = 0; i < candidates.length; i++) {
+            const element = candidates[i];
+
+            // Critical: get fresh metrics for every check because previous breaks shift elements
+            if (shouldMoveToNextPage(element, iframeWindow, traceId)) {
+              pdfLog(traceId, `processing-candidate-${i}`, {
                 tagName: element.tagName,
-                willMove: true
+                willMove: true,
+                breaksSoFar: breaksAdded
               });
 
               if (addPageBreakMarker(iframeDoc, element, bgColor, traceId)) {
                 breaksAdded++;
-                pdfLog(traceId, `marker-success-${index}`, {
-                  tagName: element.tagName,
-                  totalBreaks: breaksAdded
-                });
               }
-            } else {
-              pdfLog(traceId, `candidate-will-stay-${index}`, {
-                tagName: element.tagName,
-                nodeTop: getLayoutMetrics(element)?.nodeTop
-              });
             }
-          });
+          }
 
           pdfLog(traceId, 'breaks-complete', { breaksAdded });
 
@@ -451,9 +456,8 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
             margin: 0,
             filename,
             pagebreak: {
-              mode: ['css', 'legacy'],
-              before: ['.pdf-page-break-marker'],
-              avoid: ['h1', 'h2', 'h3', 'img', 'tr', 'thead', 'tbody']
+              mode: ['css'],
+              before: ['.pdf-page-break-marker']
             },
             image: { type: 'jpeg' as const, quality: 0.98 },
             html2canvas: {
@@ -461,12 +465,13 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
               useCORS: true,
               backgroundColor: bgColor,
               width: windowWidth,
-              windowWidth: windowWidth
+              windowWidth: windowWidth,
+              logging: false
             },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const, compress: true }
           };
 
-          pdfLog(traceId, 'generating-pdf');
+          pdfLog(traceId, 'generating-pdf', { bgColor, targetHeight: target.style.minHeight });
 
           (iframeWindow as any).html2pdf().from(target).set(pdfOptions).save().then(() => {
             pdfLog(traceId, 'pdf-generated');
@@ -553,13 +558,14 @@ export async function generatePdfFromElement(options: PdfFromElementOptions): Pr
     pdfLog(traceId, 'processing-breaks', { candidatesCount: candidates.length });
 
     let breaksAdded = 0;
-    candidates.forEach(candidate => {
-      if (shouldMoveToNextPage(candidate, traceId)) {
+    // Use a for-loop so fresh metrics are evaluated after each break insertion
+    for (const candidate of candidates) {
+      if (shouldMoveToNextPage(candidate, window, traceId)) {
         if (addPageBreakMarker(document, candidate, bgColor, traceId)) {
           breaksAdded++;
         }
       }
-    });
+    }
 
     pdfLog(traceId, 'breaks-complete', { breaksAdded });
 
