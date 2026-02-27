@@ -216,26 +216,14 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
               )}
             </div>
 
-            {/* Progress Bar (if processing) */}
-            {isProcessing && (
-              <div className="mt-4 w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-1000 ease-out animate-[pulse_2s_ease-in-out_infinite]"
-                  style={{
-                    width: getProgressWidth(displayData.progress)
-                  }}
-                ></div>
-              </div>
-            )}
-
-            {/* Progress Text */}
-            {isProcessing && (
+            {/* Progress Text - TEMPORARILY HIDDEN */}
+            {/* {isProcessing && (
               <div className="mt-2 text-xs text-muted-foreground text-center">
                 <span className="block truncate" title={displayData.progress || t("cv_card.processing")}>
                   {displayData.progress || t("cv_card.processing")}
                 </span>
               </div>
-            )}
+            )} */}
           </div>
         </div>
       </Link>
