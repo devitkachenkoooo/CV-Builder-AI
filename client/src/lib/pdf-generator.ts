@@ -165,15 +165,12 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               margin-top: 0 !important;
               box-sizing: border-box !important;
             }
-            .pdf-page-break-marker {
+            .pdf-break-before {
               break-before: page !important;
               page-break-before: always !important;
-              display: block !important;
-              width: 100% !important;
-              height: ${pageTopGapPx}px !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              background: inherit !important;
+              padding-top: ${pageTopGapPx}px !important;
+              margin-top: 0 !important;
+              box-sizing: border-box !important;
             }
             .pdf-keep-block {
               break-inside: avoid !important;
@@ -248,9 +245,9 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               doc.body.style.backgroundColor = bgColor;
               const mainFlow = (target.querySelector(':scope > main') || target.querySelector('main')) as HTMLElement | null;
               const flowRoot = mainFlow || target;
-              Array.from(flowRoot.querySelectorAll('.pdf-page-break-marker')).forEach((node) => node.remove());
-              Array.from(flowRoot.querySelectorAll('.pdf-page-start, .pdf-keep-block')).forEach((node) => {
+              Array.from(flowRoot.querySelectorAll('.pdf-break-before, .pdf-page-start, .pdf-keep-block, .pdf-page-break-marker')).forEach((node) => {
                 if (!(node instanceof HTMLElement)) return;
+                node.classList.remove('pdf-break-before');
                 node.classList.remove('pdf-page-start');
                 node.classList.remove('pdf-keep-block');
                 node.style.breakBefore = '';
@@ -284,13 +281,10 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 );
               };
 
-              const insertMarkerBefore = (node: HTMLElement, parent: HTMLElement) => {
-                const prev = node.previousElementSibling as HTMLElement | null;
-                if (prev?.classList.contains('pdf-page-break-marker')) return;
-                const marker = doc.createElement('div');
-                marker.className = 'pdf-page-break-marker';
-                marker.style.backgroundColor = bgColor;
-                parent.insertBefore(marker, node);
+              const markBreakBefore = (node: HTMLElement) => {
+                if (node.classList.contains('pdf-break-before')) return false;
+                node.classList.add('pdf-break-before');
+                return true;
               };
 
               // Unified split strategy: always decide breaks by smaller internal chunks.
@@ -328,13 +322,8 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                   candidate.style.breakInside = 'avoid';
                   candidate.style.pageBreakInside = 'avoid';
                   if (shouldMoveNodeToNextPage(candidate)) {
-                    const parent = candidate.parentElement;
-                    if (parent instanceof HTMLElement) {
-                      const prev = candidate.previousElementSibling as HTMLElement | null;
-                      if (!prev || !prev.classList.contains('pdf-page-break-marker')) {
-                        insertMarkerBefore(candidate, parent);
-                        insertedThisPass++;
-                      }
+                    if (markBreakBefore(candidate)) {
+                      insertedThisPass++;
                     }
                   }
                 });
@@ -354,7 +343,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
-                  before: ['.pdf-page-break-marker'],
+                  before: ['.pdf-break-before'],
                   avoid: ['.pdf-keep-block', 'h1', 'h2', 'h3', '.section-title', 'img', 'tr', 'thead', 'tbody']
                 },
                 image: { type: 'jpeg', quality: 0.98 },
