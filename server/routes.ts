@@ -350,10 +350,11 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
     🚨 CRITICAL REQUIREMENTS:
     1. Preserve the EXACT HTML styling and CSS classes for the elements you keep.
     2. Replace text content within appropriate elements with the provided CV data.
-    3. 🗑️ MISSING DATA RULE: If a section, field, or list item in the template has no corresponding information in the CV content, REMOVE that entire HTML element (and its parent container if necessary) from the final code. 
-    4. DO NOT leave empty headers, placeholders (e.g., "[Phone Number]"), or empty bullet points.
-    5. Maintain responsive design and layout for the remaining elements.
-    6. Return ONLY the final HTML code without markdown formatting.
+    3. 🌐 LANGUAGE CONSISTENCY: The entire output MUST be in the same language as the provided "CV CONTENT". This includes all section headers, labels, and static text from the template (e.g., if the CV is in Ukrainian, "Experience" must become "Досвід роботи").
+    4. 🗑️ MISSING DATA RULE: If a section, field, or list item in the template has no corresponding information in the CV content, REMOVE that entire HTML element (and its parent container if necessary) from the final code. 
+    5. DO NOT leave empty headers, placeholders (e.g., "[Phone Number]"), or empty bullet points.
+    6. Maintain responsive design and layout for the remaining elements.
+    7. Return ONLY the final HTML code without markdown formatting.
 
     🔒 TEMPLATE STRUCTURE:
     ${templateHtml}
@@ -362,6 +363,7 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
     ${cvText}
 
     🎯 INSTRUCTIONS:
+    - Detect the language of the CV CONTENT and apply it to the entire document.
     - Map the CV content to the relevant parts of the template.
     - If a whole section (like "Projects" or "Languages") is missing in the CV text, delete the entire section from the HTML.
     - Keep all remaining HTML tags, classes, and attributes exactly as they are.
