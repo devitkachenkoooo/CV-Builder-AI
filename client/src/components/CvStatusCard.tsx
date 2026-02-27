@@ -192,7 +192,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
           </div>
 
           {/* Info Area */}
-          <div className="p-4 lg:p-5 h-[126px] lg:h-[140px] flex flex-col justify-between bg-card">
+          <div className="p-4 lg:p-5 h-[110px] lg:h-[140px] flex flex-col justify-between bg-card">
             <div>
               <div className="flex justify-between items-start mb-2">
                 <h3 className="font-display font-bold text-foreground line-clamp-1">{templateName}</h3>
