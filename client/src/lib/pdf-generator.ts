@@ -155,19 +155,9 @@ function addPageBreakMarker(doc: Document, element: HTMLElement, bgColor: string
 
 // Ensure the container fills integer number of A4 pages with background color
 function ensureFullPageBackgrounds(doc: Document, target: HTMLElement, bgColor: string, traceId: string) {
-  // First, add initial top gap to the first block if not already present
-  const main = target.querySelector('main') || target;
-  const firstParent = main.firstElementChild as HTMLElement;
-  if (firstParent) {
-    const firstBlock = firstParent.firstElementChild as HTMLElement;
-    if (firstBlock && !firstBlock.classList.contains('pdf-break-after-marker')) {
-      firstBlock.style.setProperty('padding-top', `${PAGE_TOP_GAP_PX}px`, 'important');
-      pdfLog(traceId, 'added-first-page-gap');
-    }
-  }
-
   const totalHeight = target.scrollHeight;
-  const pageCount = Math.ceil(totalHeight / A4_HEIGHT_PX);
+  // Use a small epsilon (5px) to avoid adding an entire page for a tiny overflow
+  const pageCount = Math.ceil((totalHeight - 5) / A4_HEIGHT_PX);
   const targetHeight = pageCount * A4_HEIGHT_PX;
 
   pdfLog(traceId, 'background-fill-check', {
@@ -286,15 +276,16 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
     overlay.appendChild(statusContainer);
     document.body.appendChild(overlay);
 
-    // Create iframe for rendering
+    // Create iframe for rendering with large height to avoid clipping during measurement
     const iframe = document.createElement('iframe');
     iframe.style.cssText = `
       position: absolute !important;
       top: -9999px !important;
       left: -9999px !important;
       width: ${windowWidth}px !important;
-      height: 1000px !important;
+      height: 8000px !important;
       border: none !important;
+      overflow: hidden !important;
     `;
 
     document.body.appendChild(iframe);
@@ -329,6 +320,12 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
           const target = iframeDoc.querySelector('.container') as HTMLElement;
           if (!target) throw new Error('Target element not found');
 
+          // Set final width immediately to ensure stable layout before metrics
+          target.style.width = '210mm';
+          target.style.maxWidth = '210mm';
+          target.style.margin = '0 auto';
+          target.style.boxSizing = 'border-box';
+
           // Get background color
           const computedStyle = iframeWindow.getComputedStyle(target);
           const bgColor = computedStyle.backgroundColor || 'rgb(255, 255, 255)';
@@ -336,7 +333,8 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
           pdfLog(traceId, 'target-found', {
             tagName: target.tagName,
             contentHeight: target.scrollHeight,
-            bgColor
+            bgColor,
+            windowWidth
           });
 
           // Auto-add pdf-flow-break classes
