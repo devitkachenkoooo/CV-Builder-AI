@@ -384,6 +384,10 @@ function createPdfModal(
                 marker.className = 'pdf-page-break-marker';
                 marker.style.backgroundColor = bgColor;
                 parent.insertBefore(marker, node);
+                // Fallback for html2pdf engines that ignore marker height after page break.
+                node.classList.add('pdf-break-before');
+                node.style.paddingTop = `${pageTopGapPx}px`;
+                node.style.boxSizing = 'border-box';
                 return true;
               };
 
@@ -445,6 +449,21 @@ function createPdfModal(
               const totalBreaks = flowRoot.querySelectorAll('.pdf-page-break-marker').length;
               const totalKeepBlocks = flowRoot.querySelectorAll('.pdf-keep-block').length;
               pdfLog(traceId, 'flow:summary', { totalBreaks, totalKeepBlocks });
+              const markerNodes = Array.from(flowRoot.querySelectorAll('.pdf-page-break-marker'))
+                .filter((el): el is HTMLElement => isHtmlElementNode(el));
+              const markerMetrics = markerNodes.slice(0, 5).map((marker, idx) => {
+                const style = win.getComputedStyle(marker);
+                return {
+                  idx,
+                  offsetHeight: marker.offsetHeight,
+                  cssHeight: style.height,
+                  breakBefore: style.breakBefore || style.pageBreakBefore || null,
+                };
+              });
+              pdfLog(traceId, 'flow:markers-metrics', {
+                markerCount: markerNodes.length,
+                sample: markerMetrics,
+              });
 
               target.style.boxSizing = 'border-box';
               target.style.backgroundColor = bgColor;
