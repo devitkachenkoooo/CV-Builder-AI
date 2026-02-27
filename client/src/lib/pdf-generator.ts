@@ -15,8 +15,9 @@ interface PdfFromElementOptions {
   onLoadingChange?: (loading: boolean) => void;
 }
 
-const PDF_TRACE_VERSION = 'v-debug-1';
+const PDF_TRACE_VERSION = 'v-debug-2';
 const BREAK_CANDIDATE_CLASS = 'pdf-flow-break';
+const DEBUG_MODE = true; // Enable debug logging and visual debugging
 
 function makeTraceId(): string {
   return `pdf-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -36,6 +37,46 @@ function pdfLog(traceId: string, step: string, details?: Record<string, unknown>
     return;
   }
   console.log(`[PDF][${PDF_TRACE_VERSION}][${traceId}] ${step}`);
+}
+
+// Debug visual functions
+function debugHighlightBlock(node: HTMLElement, color: string, opacity: number = 0.3) {
+  if (!DEBUG_MODE) return;
+  node.style.backgroundColor = color;
+  node.style.opacity = opacity.toString();
+  node.style.border = `2px solid ${color}`;
+  node.style.transition = 'all 0.3s ease';
+}
+
+function debugHighlightBoundary(doc: Document, y: number, width: number, color: string) {
+  if (!DEBUG_MODE) return;
+  const boundary = doc.createElement('div');
+  boundary.style.cssText = `
+    position: absolute;
+    top: ${y}px;
+    left: 0;
+    width: ${width}px;
+    height: 2px;
+    background-color: ${color};
+    z-index: 9999;
+    pointer-events: none;
+  `;
+  doc.body.appendChild(boundary);
+}
+
+function debugLogBlockInfo(traceId: string, block: HTMLElement, metrics: any, action: string) {
+  if (!DEBUG_MODE) return;
+  pdfLog(traceId, `debug:${action}`, {
+    tagName: block.tagName,
+    className: block.className,
+    textContent: block.textContent?.substring(0, 50) + '...',
+    nodeTop: metrics.nodeTop,
+    nodeBottom: metrics.nodeBottom,
+    nodeHeight: metrics.nodeHeight,
+    pageTop: metrics.pageTop,
+    pageBottom: metrics.pageBottom,
+    crossesBottomSafeBoundary: metrics.nodeTop < (metrics.pageBottom - 60) && metrics.nodeBottom > (metrics.pageBottom - 60)
+  });
 }
 
 function isHtmlElementNode(node: unknown): node is HTMLElement {
@@ -287,6 +328,29 @@ function createPdfModal(
               break-inside: avoid !important;
               page-break-inside: avoid !important;
             }
+            ${DEBUG_MODE ? `
+            /* Debug styles */
+            .pdf-debug-boundary-safe {
+              position: absolute;
+              background: rgba(0, 255, 0, 0.2) !important;
+              z-index: 9998 !important;
+              pointer-events: none !important;
+            }
+            .pdf-debug-boundary-unsafe {
+              position: absolute;
+              background: rgba(255, 0, 0, 0.2) !important;
+              z-index: 9998 !important;
+              pointer-events: none !important;
+            }
+            .pdf-debug-candidate {
+              background: rgba(255, 0, 0, 0.3) !important;
+              border: 2px solid red !important;
+            }
+            .pdf-debug-moved {
+              background: rgba(0, 255, 0, 0.3) !important;
+              border: 2px solid green !important;
+            }
+            ` : ''}
           `;
           doc.head.appendChild(normalizeStyle);
 
@@ -392,18 +456,60 @@ function createPdfModal(
 
               const shouldMoveNodeToNextPage = (node: HTMLElement) => {
                 const metrics = getLayoutMetrics(node);
-                if (!metrics) return false;
+                if (!metrics) {
+                  pdfLog(traceId, 'debug:shouldMove-no-metrics', { tagName: node.tagName });
+                  return false;
+                }
+                
                 const maxChunkHeight = a4HeightPx - pageTopGapPx - pageBottomSafePx;
-                if (metrics.nodeHeight > maxChunkHeight) return false;
+                if (metrics.nodeHeight > maxChunkHeight) {
+                  pdfLog(traceId, 'debug:shouldMove-too-tall', { 
+                    tagName: node.tagName,
+                    nodeHeight: metrics.nodeHeight,
+                    maxChunkHeight 
+                  });
+                  return false;
+                }
+                
                 const bottomSafeBoundary = metrics.pageBottom - pageBottomSafePx;
                 const crossesBottomSafeBoundary =
                   metrics.nodeTop < bottomSafeBoundary &&
                   metrics.nodeBottom > bottomSafeBoundary;
-                return (
-                  crossesBottomSafeBoundary &&
+                
+                const shouldMove = crossesBottomSafeBoundary &&
                   metrics.nodeTop > metrics.pageTop + 6 &&
-                  metrics.nodeTop < metrics.pageBottom - pageTopGapPx
-                );
+                  metrics.nodeTop < metrics.pageBottom - pageTopGapPx;
+                
+                // Debug logging
+                debugLogBlockInfo(traceId, node, metrics, shouldMove ? 'WILL_MOVE' : 'WILL_STAY');
+                
+                // Visual debugging
+                if (DEBUG_MODE) {
+                  // Highlight the block
+                  debugHighlightBlock(node, shouldMove ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)');
+                  
+                  // Draw boundary line
+                  debugHighlightBoundary(doc, bottomSafeBoundary, targetWidth, 'rgba(0, 255, 0, 0.5)');
+                  
+                  // Add debug class
+                  if (shouldMove) {
+                    node.classList.add('pdf-debug-moved');
+                  } else {
+                    node.classList.add('pdf-debug-candidate');
+                  }
+                }
+                
+                pdfLog(traceId, 'debug:shouldMove-decision', {
+                  tagName: node.tagName,
+                  crossesBottomSafeBoundary,
+                  nodeTop: metrics.nodeTop,
+                  pageTop: metrics.pageTop,
+                  pageBottom: metrics.pageBottom,
+                  bottomSafeBoundary,
+                  shouldMove
+                });
+                
+                return shouldMove;
               };
 
               const markBreakBefore = (node: HTMLElement) => {
@@ -445,21 +551,77 @@ function createPdfModal(
               };
 
               const getBreakCandidates = (): HTMLElement[] => {
-                const blocks = Array.from(flowRoot.querySelectorAll(`.${BREAK_CANDIDATE_CLASS}`))
-                  .filter((el): el is HTMLElement => isHtmlElementNode(el))
+                const allBlocks = Array.from(flowRoot.querySelectorAll(`.${BREAK_CANDIDATE_CLASS}`))
+                  .filter((el): el is HTMLElement => isHtmlElementNode(el));
+                
+                pdfLog(traceId, 'debug:getBreakCandidates-start', {
+                  totalFound: allBlocks.length,
+                  className: BREAK_CANDIDATE_CLASS
+                });
+                
+                const blocks = allBlocks
                   .filter((el) => !el.classList.contains('pdf-break-before'))
                   .filter((el) => !el.classList.contains('pdf-page-break-marker'))
                   .filter((el) => el.offsetHeight > 8);
-                blocks.forEach((block) => {
+                
+                pdfLog(traceId, 'debug:getBreakCandidates-filtered', {
+                  afterFiltering: blocks.length,
+                  removed: allBlocks.length - blocks.length
+                });
+                
+                blocks.forEach((block, index) => {
                   block.classList.add('pdf-keep-block');
                   block.style.breakInside = 'avoid';
                   block.style.pageBreakInside = 'avoid';
+                  
+                  // Debug logging for each candidate
+                  if (DEBUG_MODE) {
+                    const metrics = getLayoutMetrics(block);
+                    pdfLog(traceId, `debug:candidate-${index}`, {
+                      tagName: block.tagName,
+                      className: block.className,
+                      textContent: block.textContent?.substring(0, 30) + '...',
+                      offsetHeight: block.offsetHeight,
+                      metrics: metrics ? {
+                        nodeTop: metrics.nodeTop,
+                        nodeBottom: metrics.nodeBottom,
+                        nodeHeight: metrics.nodeHeight
+                      } : null
+                    });
+                  }
                 });
+                
                 return blocks;
               };
 
               const maxPasses = 6;
               let directBreaks = 0;
+              
+              pdfLog(traceId, 'debug:flow-analysis-start', {
+                maxPasses,
+                a4HeightPx,
+                pageTopGapPx,
+                pageBottomSafePx,
+                targetHeight: target.scrollHeight
+              });
+              
+              // Draw page boundaries for debugging
+              if (DEBUG_MODE) {
+                const pagesNow = Math.max(1, Math.ceil(target.scrollHeight / a4HeightPx));
+                pdfLog(traceId, 'debug:drawing-page-boundaries', { pagesNow });
+                
+                for (let page = 0; page < pagesNow; page++) {
+                  const pageTop = page * a4HeightPx;
+                  const pageBottom = (page + 1) * a4HeightPx;
+                  const bottomSafeBoundary = pageBottom - pageBottomSafePx;
+                  
+                  // Draw page boundaries
+                  debugHighlightBoundary(doc, pageTop, targetWidth, 'rgba(0, 0, 255, 0.3)');
+                  debugHighlightBoundary(doc, pageBottom, targetWidth, 'rgba(0, 0, 255, 0.3)');
+                  debugHighlightBoundary(doc, bottomSafeBoundary, targetWidth, 'rgba(0, 255, 0, 0.5)');
+                }
+              }
+              
               for (let pass = 0; pass < maxPasses; pass++) {
                 let changed = false;
                 const candidates = getBreakCandidates();
@@ -468,14 +630,31 @@ function createPdfModal(
                   className: BREAK_CANDIDATE_CLASS,
                   count: candidates.length,
                 });
+                
                 for (const block of candidates) {
                   if (shouldMoveNodeToNextPage(block) && markBreakBefore(block)) {
                     directBreaks++;
                     changed = true;
+                    pdfLog(traceId, 'debug:block-moved', {
+                      tagName: block.tagName,
+                      textContent: block.textContent?.substring(0, 30) + '...',
+                      pass: pass + 1,
+                      totalBreaks: directBreaks
+                    });
                   }
                 }
-                pdfLog(traceId, 'flow:pass-complete', { pass: pass + 1, changed, directBreaks });
-                if (!changed) break;
+                
+                pdfLog(traceId, 'flow:pass-complete', { 
+                  pass: pass + 1, 
+                  changed, 
+                  directBreaks,
+                  candidatesProcessed: candidates.length
+                });
+                
+                if (!changed) {
+                  pdfLog(traceId, 'debug:no-more-changes', { finalPass: pass + 1 });
+                  break;
+                }
               }
 
               // Enforce page transitions for every page after the first.
@@ -520,15 +699,45 @@ function createPdfModal(
                 pdfLog(traceId, 'flow:boundary-pass', { pass: pass + 1, inserted: passInserted, totalBoundaryBreaks: boundaryBreaks });
                 if (passInserted === 0) break;
               }
+              // Final summary and cleanup
               const totalBreaks = flowRoot.querySelectorAll('.pdf-page-break-marker').length;
               const totalKeepBlocks = flowRoot.querySelectorAll('.pdf-keep-block').length;
+              
               pdfLog(traceId, 'flow:summary', {
                 totalBreaks,
                 totalKeepBlocks,
                 directBreaks,
                 boundaryBreaks,
                 breakCandidateClass: BREAK_CANDIDATE_CLASS,
+                targetScrollHeight: target.scrollHeight,
+                estimatedPages: Math.ceil(target.scrollHeight / a4HeightPx)
               });
+              
+              // Debug summary
+              if (DEBUG_MODE) {
+                const markerNodes = Array.from(flowRoot.querySelectorAll('.pdf-page-break-marker'))
+                  .filter((el): el is HTMLElement => isHtmlElementNode(el));
+                
+                pdfLog(traceId, 'debug:final-summary', {
+                  markersCreated: markerNodes.length,
+                  finalTargetHeight: target.scrollHeight,
+                  pagesRequired: Math.ceil(target.scrollHeight / a4HeightPx),
+                  debugMode: 'ENABLED'
+                });
+                
+                // Log all markers with their positions
+                markerNodes.forEach((marker, index) => {
+                  const metrics = getLayoutMetrics(marker);
+                  pdfLog(traceId, `debug:marker-${index}`, {
+                    markerHeight: marker.offsetHeight,
+                    position: metrics ? {
+                      nodeTop: metrics.nodeTop,
+                      pageTop: metrics.pageTop,
+                      pageBottom: metrics.pageBottom
+                    } : null
+                  });
+                });
+              }
               const markerNodes = Array.from(flowRoot.querySelectorAll('.pdf-page-break-marker'))
                 .filter((el): el is HTMLElement => isHtmlElementNode(el));
               const markerMetrics = markerNodes.slice(0, 5).map((marker, idx) => {
