@@ -501,33 +501,6 @@ function createPdfModal(
                 return null;
               };
 
-              const findFirstElementStartingAfterBoundary = (
-                root: HTMLElement,
-                boundaryY: number,
-                pageBottom: number,
-              ): HTMLElement | null => {
-                const candidates = Array.from(root.querySelectorAll('*'))
-                  .filter((el): el is HTMLElement => isHtmlElementNode(el))
-                  .filter((el) => !el.classList.contains('pdf-page-break-marker'))
-                  .filter((el) => !el.classList.contains('pdf-break-before'))
-                  .filter((el) => el.offsetHeight > 6);
-
-                let best: HTMLElement | null = null;
-                let bestTop = Number.POSITIVE_INFINITY;
-                for (const el of candidates) {
-                  const metrics = getLayoutMetrics(el);
-                  if (!metrics) continue;
-                  // first renderable block on the next page area
-                  if (metrics.nodeTop >= boundaryY && metrics.nodeTop < pageBottom) {
-                    if (metrics.nodeTop < bestTop) {
-                      bestTop = metrics.nodeTop;
-                      best = el;
-                    }
-                  }
-                }
-                return best;
-              };
-
               let boundaryBreaks = 0;
               const boundaryPasses = 2;
               for (let pass = 0; pass < boundaryPasses; pass++) {
@@ -537,10 +510,7 @@ function createPdfModal(
                   const pageTop = (page - 1) * a4HeightPx;
                   const pageBottom = page * a4HeightPx;
                   const boundaryY = pageBottom - pageBottomSafePx;
-                  let candidate = findBoundarySplitCandidate(flowRoot, boundaryY, pageTop, pageBottom, 4);
-                  if (!candidate) {
-                    candidate = findFirstElementStartingAfterBoundary(flowRoot, boundaryY, pageBottom);
-                  }
+                  const candidate = findBoundarySplitCandidate(flowRoot, boundaryY, pageTop, pageBottom, 4);
                   if (candidate && markBreakBefore(candidate)) {
                     passInserted++;
                     boundaryBreaks++;
