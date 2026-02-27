@@ -36,32 +36,37 @@ function pdfLog(traceId: string, step: string, details?: Record<string, unknown>
   console.log(`[PDF][${PDF_TRACE_VERSION}][${traceId}] ${step}`);
 }
 
-// Auto-add pdf-flow-break classes to main > section > direct children
+// Auto-add pdf-flow-break classes to main > * > * (direct grandchildren of main)
 function autoAddPdfFlowBreakClasses(doc: Document, target: HTMLElement, traceId: string) {
   pdfLog(traceId, 'auto-add:start');
-  
+
   const main = target.querySelector('main') || target;
-  const sections = Array.from(main.querySelectorAll('section'));
+  // Get direct children of main (e.g., sections or columns)
+  const mainChildren = Array.from(main.children).filter(child =>
+    child.nodeType === 1 && !['script', 'style'].includes(child.tagName.toLowerCase())
+  ) as HTMLElement[];
+
   let totalAdded = 0;
-  
-  sections.forEach((section, sectionIndex) => {
-    const directChildren = Array.from(section.children).filter(child => 
+
+  mainChildren.forEach((parentBlock, parentIndex) => {
+    // Get direct children of each parent block (grandchildren of main)
+    const blocks = Array.from(parentBlock.children).filter(child =>
       child.nodeType === 1 && !['script', 'style'].includes(child.tagName.toLowerCase())
     ) as HTMLElement[];
-    
-    directChildren.forEach((child, childIndex) => {
-      if (!child.classList.contains('pdf-flow-break')) {
-        child.classList.add('pdf-flow-break');
+
+    blocks.forEach((block, blockIndex) => {
+      if (!block.classList.contains('pdf-flow-break')) {
+        block.classList.add('pdf-flow-break');
         totalAdded++;
-        pdfLog(traceId, `auto-add:added-${sectionIndex}-${childIndex}`, {
-          tagName: child.tagName,
-          className: child.className
+        pdfLog(traceId, `auto-add:added-${parentIndex}-${blockIndex}`, {
+          tagName: block.tagName,
+          className: block.className
         });
       }
     });
   });
-  
-  pdfLog(traceId, 'auto-add:complete', { sectionsProcessed: sections.length, totalClassesAdded: totalAdded });
+
+  pdfLog(traceId, 'auto-add:complete', { parentBlocksProcessed: mainChildren.length, totalClassesAdded: totalAdded });
   return totalAdded;
 }
 
@@ -69,7 +74,7 @@ function autoAddPdfFlowBreakClasses(doc: Document, target: HTMLElement, traceId:
 function getLayoutMetrics(element: HTMLElement) {
   const rect = element.getBoundingClientRect();
   const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-  
+
   return {
     nodeTop: rect.top + scrollTop,
     nodeBottom: rect.bottom + scrollTop,
@@ -83,14 +88,14 @@ function getLayoutMetrics(element: HTMLElement) {
 function shouldMoveToNextPage(element: HTMLElement, traceId: string): boolean {
   const metrics = getLayoutMetrics(element);
   if (!metrics) return false;
-  
+
   const bottomSafeBoundary = metrics.pageBottom - PAGE_BOTTOM_SAFE_PX;
   const crossesBoundary = metrics.nodeTop < bottomSafeBoundary && metrics.nodeBottom > bottomSafeBoundary;
-  
+
   // More lenient condition - move if element is close to bottom or crosses boundary
   const isCloseToBottom = metrics.nodeTop >= bottomSafeBoundary - 20; // 20px buffer
   const shouldMove = (crossesBoundary || isCloseToBottom) && metrics.nodeTop > metrics.pageTop + 6;
-  
+
   if (DEBUG_MODE) {
     pdfLog(traceId, 'move-check', {
       tagName: element.tagName,
@@ -104,7 +109,7 @@ function shouldMoveToNextPage(element: HTMLElement, traceId: string): boolean {
       shouldMove
     });
   }
-  
+
   return shouldMove;
 }
 
@@ -112,20 +117,15 @@ function shouldMoveToNextPage(element: HTMLElement, traceId: string): boolean {
 function addPageBreakMarker(doc: Document, element: HTMLElement, bgColor: string, traceId: string): boolean {
   const parent = element.parentNode;
   if (!parent || parent.nodeType !== 1) return false;
-  
-  // Check if this is the very first marker by checking if we're about to create the first one
-  const existingMarkers = doc.querySelectorAll('.pdf-page-break-marker');
-  const isFirstPage = existingMarkers.length === 0;
-  
+
   const marker = doc.createElement('div');
   marker.className = 'pdf-page-break-marker';
   marker.innerHTML = '&nbsp;';
-  
-  // Always add 60px marker except for first page
+
   marker.style.cssText = `
     background-color: ${bgColor} !important;
-    height: ${isFirstPage ? '0px' : `${PAGE_TOP_GAP_PX}px`} !important;
-    min-height: ${isFirstPage ? '0px' : `${PAGE_TOP_GAP_PX}px`} !important;
+    height: ${PAGE_TOP_GAP_PX}px !important;
+    min-height: ${PAGE_TOP_GAP_PX}px !important;
     display: block !important;
     width: 100% !important;
     margin: 0 !important;
@@ -136,88 +136,68 @@ function addPageBreakMarker(doc: Document, element: HTMLElement, bgColor: string
     break-before: page !important;
     page-break-before: always !important;
   `;
-  
+
   parent.insertBefore(marker, element);
-  
-  // Add padding to the element after the marker (only for non-first pages)
-  if (!isFirstPage) {
-    element.classList.add('pdf-break-after-marker');
-    element.style.setProperty('padding-top', `${PAGE_TOP_GAP_PX}px`, 'important');
-    element.style.setProperty('margin-top', '0px', 'important');
-  }
-  
+
+  // Add padding to the element after the marker to ensure top gap on the new page
+  element.classList.add('pdf-break-after-marker');
+  element.style.setProperty('padding-top', `${PAGE_TOP_GAP_PX}px`, 'important');
+  element.style.setProperty('margin-top', '0px', 'important');
+
   pdfLog(traceId, 'marker-added', {
     tagName: element.tagName,
-    isFirstPage,
-    existingMarkersCount: existingMarkers.length,
-    markerHeight: isFirstPage ? 0 : PAGE_TOP_GAP_PX,
-    paddingTop: isFirstPage ? 0 : PAGE_TOP_GAP_PX,
-    // Debug: show the logic
-    logic: isFirstPage ? 'First page - no padding' : 'Second page - 60px padding'
+    markerHeight: PAGE_TOP_GAP_PX,
+    paddingTop: PAGE_TOP_GAP_PX
   });
-  
+
   return true;
 }
 
-// Ensure last page has full background
-function ensureLastPageBackground(doc: Document, target: HTMLElement, bgColor: string, traceId: string) {
-  const totalHeight = target.scrollHeight;
-  const fullPages = Math.floor(totalHeight / A4_HEIGHT_PX);
-  const lastPageTop = fullPages * A4_HEIGHT_PX;
-  const lastPageHeight = totalHeight - lastPageTop;
-  
-  pdfLog(traceId, 'last-page-check', {
-    totalHeight,
-    fullPages,
-    lastPageTop,
-    lastPageHeight,
-    needsSpacer: lastPageHeight > 0 && lastPageHeight < A4_HEIGHT_PX
-  });
-  
-  // Add spacer if last page is not full
-  if (lastPageHeight > 0 && lastPageHeight < A4_HEIGHT_PX) {
-    const spacer = doc.createElement('div');
-    spacer.className = 'pdf-last-page-spacer';
-    const spacerHeight = A4_HEIGHT_PX - lastPageHeight;
-    
-    spacer.style.cssText = `
-      height: ${spacerHeight}px !important;
-      width: 100% !important;
-      background-color: ${bgColor} !important;
-      display: block !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      box-sizing: border-box !important;
-      ${DEBUG_MODE ? `border: 2px dashed rgba(255, 255, 255, 0.5) !important; position: relative !important;` : ''}
-    `;
-    
-    if (DEBUG_MODE) {
-      spacer.innerHTML = `<div style="position: absolute; top: 10px; left: 10px; color: white; font-size: 12px; background: rgba(0, 0, 0, 0.7); padding: 2px; border: 1px solid rgba(255, 255, 255, 0.5);">SPACER: ${spacerHeight}px</div>`;
+// Ensure the container fills integer number of A4 pages with background color
+function ensureFullPageBackgrounds(doc: Document, target: HTMLElement, bgColor: string, traceId: string) {
+  // First, add initial top gap to the first block if not already present
+  const main = target.querySelector('main') || target;
+  const firstParent = main.firstElementChild as HTMLElement;
+  if (firstParent) {
+    const firstBlock = firstParent.firstElementChild as HTMLElement;
+    if (firstBlock && !firstBlock.classList.contains('pdf-break-after-marker')) {
+      firstBlock.style.setProperty('padding-top', `${PAGE_TOP_GAP_PX}px`, 'important');
+      pdfLog(traceId, 'added-first-page-gap');
     }
-    
-    target.appendChild(spacer);
-    
-    pdfLog(traceId, 'spacer-added', {
-      spacerHeight,
-      totalHeightAfter: target.scrollHeight
-    });
+  }
+
+  const totalHeight = target.scrollHeight;
+  const pageCount = Math.ceil(totalHeight / A4_HEIGHT_PX);
+  const targetHeight = pageCount * A4_HEIGHT_PX;
+
+  pdfLog(traceId, 'background-fill-check', {
+    totalHeight,
+    pageCount,
+    targetHeight,
+    diff: targetHeight - totalHeight
+  });
+
+  if (targetHeight > totalHeight) {
+    target.style.setProperty('min-height', `${targetHeight}px`, 'important');
+    target.style.setProperty('background-color', bgColor, 'important');
+    pdfLog(traceId, 'min-height-applied', { minHeight: targetHeight });
   }
 }
 
 // Main PDF generation from URL
 export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<void> {
   const { url, htmlContent, filename = 'document.pdf', onLoadingChange, windowWidth = 794 } = options;
-  
+
   if (!url && !htmlContent) {
     throw new Error('Either url or htmlContent must be provided');
   }
-  
+
   const traceId = makeTraceId();
   pdfLog(traceId, 'start', { url: !!url, htmlContent: !!htmlContent, filename });
-  
+
   try {
     onLoadingChange?.(true);
-    
+
     // Fetch HTML content
     let html: string;
     if (url) {
@@ -227,9 +207,9 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
     } else {
       html = htmlContent!;
     }
-    
+
     pdfLog(traceId, 'content-loaded', { htmlLength: html.length });
-    
+
     // Create modal overlay
     const overlay = document.createElement('div');
     overlay.style.cssText = `
@@ -246,7 +226,7 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
       backdrop-filter: blur(4px) !important;
     `;
-    
+
     const statusContainer = document.createElement('div');
     statusContainer.style.cssText = `
       background: white !important;
@@ -257,7 +237,7 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
       border: 1px solid rgba(255, 255, 255, 0.2) !important;
     `;
-    
+
     // Add spinner
     const spinner = document.createElement('div');
     spinner.style.cssText = `
@@ -269,7 +249,7 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
       border-radius: 50% !important;
       animation: spin 1s linear infinite !important;
     `;
-    
+
     // Add spinner keyframes
     const style = document.createElement('style');
     style.textContent = `
@@ -279,7 +259,7 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
       }
     `;
     document.head.appendChild(style);
-    
+
     const statusText = document.createElement('div');
     statusText.textContent = 'Generating PDF...';
     statusText.style.cssText = `
@@ -288,7 +268,7 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
       margin-bottom: 8px !important;
       color: #1f2937 !important;
     `;
-    
+
     const subText = document.createElement('div');
     subText.textContent = 'Please wait while we create your document';
     subText.style.cssText = `
@@ -296,13 +276,13 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
       color: #6b7280 !important;
       margin-bottom: 0 !important;
     `;
-    
+
     statusContainer.appendChild(spinner);
     statusContainer.appendChild(statusText);
     statusContainer.appendChild(subText);
     overlay.appendChild(statusContainer);
     document.body.appendChild(overlay);
-    
+
     // Create iframe for rendering
     const iframe = document.createElement('iframe');
     iframe.style.cssText = `
@@ -313,9 +293,9 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
       height: 1000px !important;
       border: none !important;
     `;
-    
+
     document.body.appendChild(iframe);
-    
+
     // Setup iframe content with html2pdf library
     const iframeDoc = iframe.contentDocument!;
     iframeDoc.open();
@@ -334,31 +314,31 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
       </html>
     `);
     iframeDoc.close();
-    
+
     // Wait for iframe to load
     iframe.onload = () => {
       setTimeout(() => {
         try {
           const iframeWindow = iframe.contentWindow!;
           const iframeDoc = iframe.contentDocument!;
-          
+
           // Get target element
           const target = iframeDoc.querySelector('.container') as HTMLElement;
           if (!target) throw new Error('Target element not found');
-          
+
           // Get background color
           const computedStyle = iframeWindow.getComputedStyle(target);
           const bgColor = computedStyle.backgroundColor || 'rgb(255, 255, 255)';
-          
+
           pdfLog(traceId, 'target-found', {
             tagName: target.tagName,
             contentHeight: target.scrollHeight,
             bgColor
           });
-          
+
           // Auto-add pdf-flow-break classes
           autoAddPdfFlowBreakClasses(iframeDoc, target, traceId);
-          
+
           // Add CSS for PDF generation
           const style = iframeDoc.createElement('style');
           style.textContent = `
@@ -382,11 +362,11 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
             }
           `;
           iframeDoc.head.appendChild(style);
-          
+
           // Process page breaks
           const candidates = Array.from(target.querySelectorAll('.pdf-flow-break')) as HTMLElement[];
           pdfLog(traceId, 'processing-breaks', { candidatesCount: candidates.length });
-          
+
           // Debug: show all candidates before processing
           candidates.forEach((candidate, index) => {
             const metrics = getLayoutMetrics(candidate);
@@ -398,7 +378,7 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
               textContent: candidate.textContent?.substring(0, 30) + '...'
             });
           });
-          
+
           let breaksAdded = 0;
           candidates.forEach((element, index) => {
             if (shouldMoveToNextPage(element, traceId)) {
@@ -406,7 +386,7 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
                 tagName: element.tagName,
                 willMove: true
               });
-              
+
               if (addPageBreakMarker(iframeDoc, element, bgColor, traceId)) {
                 breaksAdded++;
                 pdfLog(traceId, `marker-success-${index}`, {
@@ -421,9 +401,9 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
               });
             }
           });
-          
+
           pdfLog(traceId, 'breaks-complete', { breaksAdded });
-          
+
           // Debug: check all markers after processing
           const allMarkers = Array.from(iframeDoc.querySelectorAll('.pdf-page-break-marker')) as HTMLElement[];
           pdfLog(traceId, 'markers-after-processing', {
@@ -436,7 +416,7 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
               nextElementTag: marker.nextElementSibling?.tagName
             }))
           });
-          
+
           // Debug: check elements with padding
           const elementsWithPadding = Array.from(iframeDoc.querySelectorAll('.pdf-break-after-marker')) as HTMLElement[];
           pdfLog(traceId, 'elements-with-padding', {
@@ -449,20 +429,20 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
               textContent: element.textContent?.substring(0, 30) + '...'
             }))
           });
-          
-          // Ensure last page background
-          ensureLastPageBackground(iframeDoc, target, bgColor, traceId);
-          
+
+          // Ensure background for all pages
+          ensureFullPageBackgrounds(iframeDoc, target, bgColor, traceId);
+
           // Set final dimensions
           target.style.width = '210mm';
           target.style.maxWidth = '210mm';
           target.style.margin = '0';
           target.style.boxShadow = 'none';
           target.style.border = 'none';
-          
+
           iframeDoc.body.style.backgroundColor = bgColor;
           iframeDoc.documentElement.style.backgroundColor = bgColor;
-          
+
           // Generate PDF
           const pdfOptions = {
             margin: 0,
@@ -482,9 +462,9 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
           };
-          
+
           pdfLog(traceId, 'generating-pdf');
-          
+
           (iframeWindow as any).html2pdf().from(target).set(pdfOptions).save().then(() => {
             pdfLog(traceId, 'pdf-generated');
             statusText.textContent = 'PDF generated successfully!';
@@ -502,7 +482,7 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
               onLoadingChange?.(false);
             }, 2000);
           });
-          
+
         } catch (error) {
           console.error('PDF processing error:', error);
           statusText.textContent = 'Processing failed';
@@ -514,7 +494,7 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
         }
       }, 1500);
     };
-    
+
   } catch (error) {
     console.error('PDF generation error:', error);
     onLoadingChange?.(false);
@@ -525,20 +505,20 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
 // Main PDF generation from element
 export async function generatePdfFromElement(options: PdfFromElementOptions): Promise<void> {
   const { element, filename = 'document.pdf', onLoadingChange } = options;
-  
+
   const traceId = makeTraceId();
   pdfLog(traceId, 'start-from-element', { tagName: element.tagName, filename });
-  
+
   try {
     onLoadingChange?.(true);
-    
+
     // Get background color
     const computedStyle = window.getComputedStyle(element);
     const bgColor = computedStyle.backgroundColor || 'rgb(255, 255, 255)';
-    
+
     // Auto-add pdf-flow-break classes
     autoAddPdfFlowBreakClasses(document, element, traceId);
-    
+
     // Add CSS for PDF generation
     const style = document.createElement('style');
     style.textContent = `
@@ -562,11 +542,11 @@ export async function generatePdfFromElement(options: PdfFromElementOptions): Pr
       }
     `;
     document.head.appendChild(style);
-    
+
     // Process page breaks
     const candidates = Array.from(element.querySelectorAll('.pdf-flow-break')) as HTMLElement[];
     pdfLog(traceId, 'processing-breaks', { candidatesCount: candidates.length });
-    
+
     let breaksAdded = 0;
     candidates.forEach(candidate => {
       if (shouldMoveToNextPage(candidate, traceId)) {
@@ -575,22 +555,22 @@ export async function generatePdfFromElement(options: PdfFromElementOptions): Pr
         }
       }
     });
-    
+
     pdfLog(traceId, 'breaks-complete', { breaksAdded });
-    
-    // Ensure last page background
-    ensureLastPageBackground(document, element, bgColor, traceId);
-    
+
+    // Ensure background for all pages
+    ensureFullPageBackgrounds(document, element, bgColor, traceId);
+
     // Set final dimensions
     element.style.width = '210mm';
     element.style.maxWidth = '210mm';
     element.style.margin = '0';
     element.style.boxShadow = 'none';
     element.style.border = 'none';
-    
+
     document.body.style.backgroundColor = bgColor;
     document.documentElement.style.backgroundColor = bgColor;
-    
+
     // Generate PDF
     const pdfOptions = {
       margin: 0,
@@ -608,14 +588,14 @@ export async function generatePdfFromElement(options: PdfFromElementOptions): Pr
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
     };
-    
+
     pdfLog(traceId, 'generating-pdf');
-    
+
     await html2pdf().from(element).set(pdfOptions).save();
-    
+
     pdfLog(traceId, 'pdf-generated');
     onLoadingChange?.(false);
-    
+
   } catch (error) {
     console.error('PDF generation error:', error);
     onLoadingChange?.(false);
