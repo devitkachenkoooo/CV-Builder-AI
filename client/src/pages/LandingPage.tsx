@@ -93,15 +93,23 @@ export default function LandingPage() {
 
             {/* Template Grid Mock */}
             <div className="grid grid-cols-2 gap-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="bg-secondary/40 rounded-xl overflow-hidden border border-border/50 aspect-[1/1.4] relative group">
+              {[
+                { id: 1, src: '/images/templates/template-1.png' },
+                { id: 2, src: '/images/templates/template-3.png' },
+                { id: 3, src: '/images/templates/template-7.png' },
+                { id: 4, src: '/images/templates/template-10.png' }
+              ].map((template) => (
+                <div key={template.id} className="bg-secondary/40 rounded-xl overflow-hidden border border-border/50 aspect-[1/1.4] relative group">
                   <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
                     <div className="w-full h-8 bg-white/20 backdrop-blur-sm rounded-lg"></div>
                   </div>
                   <img
-                    src={`https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400&q=80&fit=crop`}
-                    alt="Mock Template"
-                    className="w-full h-full object-cover mix-blend-overlay opacity-50"
+                    src={template.src}
+                    alt="CV Template"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    onError={(e) => { 
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400&q=80&fit=crop' 
+                    }}
                   />
                 </div>
               ))}
