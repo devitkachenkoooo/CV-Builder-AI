@@ -570,10 +570,12 @@ function createPdfModal(
               };
 
               const markBreakBefore = (node: HTMLElement) => {
-                const parent = node.parentElement;
-                if (!parent) return false;
-                const prev = node.previousElementSibling;
-                if (prev && prev.classList.contains('pdf-page-break-marker')) return false;
+                const parent = node.parentNode;
+                if (!parent || !isHtmlElementNode(parent)) return false;
+                
+                // Check if this is the first page (no previous breaks)
+                const existingMarkers = flowRoot.querySelectorAll('.pdf-page-break-marker');
+                const isFirstPage = existingMarkers.length === 0;
                 
                 const marker = doc.createElement('div');
                 marker.className = 'pdf-page-break-marker';
@@ -582,8 +584,8 @@ function createPdfModal(
                 // Set explicit styles for the marker
                 marker.style.cssText = `
                   background-color: ${bgColor} !important;
-                  height: ${pageTopGapPx}px !important;
-                  min-height: ${pageTopGapPx}px !important;
+                  height: ${isFirstPage ? '0px' : `${pageTopGapPx}px`} !important;
+                  min-height: ${isFirstPage ? '0px' : `${pageTopGapPx}px`} !important;
                   display: block !important;
                   width: 100% !important;
                   margin: 0 !important;
@@ -600,10 +602,20 @@ function createPdfModal(
                 // Add break class to the node itself
                 node.classList.add('pdf-break-before');
                 node.style.cssText += `
-                  padding-top: ${pageTopGapPx}px !important;
+                  padding-top: ${isFirstPage ? '0px' : `${pageTopGapPx}px`} !important;
                   margin-top: 0 !important;
                   box-sizing: border-box !important;
                 `;
+                
+                if (DEBUG_MODE) {
+                  pdfLog(traceId, 'debug:break-marker-created', {
+                    tagName: node.tagName,
+                    isFirstPage,
+                    markerHeight: isFirstPage ? 0 : pageTopGapPx,
+                    paddingTop: isFirstPage ? 0 : pageTopGapPx
+                  });
+                }
+                
                 return true;
               };
 
@@ -732,6 +744,21 @@ function createPdfModal(
                     metrics.nodeHeight <= maxChunkHeight &&
                     metrics.nodeTop > pageTop + 6 &&
                     metrics.nodeTop < pageBottom - pageTopGapPx;
+                  
+                  // Debug logging and visual highlighting for boundary split candidates
+                  if (DEBUG_MODE) {
+                    debugLogBlockInfo(traceId, child, {
+                      ...metrics,
+                      pageTop,
+                      pageBottom,
+                      crossesBoundary: true,
+                      canMoveWhole
+                    }, canMoveWhole ? 'BOUNDARY_WILL_MOVE' : 'BOUNDARY_WILL_STAY');
+                    
+                    // Highlight the block for boundary analysis
+                    debugHighlightBlock(child, canMoveWhole ? 'rgba(0, 150, 255, 0.3)' : 'rgba(255, 150, 0, 0.3)');
+                  }
+                  
                   if (canMoveWhole) return child;
                 }
                 return null;
@@ -747,10 +774,31 @@ function createPdfModal(
                   const pageTop = (page - 1) * a4HeightPx;
                   const pageBottom = page * a4HeightPx;
                   const boundaryY = pageBottom - pageBottomSafePx;
+                  
+                  // Debug: highlight boundary for this page
+                  if (DEBUG_MODE) {
+                    debugHighlightBoundary(doc, boundaryY, targetWidth, 'rgba(255, 255, 0, 0.7)'); // Yellow for boundary
+                    pdfLog(traceId, `debug:boundary-analysis-page-${page}`, {
+                      page,
+                      pageTop,
+                      pageBottom,
+                      boundaryY,
+                      candidatesCount: candidates.length
+                    });
+                  }
+                  
                   const candidate = findBoundarySplitCandidate(candidates, boundaryY, pageTop, pageBottom);
                   if (candidate && markBreakBefore(candidate)) {
                     passInserted++;
                     boundaryBreaks++;
+                    
+                    if (DEBUG_MODE) {
+                      pdfLog(traceId, `debug:boundary-break-created-${page}`, {
+                        page,
+                        tagName: candidate.tagName,
+                        textContent: candidate.textContent?.substring(0, 30) + '...'
+                      });
+                    }
                   }
                 }
                 pdfLog(traceId, 'flow:boundary-pass', { pass: pass + 1, inserted: passInserted, totalBoundaryBreaks: boundaryBreaks });
