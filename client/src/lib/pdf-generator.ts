@@ -22,7 +22,7 @@ const DEBUG_MODE = true;
 // Constants for PDF generation
 const A4_HEIGHT_PX = 1123;
 const PAGE_TOP_GAP_PX = 60;
-const PAGE_BOTTOM_SAFE_PX = 60;
+const PAGE_BOTTOM_SAFE_PX = 80;
 
 function makeTraceId(): string {
   return `pdf-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -89,23 +89,22 @@ function shouldMoveToNextPage(element: HTMLElement, traceId: string): boolean {
   const metrics = getLayoutMetrics(element);
   if (!metrics) return false;
 
-  const bottomSafeBoundary = metrics.pageBottom - PAGE_BOTTOM_SAFE_PX;
-  const crossesBoundary = metrics.nodeTop < bottomSafeBoundary && metrics.nodeBottom > bottomSafeBoundary;
+  // Refined math as per task requirements
+  const pageBottom = Math.ceil((metrics.nodeTop + 1) / A4_HEIGHT_PX) * A4_HEIGHT_PX;
+  const pageTop = pageBottom - A4_HEIGHT_PX;
+  const bottomSafeBoundary = pageBottom - PAGE_BOTTOM_SAFE_PX;
 
-  // More lenient condition - move if element is close to bottom or crosses boundary
-  const isCloseToBottom = metrics.nodeTop >= bottomSafeBoundary - 20; // 20px buffer
-  const shouldMove = (crossesBoundary || isCloseToBottom) && metrics.nodeTop > metrics.pageTop + 6;
+  // Move element to the next page if it crosses the safe boundary 
+  // and is not already at the top of a page (to avoid double breaks)
+  const shouldMove = metrics.nodeBottom > bottomSafeBoundary && metrics.nodeTop > pageTop + 50;
 
   if (DEBUG_MODE) {
     pdfLog(traceId, 'move-check', {
       tagName: element.tagName,
       nodeTop: metrics.nodeTop,
       nodeBottom: metrics.nodeBottom,
-      pageTop: metrics.pageTop,
-      pageBottom: metrics.pageBottom,
+      pageBottom,
       bottomSafeBoundary,
-      crossesBoundary,
-      isCloseToBottom,
       shouldMove
     });
   }
@@ -122,13 +121,14 @@ function addPageBreakMarker(doc: Document, element: HTMLElement, bgColor: string
   marker.className = 'pdf-page-break-marker';
   marker.innerHTML = '&nbsp;';
 
+  // Refined marker style: 1px height, transparent, forced break
   marker.style.cssText = `
-    background-color: ${bgColor} !important;
-    height: ${PAGE_TOP_GAP_PX}px !important;
-    min-height: ${PAGE_TOP_GAP_PX}px !important;
+    background-color: transparent !important;
+    height: 1px !important;
+    min-height: 1px !important;
     display: block !important;
     width: 100% !important;
-    margin: 0 !important;
+    margin: -1px 0 0 0 !important;
     padding: 0 !important;
     box-sizing: border-box !important;
     line-height: 0 !important;
@@ -178,9 +178,12 @@ function ensureFullPageBackgrounds(doc: Document, target: HTMLElement, bgColor: 
   });
 
   if (targetHeight > totalHeight) {
+    // Fill background for html, body and target container
+    doc.documentElement.style.setProperty('background-color', bgColor, 'important');
+    doc.body.style.setProperty('background-color', bgColor, 'important');
     target.style.setProperty('min-height', `${targetHeight}px`, 'important');
     target.style.setProperty('background-color', bgColor, 'important');
-    pdfLog(traceId, 'min-height-applied', { minHeight: targetHeight });
+    pdfLog(traceId, 'min-height-applied', { minHeight: targetHeight, bgColor });
   }
 }
 
@@ -348,7 +351,9 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
               box-sizing: border-box !important;
             }
             .pdf-page-break-marker {
-              background-color: ${bgColor} !important;
+              background-color: transparent !important;
+              height: 1px !important;
+              page-break-before: always !important;
             }
             /* Prevent breaking inside flow-break elements */
             .pdf-flow-break {
@@ -528,7 +533,9 @@ export async function generatePdfFromElement(options: PdfFromElementOptions): Pr
         box-sizing: border-box !important;
       }
       .pdf-page-break-marker {
-        background-color: ${bgColor} !important;
+        background-color: transparent !important;
+        height: 1px !important;
+        page-break-before: always !important;
       }
       /* Prevent breaking inside flow-break elements */
       .pdf-flow-break {
