@@ -87,9 +87,9 @@ function shouldMoveToNextPage(element: HTMLElement, traceId: string): boolean {
   const bottomSafeBoundary = metrics.pageBottom - PAGE_BOTTOM_SAFE_PX;
   const crossesBoundary = metrics.nodeTop < bottomSafeBoundary && metrics.nodeBottom > bottomSafeBoundary;
   
-  // More lenient condition - move if element starts after safe boundary
-  const startsAfterSafeBoundary = metrics.nodeTop >= bottomSafeBoundary;
-  const shouldMove = (crossesBoundary || startsAfterSafeBoundary) && metrics.nodeTop > metrics.pageTop + 6;
+  // More lenient condition - move if element is close to bottom or crosses boundary
+  const isCloseToBottom = metrics.nodeTop >= bottomSafeBoundary - 20; // 20px buffer
+  const shouldMove = (crossesBoundary || isCloseToBottom) && metrics.nodeTop > metrics.pageTop + 6;
   
   if (DEBUG_MODE) {
     pdfLog(traceId, 'move-check', {
@@ -100,7 +100,7 @@ function shouldMoveToNextPage(element: HTMLElement, traceId: string): boolean {
       pageBottom: metrics.pageBottom,
       bottomSafeBoundary,
       crossesBoundary,
-      startsAfterSafeBoundary,
+      isCloseToBottom,
       shouldMove
     });
   }
@@ -113,13 +113,16 @@ function addPageBreakMarker(doc: Document, element: HTMLElement, bgColor: string
   const parent = element.parentNode;
   if (!parent || parent.nodeType !== 1) return false;
   
-  const existingMarkers = doc.querySelectorAll('.pdf-page-break-marker');
-  const isFirstPage = existingMarkers.length === 0;
+  // Check if this is the very first marker (no breaks before this element)
+  const elementsBefore = Array.from(parent.children).slice(0, Array.from(parent.children).indexOf(element));
+  const hasPreviousMarkers = elementsBefore.some(el => el.classList.contains('pdf-page-break-marker'));
+  const isFirstPage = !hasPreviousMarkers;
   
   const marker = doc.createElement('div');
   marker.className = 'pdf-page-break-marker';
   marker.innerHTML = '&nbsp;';
   
+  // Always add 60px marker except for first page
   marker.style.cssText = `
     background-color: ${bgColor} !important;
     height: ${isFirstPage ? '0px' : `${PAGE_TOP_GAP_PX}px`} !important;
@@ -137,14 +140,17 @@ function addPageBreakMarker(doc: Document, element: HTMLElement, bgColor: string
   
   parent.insertBefore(marker, element);
   
-  // Add padding to the element after the marker
-  element.classList.add('pdf-break-after-marker');
-  element.style.setProperty('padding-top', `${isFirstPage ? '0px' : `${PAGE_TOP_GAP_PX}px`}`, 'important');
-  element.style.setProperty('margin-top', '0px', 'important');
+  // Add padding to the element after the marker (only for non-first pages)
+  if (!isFirstPage) {
+    element.classList.add('pdf-break-after-marker');
+    element.style.setProperty('padding-top', `${PAGE_TOP_GAP_PX}px`, 'important');
+    element.style.setProperty('margin-top', '0px', 'important');
+  }
   
   pdfLog(traceId, 'marker-added', {
     tagName: element.tagName,
     isFirstPage,
+    hasPreviousMarkers,
     markerHeight: isFirstPage ? 0 : PAGE_TOP_GAP_PX,
     paddingTop: isFirstPage ? 0 : PAGE_TOP_GAP_PX
   });
@@ -363,6 +369,16 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
             .pdf-page-break-marker {
               background-color: ${bgColor} !important;
             }
+            /* Prevent breaking inside flow-break elements */
+            .pdf-flow-break {
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
+            }
+            /* Allow breaking between flow-break elements */
+            .pdf-flow-break + .pdf-flow-break {
+              break-before: auto !important;
+              page-break-before: auto !important;
+            }
           `;
           iframeDoc.head.appendChild(style);
           
@@ -480,6 +496,16 @@ export async function generatePdfFromElement(options: PdfFromElementOptions): Pr
       }
       .pdf-page-break-marker {
         background-color: ${bgColor} !important;
+      }
+      /* Prevent breaking inside flow-break elements */
+      .pdf-flow-break {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      /* Allow breaking between flow-break elements */
+      .pdf-flow-break + .pdf-flow-break {
+        break-before: auto !important;
+        page-break-before: auto !important;
       }
     `;
     document.head.appendChild(style);
