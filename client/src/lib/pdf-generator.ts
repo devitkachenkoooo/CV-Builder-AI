@@ -37,6 +37,15 @@ function pdfLog(traceId: string, step: string, details?: Record<string, unknown>
   console.log(`[PDF][${PDF_TRACE_VERSION}][${traceId}] ${step}`);
 }
 
+function isHtmlElementNode(node: unknown): node is HTMLElement {
+  return Boolean(
+    node &&
+    typeof node === 'object' &&
+    (node as { nodeType?: number }).nodeType === 1 &&
+    typeof (node as { tagName?: unknown }).tagName === 'string'
+  );
+}
+
 /**
  * Creates a dedicated, fixed-size environment for PDF generation.
  * Uses visual scaling to fit any screen while maintaining internal A4 dimensions.
@@ -300,7 +309,7 @@ function createPdfModal(
                 flowChildren: flowRoot.children.length,
               });
               Array.from(flowRoot.querySelectorAll('.pdf-break-before, .pdf-page-start, .pdf-keep-block, .pdf-page-break-marker')).forEach((node) => {
-                if (!(node instanceof HTMLElement)) return;
+                if (!isHtmlElementNode(node)) return;
                 node.classList.remove('pdf-break-before');
                 node.classList.remove('pdf-page-start');
                 node.classList.remove('pdf-keep-block');
@@ -312,7 +321,7 @@ function createPdfModal(
 
               const flowBlocks = Array.from(flowRoot.children) as HTMLElement[];
               flowBlocks.forEach((child) => {
-                if (!(child instanceof HTMLElement)) return;
+                if (!isHtmlElementNode(child)) return;
                 // Parent wrappers are allowed to split; fine-grained blocks control breaks.
                 child.style.breakInside = 'auto';
                 child.style.pageBreakInside = 'auto';
@@ -372,7 +381,7 @@ function createPdfModal(
 
               const findFirstOverflowCandidate = (selector: string): HTMLElement | null => {
                 const candidates = Array.from(flowRoot.querySelectorAll(selector))
-                  .filter((el): el is HTMLElement => el instanceof HTMLElement)
+                  .filter((el): el is HTMLElement => isHtmlElementNode(el))
                   .filter((el) => !el.classList.contains('pdf-break-before'))
                   .filter((el) => el.offsetHeight > 8);
                 pdfLog(traceId, 'flow:candidates', { selector, count: candidates.length });
