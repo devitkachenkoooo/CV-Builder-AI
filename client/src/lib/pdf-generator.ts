@@ -192,8 +192,6 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
           target.style.top = '0';
           target.style.left = '0';
           target.style.transform = 'none';
-          target.style.paddingTop = `${pageTopGapPx}px`;
-          target.style.paddingBottom = `${pageBottomSafePx}px`;
           target.style.breakInside = 'auto';
           target.style.pageBreakInside = 'auto';
           target.style.display = 'flow-root'; // prevent margin-collapsing side effects in PDF layout
@@ -316,23 +314,33 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 'p'
               ].join(', ');
 
-              const splitCandidates = Array.from(flowRoot.querySelectorAll(chunkSelectors))
-                .filter((el): el is HTMLElement => el instanceof HTMLElement)
-                .filter((el) => !el.classList.contains('pdf-page-break-marker'))
-                .filter((el) => el.offsetHeight > 8);
+              const maxSplitPasses = 10;
+              for (let pass = 0; pass < maxSplitPasses; pass++) {
+                let insertedThisPass = 0;
+                const splitCandidates = Array.from(flowRoot.querySelectorAll(chunkSelectors))
+                  .filter((el): el is HTMLElement => el instanceof HTMLElement)
+                  .filter((el) => !el.classList.contains('pdf-page-break-marker'))
+                  .filter((el) => el.offsetHeight > 8);
 
-              splitCandidates.forEach((candidate, index) => {
-                if (index === 0) return;
-                candidate.classList.add('pdf-keep-block');
-                candidate.style.breakInside = 'avoid';
-                candidate.style.pageBreakInside = 'avoid';
-                if (shouldMoveNodeToNextPage(candidate)) {
-                  const parent = candidate.parentElement;
-                  if (parent instanceof HTMLElement) {
-                    insertMarkerBefore(candidate, parent);
+                splitCandidates.forEach((candidate, index) => {
+                  if (index === 0) return;
+                  candidate.classList.add('pdf-keep-block');
+                  candidate.style.breakInside = 'avoid';
+                  candidate.style.pageBreakInside = 'avoid';
+                  if (shouldMoveNodeToNextPage(candidate)) {
+                    const parent = candidate.parentElement;
+                    if (parent instanceof HTMLElement) {
+                      const prev = candidate.previousElementSibling as HTMLElement | null;
+                      if (!prev || !prev.classList.contains('pdf-page-break-marker')) {
+                        insertMarkerBefore(candidate, parent);
+                        insertedThisPass++;
+                      }
+                    }
                   }
-                }
-              });
+                });
+
+                if (insertedThisPass === 0) break;
+              }
 
               target.style.boxSizing = 'border-box';
               target.style.backgroundColor = bgColor;
@@ -346,7 +354,8 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
-                  avoid: ['.pdf-keep-block', 'h1', 'h2', 'h3', '.section-title', 'img']
+                  before: ['.pdf-page-break-marker'],
+                  avoid: ['.pdf-keep-block', 'h1', 'h2', 'h3', '.section-title', 'img', 'tr', 'thead', 'tbody']
                 },
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
