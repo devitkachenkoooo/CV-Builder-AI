@@ -173,7 +173,7 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               height: ${pageTopGapPx}px !important;
               margin: 0 !important;
               padding: 0 !important;
-              background: transparent !important;
+              background: inherit !important;
             }
             .pdf-keep-block {
               break-inside: avoid !important;
@@ -192,8 +192,6 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
           target.style.top = '0';
           target.style.left = '0';
           target.style.transform = 'none';
-          // Keep breathing space on the first page too (not only on forced page starts).
-          target.style.paddingTop = `${pageTopGapPx}px`;
           target.style.breakInside = 'auto';
           target.style.pageBreakInside = 'auto';
           target.style.display = 'flow-root'; // prevent margin-collapsing side effects in PDF layout
@@ -250,20 +248,25 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
               doc.body.style.backgroundColor = bgColor;
               const mainFlow = (target.querySelector(':scope > main') || target.querySelector('main')) as HTMLElement | null;
               const flowRoot = mainFlow || target;
-              const flowBlocks = Array.from(flowRoot.children) as HTMLElement[];
               Array.from(flowRoot.querySelectorAll('.pdf-page-break-marker')).forEach((node) => node.remove());
-              flowBlocks.forEach((child) => {
-                if (!(child instanceof HTMLElement)) return;
-                child.classList.remove('pdf-page-start');
-                child.classList.remove('pdf-keep-block');
-                child.style.breakBefore = '';
-                child.style.pageBreakBefore = '';
-                child.style.breakInside = 'avoid';
-                child.style.pageBreakInside = 'avoid';
-                child.classList.add('pdf-keep-block');
+              Array.from(flowRoot.querySelectorAll('.pdf-page-start, .pdf-keep-block')).forEach((node) => {
+                if (!(node instanceof HTMLElement)) return;
+                node.classList.remove('pdf-page-start');
+                node.classList.remove('pdf-keep-block');
+                node.style.breakBefore = '';
+                node.style.pageBreakBefore = '';
+                node.style.breakInside = '';
+                node.style.pageBreakInside = '';
               });
 
-              const maxUsableHeight = a4HeightPx - pageTopGapPx - pageBottomSafePx;
+              const flowBlocks = Array.from(flowRoot.children) as HTMLElement[];
+              flowBlocks.forEach((child) => {
+                if (!(child instanceof HTMLElement)) return;
+                // Parent wrappers are allowed to split; fine-grained blocks control breaks.
+                child.style.breakInside = 'auto';
+                child.style.pageBreakInside = 'auto';
+              });
+
               const shouldMoveNodeToNextPage = (node: HTMLElement) => {
                 const rect = node.getBoundingClientRect();
                 if (rect.height < 4) return false;
@@ -286,65 +289,53 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 if (prev?.classList.contains('pdf-page-break-marker')) return;
                 const marker = doc.createElement('div');
                 marker.className = 'pdf-page-break-marker';
+                marker.style.backgroundColor = bgColor;
                 parent.insertBefore(marker, node);
               };
 
-              const splitLargeBlock = (block: HTMLElement): boolean => {
-                // Prefer direct children, then common semantic chunks as fallback.
-                const direct = Array.from(block.children) as HTMLElement[];
-                const fallback = Array.from(
-                  block.querySelectorAll(':scope > section, :scope > article, :scope > div, :scope > ul, :scope > ol, :scope > p, :scope > .item, :scope > .exp-item, :scope > .edu-item, :scope > .projects-item, :scope > .split-layout, :scope > .content-block, :scope > .sub-item')
-                ) as HTMLElement[];
-                const candidates = (direct.length > 0 ? direct : fallback).filter((el) => el.offsetHeight > 8);
+              // Unified split strategy: always decide breaks by smaller internal chunks.
+              const chunkSelectors = [
+                ':scope > section',
+                ':scope > article',
+                ':scope > div',
+                '.exp-item',
+                '.edu-item',
+                '.projects-item',
+                '.split-layout',
+                '.content-block',
+                '.sub-item',
+                '.item',
+                '.row',
+                '.item-row',
+                '.meta-col',
+                '.content-col',
+                'ul > li',
+                'ol > li',
+                'p'
+              ].join(', ');
 
-                for (let i = 1; i < candidates.length; i++) {
-                  const candidate = candidates[i];
-                  if (shouldMoveNodeToNextPage(candidate)) {
-                    insertMarkerBefore(candidate, block);
-                    return true;
-                  }
-                }
+              const splitCandidates = Array.from(flowRoot.querySelectorAll(chunkSelectors))
+                .filter((el): el is HTMLElement => el instanceof HTMLElement)
+                .filter((el) => !el.classList.contains('pdf-page-break-marker'))
+                .filter((el) => el.offsetHeight > 8);
 
-                // Deep fallback: move the first visible paragraph/list row that collides.
-                const fineGrained = Array.from(
-                  block.querySelectorAll('h1, h2, h3, p, li, .row, .item-row, .meta-col, .content-col')
-                ) as HTMLElement[];
-                for (let i = 1; i < fineGrained.length; i++) {
-                  const candidate = fineGrained[i];
-                  if (shouldMoveNodeToNextPage(candidate)) {
-                    const parent = candidate.parentElement;
-                    if (parent instanceof HTMLElement) {
-                      insertMarkerBefore(candidate, parent);
-                      return true;
-                    }
-                  }
-                }
-
-                return false;
-              };
-
-              flowBlocks.forEach((block, index) => {
+              splitCandidates.forEach((candidate, index) => {
                 if (index === 0) return;
-                const blockHeight = block.getBoundingClientRect().height;
-                const canFitOnSinglePage = blockHeight <= maxUsableHeight;
-                const shouldMoveWholeBlock = canFitOnSinglePage && shouldMoveNodeToNextPage(block);
-
-                if (shouldMoveWholeBlock) {
-                  insertMarkerBefore(block, flowRoot);
-                  return;
-                }
-
-                if (!canFitOnSinglePage) {
-                  // Allow splitting giant blocks and insert internal page breaks.
-                  block.classList.remove('pdf-keep-block');
-                  block.style.breakInside = 'auto';
-                  block.style.pageBreakInside = 'auto';
-                  splitLargeBlock(block);
+                candidate.classList.add('pdf-keep-block');
+                candidate.style.breakInside = 'avoid';
+                candidate.style.pageBreakInside = 'avoid';
+                if (shouldMoveNodeToNextPage(candidate)) {
+                  const parent = candidate.parentElement;
+                  if (parent instanceof HTMLElement) {
+                    insertMarkerBefore(candidate, parent);
+                  }
                 }
               });
 
               target.style.boxSizing = 'border-box';
               target.style.backgroundColor = bgColor;
+              const fullPageCount = Math.max(1, Math.ceil((target.scrollHeight + pageBottomSafePx) / a4HeightPx));
+              target.style.minHeight = `${(fullPageCount * a4HeightPx) - 1}px`;
               doc.body.style.backgroundColor = bgColor;
               doc.documentElement.style.backgroundColor = bgColor;
 
