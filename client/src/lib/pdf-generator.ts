@@ -220,6 +220,17 @@ function createPdfModal(
               margin-top: 0 !important;
               box-sizing: border-box !important;
             }
+            .pdf-page-break-marker {
+              break-before: page !important;
+              page-break-before: always !important;
+              display: block !important;
+              width: 100% !important;
+              height: ${pageTopGapPx}px !important;
+              min-height: ${pageTopGapPx}px !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              box-sizing: border-box !important;
+            }
             .pdf-break-before {
               break-before: page !important;
               page-break-before: always !important;
@@ -310,6 +321,7 @@ function createPdfModal(
                 flowRootClass: flowRoot.className || null,
                 flowChildren: flowRoot.children.length,
               });
+              Array.from(flowRoot.querySelectorAll('.pdf-page-break-marker')).forEach((node) => node.remove());
               Array.from(flowRoot.querySelectorAll('.pdf-break-before, .pdf-page-start, .pdf-keep-block, .pdf-page-break-marker')).forEach((node) => {
                 if (!isHtmlElementNode(node)) return;
                 node.classList.remove('pdf-break-before');
@@ -364,8 +376,14 @@ function createPdfModal(
               };
 
               const markBreakBefore = (node: HTMLElement) => {
-                if (node.classList.contains('pdf-break-before')) return false;
-                node.classList.add('pdf-break-before');
+                const parent = node.parentElement;
+                if (!parent) return false;
+                const prev = node.previousElementSibling;
+                if (prev && prev.classList.contains('pdf-page-break-marker')) return false;
+                const marker = doc.createElement('div');
+                marker.className = 'pdf-page-break-marker';
+                marker.style.backgroundColor = bgColor;
+                parent.insertBefore(marker, node);
                 return true;
               };
 
@@ -393,6 +411,7 @@ function createPdfModal(
                 const candidates = Array.from(flowRoot.querySelectorAll(selector))
                   .filter((el): el is HTMLElement => isHtmlElementNode(el))
                   .filter((el) => !el.classList.contains('pdf-break-before'))
+                  .filter((el) => !el.classList.contains('pdf-page-break-marker'))
                   .filter((el) => el.offsetHeight > 8)
                   .filter((el) => el.offsetHeight <= maxNodeHeightPx);
                 pdfLog(traceId, 'flow:candidates', { selector, maxNodeHeightPx, count: candidates.length });
@@ -423,7 +442,7 @@ function createPdfModal(
                   inserted: insertedForLevel,
                 });
               });
-              const totalBreaks = flowRoot.querySelectorAll('.pdf-break-before').length;
+              const totalBreaks = flowRoot.querySelectorAll('.pdf-page-break-marker').length;
               const totalKeepBlocks = flowRoot.querySelectorAll('.pdf-keep-block').length;
               pdfLog(traceId, 'flow:summary', { totalBreaks, totalKeepBlocks });
 
@@ -444,7 +463,7 @@ function createPdfModal(
                 filename: filename,
                 pagebreak: {
                   mode: ['css', 'legacy'],
-                  before: ['.pdf-break-before'],
+                  before: ['.pdf-break-before', '.pdf-page-break-marker'],
                   avoid: ['.pdf-keep-block', 'h1', 'h2', 'h3', '.section-title', 'img', 'tr', 'thead', 'tbody']
                 },
                 image: { type: 'jpeg', quality: 0.98 },
