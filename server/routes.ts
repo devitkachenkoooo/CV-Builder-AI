@@ -374,7 +374,7 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
         model: "meta-llama/llama-3.3-70b-instruct",
         messages: [{ role: "user", content: prompt }],
         max_tokens: 8192,
-        temperature: 0.3, // Зменшено для більш детермінованого результату
+        temperature: 0, // Зменшено для більш детермінованого результату
       });
 
       let generatedHtml = response.choices[0]?.message?.content || "";
