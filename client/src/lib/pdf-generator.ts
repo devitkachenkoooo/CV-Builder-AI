@@ -263,33 +263,83 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 child.classList.add('pdf-keep-block');
               });
 
+              const maxUsableHeight = a4HeightPx - pageTopGapPx - pageBottomSafePx;
+              const shouldMoveNodeToNextPage = (node: HTMLElement) => {
+                const rect = node.getBoundingClientRect();
+                if (rect.height < 4) return false;
+                const containerRect = target.getBoundingClientRect();
+                const nodeTop = rect.top - containerRect.top;
+                const nodeBottom = rect.bottom - containerRect.top;
+                const pageBottom = (Math.floor(nodeTop / a4HeightPx) + 1) * a4HeightPx;
+                const remainingOnPage = pageBottom - nodeTop;
+                const offsetInPage = nodeTop % a4HeightPx;
+                const isNearPageTop = offsetInPage <= pageTopGapPx + 16;
+                return (
+                  nodeBottom > pageBottom - pageBottomSafePx &&
+                  remainingOnPage <= moveThresholdPx &&
+                  !isNearPageTop
+                );
+              };
+
+              const insertMarkerBefore = (node: HTMLElement, parent: HTMLElement) => {
+                const prev = node.previousElementSibling as HTMLElement | null;
+                if (prev?.classList.contains('pdf-page-break-marker')) return;
+                const marker = doc.createElement('div');
+                marker.className = 'pdf-page-break-marker';
+                parent.insertBefore(marker, node);
+              };
+
+              const splitLargeBlock = (block: HTMLElement): boolean => {
+                // Prefer direct children, then common semantic chunks as fallback.
+                const direct = Array.from(block.children) as HTMLElement[];
+                const fallback = Array.from(
+                  block.querySelectorAll(':scope > section, :scope > article, :scope > div, :scope > ul, :scope > ol, :scope > p, :scope > .item, :scope > .exp-item, :scope > .edu-item, :scope > .projects-item, :scope > .split-layout, :scope > .content-block, :scope > .sub-item')
+                ) as HTMLElement[];
+                const candidates = (direct.length > 0 ? direct : fallback).filter((el) => el.offsetHeight > 8);
+
+                for (let i = 1; i < candidates.length; i++) {
+                  const candidate = candidates[i];
+                  if (shouldMoveNodeToNextPage(candidate)) {
+                    insertMarkerBefore(candidate, block);
+                    return true;
+                  }
+                }
+
+                // Deep fallback: move the first visible paragraph/list row that collides.
+                const fineGrained = Array.from(
+                  block.querySelectorAll('h1, h2, h3, p, li, .row, .item-row, .meta-col, .content-col')
+                ) as HTMLElement[];
+                for (let i = 1; i < fineGrained.length; i++) {
+                  const candidate = fineGrained[i];
+                  if (shouldMoveNodeToNextPage(candidate)) {
+                    const parent = candidate.parentElement;
+                    if (parent instanceof HTMLElement) {
+                      insertMarkerBefore(candidate, parent);
+                      return true;
+                    }
+                  }
+                }
+
+                return false;
+              };
+
               flowBlocks.forEach((block, index) => {
                 if (index === 0) return;
-                const rect = block.getBoundingClientRect();
-                if (rect.height < 4) return;
-                const containerRect = target.getBoundingClientRect();
-                const blockTop = rect.top - containerRect.top;
-                const blockBottom = rect.bottom - containerRect.top;
-                const pageBottom = (Math.floor(blockTop / a4HeightPx) + 1) * a4HeightPx;
-                const remainingOnPage = pageBottom - blockTop;
-                const blockHeight = rect.height;
-                const offsetInPage = blockTop % a4HeightPx;
-                const isNearPageTop = offsetInPage <= pageTopGapPx + 16;
-                const maxUsableHeight = a4HeightPx - pageTopGapPx - pageBottomSafePx;
+                const blockHeight = block.getBoundingClientRect().height;
                 const canFitOnSinglePage = blockHeight <= maxUsableHeight;
-                const shouldMoveToNextPage =
-                  blockBottom > pageBottom - pageBottomSafePx &&
-                  remainingOnPage <= moveThresholdPx &&
-                  !isNearPageTop &&
-                  canFitOnSinglePage;
+                const shouldMoveWholeBlock = canFitOnSinglePage && shouldMoveNodeToNextPage(block);
 
-                if (shouldMoveToNextPage) {
-                  const prev = block.previousElementSibling as HTMLElement | null;
-                  if (!prev || !prev.classList.contains('pdf-page-break-marker')) {
-                    const marker = doc.createElement('div');
-                    marker.className = 'pdf-page-break-marker';
-                    flowRoot.insertBefore(marker, block);
-                  }
+                if (shouldMoveWholeBlock) {
+                  insertMarkerBefore(block, flowRoot);
+                  return;
+                }
+
+                if (!canFitOnSinglePage) {
+                  // Allow splitting giant blocks and insert internal page breaks.
+                  block.classList.remove('pdf-keep-block');
+                  block.style.breakInside = 'auto';
+                  block.style.pageBreakInside = 'auto';
+                  splitLargeBlock(block);
                 }
               });
 
