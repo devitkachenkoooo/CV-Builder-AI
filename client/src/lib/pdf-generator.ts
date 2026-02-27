@@ -373,14 +373,11 @@ function createPdfModal(
                 );
               };
 
-              const isOversizedNearPageBottom = (node: HTMLElement) => {
+              const isOversized = (node: HTMLElement) => {
                 const metrics = getLayoutMetrics(node);
                 if (!metrics) return false;
                 const maxChunkHeight = a4HeightPx - pageTopGapPx - pageBottomSafePx;
-                return (
-                  metrics.nodeHeight > maxChunkHeight &&
-                  metrics.nodeBottom > (metrics.pageBottom - pageBottomSafePx)
-                );
+                return metrics.nodeHeight > maxChunkHeight;
               };
 
               const markBreakBefore = (node: HTMLElement) => {
@@ -413,21 +410,6 @@ function createPdfModal(
                   .filter((el) => !el.classList.contains('pdf-page-break-marker'))
                   .filter((el) => el.offsetHeight > 8);
 
-              const findSplitCandidateWithin = (node: HTMLElement, depth: number): HTMLElement | null => {
-                const children = collectChildren(node);
-                for (const child of children) {
-                  child.classList.add('pdf-keep-block');
-                  child.style.breakInside = 'avoid';
-                  child.style.pageBreakInside = 'avoid';
-                  if (shouldMoveNodeToNextPage(child)) return child;
-                  if (depth > 0 && isOversizedNearPageBottom(child)) {
-                    const nested = findSplitCandidateWithin(child, depth - 1);
-                    if (nested) return nested;
-                  }
-                }
-                return null;
-              };
-
               const directBlocks = collectChildren(flowRoot);
               directBlocks.forEach((block) => {
                 block.classList.add('pdf-keep-block');
@@ -436,9 +418,11 @@ function createPdfModal(
               });
               pdfLog(traceId, 'flow:direct-blocks', { count: directBlocks.length });
 
-              const maxPasses = 5;
+              const oversizedDirectBlocks = directBlocks.filter((block) => isOversized(block));
+              pdfLog(traceId, 'flow:oversized-direct-blocks', { count: oversizedDirectBlocks.length });
+
+              const maxPasses = 6;
               let directBreaks = 0;
-              let nestedBreaks = 0;
               for (let pass = 0; pass < maxPasses; pass++) {
                 let changed = false;
                 for (const block of directBlocks) {
@@ -447,22 +431,14 @@ function createPdfModal(
                       directBreaks++;
                       changed = true;
                     }
-                    continue;
-                  }
-                  if (isOversizedNearPageBottom(block)) {
-                    const splitCandidate = findSplitCandidateWithin(block, 2);
-                    if (splitCandidate && markBreakBefore(splitCandidate)) {
-                      nestedBreaks++;
-                      changed = true;
-                    }
                   }
                 }
-                pdfLog(traceId, 'flow:pass-complete', { pass: pass + 1, changed, directBreaks, nestedBreaks });
+                pdfLog(traceId, 'flow:pass-complete', { pass: pass + 1, changed, directBreaks });
                 if (!changed) break;
               }
               const totalBreaks = flowRoot.querySelectorAll('.pdf-page-break-marker').length;
               const totalKeepBlocks = flowRoot.querySelectorAll('.pdf-keep-block').length;
-              pdfLog(traceId, 'flow:summary', { totalBreaks, totalKeepBlocks, directBreaks, nestedBreaks });
+              pdfLog(traceId, 'flow:summary', { totalBreaks, totalKeepBlocks, directBreaks, oversizedDirectBlocks: oversizedDirectBlocks.length });
               const markerNodes = Array.from(flowRoot.querySelectorAll('.pdf-page-break-marker'))
                 .filter((el): el is HTMLElement => isHtmlElementNode(el));
               const markerMetrics = markerNodes.slice(0, 5).map((marker, idx) => {

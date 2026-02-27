@@ -67,6 +67,25 @@
             margin-bottom: 5px;
         }
 
+        main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+
+        main > section#experience,
+        main > section#education {
+            grid-column: 1 / -1;
+        }
+
+        .flow-col {
+            display: block;
+        }
+
+        .flow-col section:last-child {
+            margin-bottom: 0;
+        }
+
         section {
             margin-bottom: 30px;
         }
@@ -111,12 +130,6 @@
         .description {
             font-size: 13.5px;
             color: var(--text-secondary);
-        }
-
-        .grid-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 40px;
         }
 
         .sub-section h3 {
@@ -234,8 +247,7 @@
             </div>
         </section>
 
-        <div class="grid-container">
-            <div class="left-col">
+        <div class="left-col flow-col">
                 <section id="tools">
                     <h3>Tools</h3>
                     <div class="sub-item">
@@ -266,7 +278,7 @@
                 </section>
             </div>
 
-            <div class="right-col">
+            <div class="right-col flow-col">
                 <section id="languages">
                     <h3>Languages</h3>
                     <p>German • English</p>
@@ -287,7 +299,6 @@
                     </ul>
                 </section>
             </div>
-        </div>
         </main>
     </div>
 </body>
