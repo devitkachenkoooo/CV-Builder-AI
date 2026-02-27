@@ -185,8 +185,8 @@ function createPdfModal(
 
           const contentHeight = target.scrollHeight;
           const a4HeightPx = 1123;
-          const pageTopGapPx = 50;
-          const pageBottomSafePx = 50;
+          const pageTopGapPx = 60;
+          const pageBottomSafePx = 60;
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
           pdfLog(traceId, 'analysis:dimensions', {
             contentHeight,
@@ -503,8 +503,8 @@ function createPdfModal(
 
               target.style.boxSizing = 'border-box';
               target.style.backgroundColor = bgColor;
-              const fullPageCount = Math.max(1, Math.ceil((target.scrollHeight + pageBottomSafePx) / a4HeightPx));
-              target.style.minHeight = `${fullPageCount * a4HeightPx}px`;
+              const fullPageCount = Math.max(1, Math.ceil(target.scrollHeight / a4HeightPx));
+              target.style.minHeight = `${Math.ceil(target.scrollHeight)}px`;
               doc.body.style.minHeight = target.style.minHeight;
               doc.documentElement.style.minHeight = target.style.minHeight;
               pdfLog(traceId, 'layout:final-height', {
