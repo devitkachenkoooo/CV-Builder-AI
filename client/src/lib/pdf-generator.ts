@@ -113,7 +113,7 @@ function addPageBreakMarker(doc: Document, element: HTMLElement, bgColor: string
   const parent = element.parentNode;
   if (!parent || parent.nodeType !== 1) return false;
   
-  // Check if this is the very first marker in the entire document
+  // Check if this is the very first marker by checking if we're about to create the first one
   const existingMarkers = doc.querySelectorAll('.pdf-page-break-marker');
   const isFirstPage = existingMarkers.length === 0;
   
@@ -151,7 +151,9 @@ function addPageBreakMarker(doc: Document, element: HTMLElement, bgColor: string
     isFirstPage,
     existingMarkersCount: existingMarkers.length,
     markerHeight: isFirstPage ? 0 : PAGE_TOP_GAP_PX,
-    paddingTop: isFirstPage ? 0 : PAGE_TOP_GAP_PX
+    paddingTop: isFirstPage ? 0 : PAGE_TOP_GAP_PX,
+    // Debug: show the logic
+    logic: isFirstPage ? 'First page - no padding' : 'Second page - 60px padding'
   });
   
   return true;
