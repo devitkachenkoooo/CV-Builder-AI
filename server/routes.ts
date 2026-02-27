@@ -347,26 +347,27 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
 
     const prompt = `You are a CV expert. Your task is to inject the provided CV content into the HTML template while preserving the template structure and styling.
 
-🚨 CRITICAL REQUIREMENTS:
-1. Preserve the EXACT HTML structure and styling
-2. Replace ONLY the text content within appropriate elements
-3. DO NOT add, remove, or modify any CSS classes
-5. Maintain responsive design and layout
-6. Return ONLY the final HTML code without markdown formatting
+    🚨 CRITICAL REQUIREMENTS:
+    1. Preserve the EXACT HTML styling and CSS classes for the elements you keep.
+    2. Replace text content within appropriate elements with the provided CV data.
+    3. 🗑️ MISSING DATA RULE: If a section, field, or list item in the template has no corresponding information in the CV content, REMOVE that entire HTML element (and its parent container if necessary) from the final code. 
+    4. DO NOT leave empty headers, placeholders (e.g., "[Phone Number]"), or empty bullet points.
+    5. Maintain responsive design and layout for the remaining elements.
+    6. Return ONLY the final HTML code without markdown formatting.
 
-🔒 TEMPLATE STRUCTURE TO PRESERVE:
-${templateHtml}
+    🔒 TEMPLATE STRUCTURE:
+    ${templateHtml}
 
-📝 CV CONTENT TO INJECT:
-${cvText}
+    📝 CV CONTENT TO INJECT:
+    ${cvText}
 
-🎯 INSTRUCTIONS:
-- Replace placeholder text with CV content
-- Keep all HTML tags, classes, and attributes exactly as they are
-- Do not modify the structure or add any classes
-- Focus only on content replacement
+    🎯 INSTRUCTIONS:
+    - Map the CV content to the relevant parts of the template.
+    - If a whole section (like "Projects" or "Languages") is missing in the CV text, delete the entire section from the HTML.
+    - Keep all remaining HTML tags, classes, and attributes exactly as they are.
+    - Focus on a clean, professional result without empty spaces or missing data artifacts.
 
-Return ONLY the complete HTML code.`;
+    Return ONLY the complete HTML code.`;
 
     try {
       const response = await openrouter.chat.completions.create({
