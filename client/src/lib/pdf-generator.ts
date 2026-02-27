@@ -86,7 +86,10 @@ function shouldMoveToNextPage(element: HTMLElement, traceId: string): boolean {
   
   const bottomSafeBoundary = metrics.pageBottom - PAGE_BOTTOM_SAFE_PX;
   const crossesBoundary = metrics.nodeTop < bottomSafeBoundary && metrics.nodeBottom > bottomSafeBoundary;
-  const shouldMove = crossesBoundary && metrics.nodeTop > metrics.pageTop + 6;
+  
+  // More lenient condition - move if element starts after safe boundary
+  const startsAfterSafeBoundary = metrics.nodeTop >= bottomSafeBoundary;
+  const shouldMove = (crossesBoundary || startsAfterSafeBoundary) && metrics.nodeTop > metrics.pageTop + 6;
   
   if (DEBUG_MODE) {
     pdfLog(traceId, 'move-check', {
@@ -97,6 +100,7 @@ function shouldMoveToNextPage(element: HTMLElement, traceId: string): boolean {
       pageBottom: metrics.pageBottom,
       bottomSafeBoundary,
       crossesBoundary,
+      startsAfterSafeBoundary,
       shouldMove
     });
   }
@@ -232,27 +236,63 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
       align-items: center !important;
       justify-content: center !important;
       z-index: 999999 !important;
-      font-family: Arial, sans-serif !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+      backdrop-filter: blur(4px) !important;
     `;
     
     const statusContainer = document.createElement('div');
     statusContainer.style.cssText = `
       background: white !important;
-      padding: 20px !important;
-      border-radius: 8px !important;
+      padding: 32px !important;
+      border-radius: 16px !important;
       text-align: center !important;
       max-width: 400px !important;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
     `;
+    
+    // Add spinner
+    const spinner = document.createElement('div');
+    spinner.style.cssText = `
+      width: 40px !important;
+      height: 40px !important;
+      margin: 0 auto 20px auto !important;
+      border: 3px solid #f3f4f6 !important;
+      border-top: 3px solid #3b82f6 !important;
+      border-radius: 50% !important;
+      animation: spin 1s linear infinite !important;
+    `;
+    
+    // Add spinner keyframes
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
     
     const statusText = document.createElement('div');
-    statusText.textContent = 'Preparing PDF...';
+    statusText.textContent = 'Generating PDF...';
     statusText.style.cssText = `
-      font-size: 16px !important;
-      margin-bottom: 10px !important;
-      color: #333 !important;
+      font-size: 18px !important;
+      font-weight: 600 !important;
+      margin-bottom: 8px !important;
+      color: #1f2937 !important;
     `;
     
+    const subText = document.createElement('div');
+    subText.textContent = 'Please wait while we create your document';
+    subText.style.cssText = `
+      font-size: 14px !important;
+      color: #6b7280 !important;
+      margin-bottom: 0 !important;
+    `;
+    
+    statusContainer.appendChild(spinner);
     statusContainer.appendChild(statusText);
+    statusContainer.appendChild(subText);
     overlay.appendChild(statusContainer);
     document.body.appendChild(overlay);
     
@@ -269,10 +309,23 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
     
     document.body.appendChild(iframe);
     
-    // Setup iframe content
+    // Setup iframe content with html2pdf library
     const iframeDoc = iframe.contentDocument!;
     iframeDoc.open();
-    iframeDoc.write(html);
+    iframeDoc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+          <style>
+            body { margin: 0; padding: 0; }
+          </style>
+        </head>
+        <body>
+          ${html}
+        </body>
+      </html>
+    `);
     iframeDoc.close();
     
     // Wait for iframe to load
