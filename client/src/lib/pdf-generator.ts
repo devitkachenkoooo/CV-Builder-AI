@@ -186,14 +186,12 @@ function createPdfModal(
           const a4HeightPx = 1123;
           const pageTopGapPx = 50;
           const pageBottomSafePx = 50;
-          const pageBottomTriggerBandPx = 180;
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
           pdfLog(traceId, 'analysis:dimensions', {
             contentHeight,
             a4HeightPx,
             pageTopGapPx,
             pageBottomSafePx,
-            pageBottomTriggerBandPx,
             estimatedPages: numPages,
           });
 
@@ -362,12 +360,12 @@ function createPdfModal(
                 if (!metrics) return false;
                 const maxChunkHeight = a4HeightPx - pageTopGapPx - pageBottomSafePx;
                 if (metrics.nodeHeight > maxChunkHeight) return false;
-                const isInBottomTriggerBand =
-                  metrics.nodeTop >= (metrics.pageBottom - (pageBottomSafePx + pageBottomTriggerBandPx));
-                const entersBottomSafeZone = metrics.nodeBottom > (metrics.pageBottom - pageBottomSafePx);
+                const bottomSafeBoundary = metrics.pageBottom - pageBottomSafePx;
+                const crossesBottomSafeBoundary =
+                  metrics.nodeTop < bottomSafeBoundary &&
+                  metrics.nodeBottom > bottomSafeBoundary;
                 return (
-                  isInBottomTriggerBand &&
-                  entersBottomSafeZone &&
+                  crossesBottomSafeBoundary &&
                   metrics.nodeTop > metrics.pageTop + 6 &&
                   metrics.nodeTop < metrics.pageBottom - pageTopGapPx
                 );
@@ -421,6 +419,21 @@ function createPdfModal(
               const oversizedDirectBlocks = directBlocks.filter((block) => isOversized(block));
               pdfLog(traceId, 'flow:oversized-direct-blocks', { count: oversizedDirectBlocks.length });
 
+              const findInnerSplitCandidate = (node: HTMLElement, depth: number): HTMLElement | null => {
+                const children = collectChildren(node);
+                for (const child of children) {
+                  child.classList.add('pdf-keep-block');
+                  child.style.breakInside = 'avoid';
+                  child.style.pageBreakInside = 'avoid';
+                  if (shouldMoveNodeToNextPage(child)) return child;
+                  if (depth > 0 && isOversized(child)) {
+                    const nested = findInnerSplitCandidate(child, depth - 1);
+                    if (nested) return nested;
+                  }
+                }
+                return null;
+              };
+
               const maxPasses = 6;
               let directBreaks = 0;
               for (let pass = 0; pass < maxPasses; pass++) {
@@ -429,6 +442,21 @@ function createPdfModal(
                   if (shouldMoveNodeToNextPage(block)) {
                     if (markBreakBefore(block)) {
                       directBreaks++;
+                      changed = true;
+                    }
+                    continue;
+                  }
+
+                  // If a direct block is too large to move as a whole, split only inside it.
+                  const blockMetrics = getLayoutMetrics(block);
+                  if (!blockMetrics) continue;
+                  const bottomSafeBoundary = blockMetrics.pageBottom - pageBottomSafePx;
+                  const blockTouchesBottomSafe =
+                    blockMetrics.nodeTop < bottomSafeBoundary &&
+                    blockMetrics.nodeBottom > bottomSafeBoundary;
+                  if (isOversized(block) && blockTouchesBottomSafe) {
+                    const innerCandidate = findInnerSplitCandidate(block, 2);
+                    if (innerCandidate && markBreakBefore(innerCandidate)) {
                       changed = true;
                     }
                   }
