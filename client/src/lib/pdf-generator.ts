@@ -136,8 +136,8 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
 
           const contentHeight = target.scrollHeight;
           const a4HeightPx = 1123;
-          const pageTopGapPx = 70;
-          const pageBottomSafePx = 62;
+          const pageTopGapPx = 50;
+          const pageBottomSafePx = 50;
           const moveThresholdPx = 420;
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
           console.log(`[PDF] Content height: ${contentHeight}px, estimated pages: ${numPages}`);
@@ -192,6 +192,8 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
           target.style.top = '0';
           target.style.left = '0';
           target.style.transform = 'none';
+          target.style.paddingTop = `${pageTopGapPx}px`;
+          target.style.paddingBottom = `${pageBottomSafePx}px`;
           target.style.breakInside = 'auto';
           target.style.pageBreakInside = 'auto';
           target.style.display = 'flow-root'; // prevent margin-collapsing side effects in PDF layout
