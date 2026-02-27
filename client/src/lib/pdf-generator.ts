@@ -504,7 +504,7 @@ function createPdfModal(
               target.style.boxSizing = 'border-box';
               target.style.backgroundColor = bgColor;
               const fullPageCount = Math.max(1, Math.ceil(target.scrollHeight / a4HeightPx));
-              target.style.minHeight = `${Math.ceil(target.scrollHeight)}px`;
+              target.style.minHeight = `${fullPageCount * a4HeightPx}px`;
               doc.body.style.minHeight = target.style.minHeight;
               doc.documentElement.style.minHeight = target.style.minHeight;
               pdfLog(traceId, 'layout:final-height', {
