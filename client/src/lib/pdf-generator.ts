@@ -79,6 +79,59 @@ function debugLogBlockInfo(traceId: string, block: HTMLElement, metrics: any, ac
   });
 }
 
+// Auto-add pdf-flow-break classes to eligible blocks
+function autoAddPdfFlowBreakClasses(doc: Document, target: HTMLElement, traceId: string) {
+  pdfLog(traceId, 'debug:auto-add-classes-start');
+  
+  const main = target.querySelector('main') || target;
+  const sections = Array.from(main.querySelectorAll('section'));
+  
+  let totalAdded = 0;
+  
+  sections.forEach((section, sectionIndex) => {
+    pdfLog(traceId, `debug:processing-section-${sectionIndex}`, {
+      sectionId: section.id,
+      sectionClass: section.className,
+      childrenCount: section.children.length
+    });
+    
+    // Get direct children of section (excluding text nodes)
+    const directChildren = Array.from(section.children).filter(child => 
+      child.nodeType === 1 && // Element node
+      !['script', 'style'].includes(child.tagName.toLowerCase())
+    ) as HTMLElement[];
+    
+    directChildren.forEach((child, childIndex) => {
+      // Skip if already has pdf-flow-break class
+      if (child.classList.contains('pdf-flow-break')) {
+        pdfLog(traceId, `debug:child-already-has-class-${childIndex}`, {
+          tagName: child.tagName,
+          className: child.className
+        });
+        return;
+      }
+      
+      // Add pdf-flow-break class
+      child.classList.add('pdf-flow-break');
+      totalAdded++;
+      
+      pdfLog(traceId, `debug:added-class-to-child-${childIndex}`, {
+        tagName: child.tagName,
+        className: child.className,
+        textContent: child.textContent?.substring(0, 30) + '...',
+        newClasses: 'pdf-flow-break'
+      });
+    });
+  });
+  
+  pdfLog(traceId, 'debug:auto-add-classes-complete', {
+    sectionsProcessed: sections.length,
+    totalClassesAdded: totalAdded
+  });
+  
+  return totalAdded;
+}
+
 function isHtmlElementNode(node: unknown): node is HTMLElement {
   return Boolean(
     node &&
@@ -389,6 +442,10 @@ function createPdfModal(
             htmlBg,
             chosen: bgColor,
           });
+
+          // Auto-add pdf-flow-break classes to eligible blocks
+          const autoAddedClasses = autoAddPdfFlowBreakClasses(doc, target, traceId);
+          pdfLog(traceId, 'debug:auto-classes-added', { autoAddedClasses });
 
           // 3. Load Library
           const win = iframe.contentWindow as any;
