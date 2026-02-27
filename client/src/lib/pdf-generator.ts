@@ -138,7 +138,6 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
           const a4HeightPx = 1123;
           const pageTopGapPx = 50;
           const pageBottomSafePx = 50;
-          const moveThresholdPx = 420;
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
           console.log(`[PDF] Content height: ${contentHeight}px, estimated pages: ${numPages}`);
 
@@ -264,20 +263,33 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 child.style.pageBreakInside = 'auto';
               });
 
-              const shouldMoveNodeToNextPage = (node: HTMLElement) => {
+              const getLayoutMetrics = (node: HTMLElement) => {
                 const rect = node.getBoundingClientRect();
-                if (rect.height < 4) return false;
+                if (rect.height < 4) return null;
                 const containerRect = target.getBoundingClientRect();
                 const nodeTop = rect.top - containerRect.top;
                 const nodeBottom = rect.bottom - containerRect.top;
+                const pageIndex = Math.floor(nodeTop / a4HeightPx);
+                const pageTop = pageIndex * a4HeightPx;
                 const pageBottom = (Math.floor(nodeTop / a4HeightPx) + 1) * a4HeightPx;
-                const remainingOnPage = pageBottom - nodeTop;
-                const offsetInPage = nodeTop % a4HeightPx;
-                const isNearPageTop = offsetInPage <= pageTopGapPx + 16;
+                return {
+                  nodeTop,
+                  nodeBottom,
+                  nodeHeight: rect.height,
+                  pageTop,
+                  pageBottom,
+                };
+              };
+
+              const shouldMoveNodeToNextPage = (node: HTMLElement) => {
+                const metrics = getLayoutMetrics(node);
+                if (!metrics) return false;
+                const maxChunkHeight = a4HeightPx - pageTopGapPx - pageBottomSafePx;
+                if (metrics.nodeHeight > maxChunkHeight) return false;
                 return (
-                  nodeBottom > pageBottom - pageBottomSafePx &&
-                  remainingOnPage <= moveThresholdPx &&
-                  !isNearPageTop
+                  metrics.nodeBottom > metrics.pageBottom - pageBottomSafePx &&
+                  metrics.nodeTop > metrics.pageTop + 6 &&
+                  metrics.nodeTop < metrics.pageBottom - pageTopGapPx
                 );
               };
 
@@ -287,49 +299,47 @@ function createPdfModal(html: string, filename: string = 'resume.pdf'): void {
                 return true;
               };
 
-              // Unified split strategy: always decide breaks by smaller internal chunks.
-              const chunkSelectors = [
-                ':scope > section',
-                ':scope > article',
-                ':scope > div',
-                '.exp-item',
-                '.edu-item',
-                '.projects-item',
-                '.split-layout',
-                '.content-block',
-                '.sub-item',
-                '.item',
-                '.row',
-                '.item-row',
-                '.meta-col',
-                '.content-col',
-                'ul > li',
-                'ol > li',
-                'p'
-              ].join(', ');
+              // Flexible but deterministic strategy: split by levels from larger chunks to smaller ones.
+              const levels: Array<{ selector: string; maxBreaks: number }> = [
+                {
+                  selector: ':scope > section, :scope > article, :scope > div, :scope > .grid-container, :scope > .split-layout',
+                  maxBreaks: 8,
+                },
+                {
+                  selector: '.exp-item, .edu-item, .projects-item, .content-block, .sub-item, .item, .split-layout, .left-col > section, .right-col > section',
+                  maxBreaks: 14,
+                },
+                {
+                  selector: '.row, .item-row, .meta-col, .content-col, ul > li, ol > li, p',
+                  maxBreaks: 24,
+                },
+              ];
 
-              const maxSplitPasses = 10;
-              for (let pass = 0; pass < maxSplitPasses; pass++) {
-                let insertedThisPass = 0;
-                const splitCandidates = Array.from(flowRoot.querySelectorAll(chunkSelectors))
+              const findFirstOverflowCandidate = (selector: string): HTMLElement | null => {
+                const candidates = Array.from(flowRoot.querySelectorAll(selector))
                   .filter((el): el is HTMLElement => el instanceof HTMLElement)
-                  .filter((el) => !el.classList.contains('pdf-page-break-marker'))
+                  .filter((el) => !el.classList.contains('pdf-break-before'))
                   .filter((el) => el.offsetHeight > 8);
 
-                splitCandidates.forEach((candidate, index) => {
-                  if (index === 0) return;
+                for (const candidate of candidates) {
                   candidate.classList.add('pdf-keep-block');
                   candidate.style.breakInside = 'avoid';
                   candidate.style.pageBreakInside = 'avoid';
                   if (shouldMoveNodeToNextPage(candidate)) {
-                    if (markBreakBefore(candidate)) {
-                      insertedThisPass++;
-                    }
+                    return candidate;
                   }
-                });
+                }
 
-                if (insertedThisPass === 0) break;
-              }
+                return null;
+              };
+
+              levels.forEach((level) => {
+                for (let i = 0; i < level.maxBreaks; i++) {
+                  const candidate = findFirstOverflowCandidate(level.selector);
+                  if (!candidate) break;
+                  markBreakBefore(candidate);
+                }
+              });
 
               target.style.boxSizing = 'border-box';
               target.style.backgroundColor = bgColor;
