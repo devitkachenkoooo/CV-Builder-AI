@@ -418,6 +418,8 @@ function createPdfModal(
 
               const oversizedDirectBlocks = directBlocks.filter((block) => isOversized(block));
               pdfLog(traceId, 'flow:oversized-direct-blocks', { count: oversizedDirectBlocks.length });
+              const innerSplitMaxDepth = 4;
+              pdfLog(traceId, 'flow:inner-split-config', { innerSplitMaxDepth });
 
               const findInnerSplitCandidate = (node: HTMLElement, depth: number): HTMLElement | null => {
                 const children = collectChildren(node);
@@ -455,7 +457,7 @@ function createPdfModal(
                     blockMetrics.nodeTop < bottomSafeBoundary &&
                     blockMetrics.nodeBottom > bottomSafeBoundary;
                   if (isOversized(block) && blockTouchesBottomSafe) {
-                    const innerCandidate = findInnerSplitCandidate(block, 2);
+                    const innerCandidate = findInnerSplitCandidate(block, innerSplitMaxDepth);
                     if (innerCandidate && markBreakBefore(innerCandidate)) {
                       changed = true;
                     }
@@ -464,9 +466,68 @@ function createPdfModal(
                 pdfLog(traceId, 'flow:pass-complete', { pass: pass + 1, changed, directBreaks });
                 if (!changed) break;
               }
+
+              // Enforce page transitions for every page after the first.
+              const maxChunkHeight = a4HeightPx - pageTopGapPx - pageBottomSafePx;
+              const findBoundarySplitCandidate = (
+                node: HTMLElement,
+                boundaryY: number,
+                pageTop: number,
+                pageBottom: number,
+                depth: number,
+              ): HTMLElement | null => {
+                const children = collectChildren(node);
+                for (const child of children) {
+                  child.classList.add('pdf-keep-block');
+                  child.style.breakInside = 'avoid';
+                  child.style.pageBreakInside = 'avoid';
+
+                  const metrics = getLayoutMetrics(child);
+                  if (!metrics) continue;
+                  const crossesBoundary = metrics.nodeTop < boundaryY && metrics.nodeBottom > boundaryY;
+                  if (!crossesBoundary) continue;
+
+                  const canMoveWhole =
+                    metrics.nodeHeight <= maxChunkHeight &&
+                    metrics.nodeTop > pageTop + 6 &&
+                    metrics.nodeTop < pageBottom - pageTopGapPx;
+                  if (canMoveWhole) return child;
+
+                  if (depth > 0) {
+                    const nested = findBoundarySplitCandidate(child, boundaryY, pageTop, pageBottom, depth - 1);
+                    if (nested) return nested;
+                  }
+                }
+                return null;
+              };
+
+              let boundaryBreaks = 0;
+              const boundaryPasses = 2;
+              for (let pass = 0; pass < boundaryPasses; pass++) {
+                let passInserted = 0;
+                const pagesNow = Math.max(1, Math.ceil((target.scrollHeight + pageBottomSafePx) / a4HeightPx));
+                for (let page = 1; page < pagesNow; page++) {
+                  const pageTop = (page - 1) * a4HeightPx;
+                  const pageBottom = page * a4HeightPx;
+                  const boundaryY = pageBottom - pageBottomSafePx;
+                  const candidate = findBoundarySplitCandidate(flowRoot, boundaryY, pageTop, pageBottom, 4);
+                  if (candidate && markBreakBefore(candidate)) {
+                    passInserted++;
+                    boundaryBreaks++;
+                  }
+                }
+                pdfLog(traceId, 'flow:boundary-pass', { pass: pass + 1, inserted: passInserted, totalBoundaryBreaks: boundaryBreaks });
+                if (passInserted === 0) break;
+              }
               const totalBreaks = flowRoot.querySelectorAll('.pdf-page-break-marker').length;
               const totalKeepBlocks = flowRoot.querySelectorAll('.pdf-keep-block').length;
-              pdfLog(traceId, 'flow:summary', { totalBreaks, totalKeepBlocks, directBreaks, oversizedDirectBlocks: oversizedDirectBlocks.length });
+              pdfLog(traceId, 'flow:summary', {
+                totalBreaks,
+                totalKeepBlocks,
+                directBreaks,
+                boundaryBreaks,
+                oversizedDirectBlocks: oversizedDirectBlocks.length,
+              });
               const markerNodes = Array.from(flowRoot.querySelectorAll('.pdf-page-break-marker'))
                 .filter((el): el is HTMLElement => isHtmlElementNode(el));
               const markerMetrics = markerNodes.slice(0, 5).map((marker, idx) => {
