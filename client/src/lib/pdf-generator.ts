@@ -39,31 +39,7 @@ function pdfLog(traceId: string, step: string, details?: Record<string, unknown>
   console.log(`[PDF][${PDF_TRACE_VERSION}][${traceId}] ${step}`);
 }
 
-// Debug visual functions
-function debugHighlightBlock(node: HTMLElement, color: string, opacity: number = 0.3) {
-  if (!DEBUG_MODE) return;
-  node.style.backgroundColor = color;
-  node.style.opacity = opacity.toString();
-  node.style.border = `2px solid ${color}`;
-  node.style.transition = 'all 0.3s ease';
-}
-
-function debugHighlightBoundary(doc: Document, y: number, width: number, color: string) {
-  if (!DEBUG_MODE) return;
-  const boundary = doc.createElement('div');
-  boundary.style.cssText = `
-    position: absolute;
-    top: ${y}px;
-    left: 0;
-    width: ${width}px;
-    height: 2px;
-    background-color: ${color};
-    z-index: 9999;
-    pointer-events: none;
-  `;
-  doc.body.appendChild(boundary);
-}
-
+// Debug logging function
 function debugLogBlockInfo(traceId: string, block: HTMLElement, metrics: any, action: string) {
   if (!DEBUG_MODE) return;
   pdfLog(traceId, `debug:${action}`, {
@@ -394,29 +370,6 @@ function createPdfModal(
               break-inside: avoid !important;
               page-break-inside: avoid !important;
             }
-            ${DEBUG_MODE ? `
-            /* Debug styles */
-            .pdf-debug-boundary-safe {
-              position: absolute;
-              background: rgba(0, 255, 0, 0.2) !important;
-              z-index: 9998 !important;
-              pointer-events: none !important;
-            }
-            .pdf-debug-boundary-unsafe {
-              position: absolute;
-              background: rgba(255, 0, 0, 0.2) !important;
-              z-index: 9998 !important;
-              pointer-events: none !important;
-            }
-            .pdf-debug-candidate {
-              background: rgba(255, 0, 0, 0.3) !important;
-              border: 2px solid red !important;
-            }
-            .pdf-debug-moved {
-              background: rgba(0, 255, 0, 0.3) !important;
-              border: 2px solid green !important;
-            }
-            ` : ''}
           `;
           doc.head.appendChild(normalizeStyle);
 
@@ -547,27 +500,27 @@ function createPdfModal(
                   metrics.nodeBottom > bottomSafeBoundary;
                 
                 const shouldMove = crossesBottomSafeBoundary &&
-                  metrics.nodeTop > metrics.pageTop + 6 &&
-                  metrics.nodeTop < metrics.pageBottom - pageTopGapPx;
+                  metrics.nodeTop > metrics.pageTop + 6;
+                // Removed: metrics.nodeTop < metrics.pageBottom - pageTopGapPx
+                
+                pdfLog(traceId, 'debug:shouldMove-decision-detailed', {
+                  tagName: node.tagName,
+                  nodeTop: metrics.nodeTop,
+                  nodeBottom: metrics.nodeBottom,
+                  pageTop: metrics.pageTop,
+                  pageBottom: metrics.pageBottom,
+                  bottomSafeBoundary,
+                  crossesBottomSafeBoundary,
+                  nodeTopAboveMin: metrics.nodeTop > metrics.pageTop + 6,
+                  shouldMove,
+                  nodeHeight: metrics.nodeHeight,
+                  maxChunkHeight
+                });
                 
                 // Debug logging
                 debugLogBlockInfo(traceId, node, metrics, shouldMove ? 'WILL_MOVE' : 'WILL_STAY');
                 
-                // Visual debugging
-                if (DEBUG_MODE) {
-                  // Highlight the block
-                  debugHighlightBlock(node, shouldMove ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)');
-                  
-                  // Draw boundary line
-                  debugHighlightBoundary(doc, bottomSafeBoundary, targetWidth, 'rgba(0, 255, 0, 0.5)');
-                  
-                  // Add debug class
-                  if (shouldMove) {
-                    node.classList.add('pdf-debug-moved');
-                  } else {
-                    node.classList.add('pdf-debug-candidate');
-                  }
-                }
+                // Removed visual highlighting - only logging now
                 
                 pdfLog(traceId, 'debug:shouldMove-decision', {
                   tagName: node.tagName,
@@ -688,21 +641,12 @@ function createPdfModal(
                 targetHeight: target.scrollHeight
               });
               
-              // Draw page boundaries for debugging
+              // Draw page boundaries for debugging - removed visual highlighting
               if (DEBUG_MODE) {
                 const pagesNow = Math.max(1, Math.ceil(target.scrollHeight / a4HeightPx));
                 pdfLog(traceId, 'debug:drawing-page-boundaries', { pagesNow });
                 
-                for (let page = 0; page < pagesNow; page++) {
-                  const pageTop = page * a4HeightPx;
-                  const pageBottom = (page + 1) * a4HeightPx;
-                  const bottomSafeBoundary = pageBottom - pageBottomSafePx;
-                  
-                  // Draw page boundaries
-                  debugHighlightBoundary(doc, pageTop, targetWidth, 'rgba(0, 0, 255, 0.3)');
-                  debugHighlightBoundary(doc, pageBottom, targetWidth, 'rgba(0, 0, 255, 0.3)');
-                  debugHighlightBoundary(doc, bottomSafeBoundary, targetWidth, 'rgba(0, 255, 0, 0.5)');
-                }
+                // Removed visual boundaries - only logging now
               }
               
               for (let pass = 0; pass < maxPasses; pass++) {
@@ -756,8 +700,8 @@ function createPdfModal(
 
                   const canMoveWhole =
                     metrics.nodeHeight <= maxChunkHeight &&
-                    metrics.nodeTop > pageTop + 6 &&
-                    metrics.nodeTop < pageBottom - pageTopGapPx;
+                    metrics.nodeTop > pageTop + 6;
+                    // Removed: metrics.nodeTop < pageBottom - pageTopGapPx
                   
                   // Debug logging and visual highlighting for boundary split candidates
                   if (DEBUG_MODE) {
@@ -769,8 +713,7 @@ function createPdfModal(
                       canMoveWhole
                     }, canMoveWhole ? 'BOUNDARY_WILL_MOVE' : 'BOUNDARY_WILL_STAY');
                     
-                    // Highlight the block for boundary analysis
-                    debugHighlightBlock(child, canMoveWhole ? 'rgba(0, 150, 255, 0.3)' : 'rgba(255, 150, 0, 0.3)');
+                    // Removed visual highlighting - only logging now
                   }
                   
                   if (canMoveWhole) return child;
@@ -789,9 +732,8 @@ function createPdfModal(
                   const pageBottom = page * a4HeightPx;
                   const boundaryY = pageBottom - pageBottomSafePx;
                   
-                  // Debug: highlight boundary for this page
+                  // Debug: highlight boundary for this page - removed visual highlighting
                   if (DEBUG_MODE) {
-                    debugHighlightBoundary(doc, boundaryY, targetWidth, 'rgba(255, 255, 0, 0.7)'); // Yellow for boundary
                     pdfLog(traceId, `debug:boundary-analysis-page-${page}`, {
                       page,
                       pageTop,
@@ -799,6 +741,8 @@ function createPdfModal(
                       boundaryY,
                       candidatesCount: candidates.length
                     });
+                    
+                    // Removed visual boundary - only logging now
                   }
                   
                   const candidate = findBoundarySplitCandidate(candidates, boundaryY, pageTop, pageBottom);
@@ -904,6 +848,15 @@ function createPdfModal(
                 const lastPageTop = fullPages * a4HeightPx;
                 const lastPageHeight = totalHeight - lastPageTop;
                 
+                pdfLog(traceId, 'debug:last-page-analysis', {
+                  totalHeight,
+                  fullPages,
+                  lastPageTop,
+                  lastPageHeight,
+                  a4HeightPx,
+                  needsSpacer: lastPageHeight > 0 && lastPageHeight < a4HeightPx
+                });
+                
                 // Always ensure last page has full background, regardless of content height
                 if (lastPageHeight > 0 && lastPageHeight < a4HeightPx) {
                   const spacer = doc.createElement('div');
@@ -919,23 +872,26 @@ function createPdfModal(
                     margin: 0 !important;
                     padding: 0 !important;
                     box-sizing: border-box !important;
-                    visibility: hidden !important;
-                    pointer-events: none !important;
+                    ${DEBUG_MODE ? `border: 2px dashed rgba(255, 255, 255, 0.5) !important; position: relative !important;` : ''}
                   `;
+                  
+                  // Add debug content in debug mode
+                  if (DEBUG_MODE) {
+                    spacer.innerHTML = `<div style="position: absolute; top: 10px; left: 10px; color: white; font-size: 12px; background: rgba(0, 0, 0, 0.7); padding: 2px; border: 1px solid rgba(255, 255, 255, 0.5);">SPACER: ${spacerHeight}px</div>`;
+                  }
                   
                   target.appendChild(spacer);
                   
-                  if (DEBUG_MODE) {
-                    pdfLog(traceId, 'debug:last-page-spacer-added', {
-                      totalHeight,
-                      fullPages,
-                      lastPageTop,
-                      lastPageHeight,
-                      spacerHeight,
-                      totalHeightAfter: target.scrollHeight,
-                      reason: 'Ensure full page background'
-                    });
-                  }
+                  pdfLog(traceId, 'debug:last-page-spacer-added', {
+                    totalHeight,
+                    fullPages,
+                    lastPageTop,
+                    lastPageHeight,
+                    spacerHeight,
+                    totalHeightAfter: target.scrollHeight,
+                    reason: 'Ensure full page background',
+                    debugMode: DEBUG_MODE
+                  });
                 }
               };
               
