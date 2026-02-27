@@ -15,601 +15,378 @@ interface PdfFromElementOptions {
   onLoadingChange?: (loading: boolean) => void;
 }
 
-const PDF_TRACE_VERSION = 'v-clean';
-const BREAK_CANDIDATE_CLASS = 'pdf-flow-break';
-const DEBUG_MODE = true;
-
-// Constants for PDF generation
+// ─── Constants ────────────────────────────────────────────────────────────────
 const A4_HEIGHT_PX = 1123;
-const PAGE_TOP_GAP_PX = 60;
-const PAGE_BOTTOM_SAFE_PX = 80;
+const PAGE_BOTTOM_SAFE_PX = 80;  // safe zone: 80px from bottom before forcing break
+const PAGE_TOP_PADDING_PX = 60;  // padding added at the top of content on a new page
 
-function makeTraceId(): string {
-  return `pdf-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function pdfLog(traceId: string, step: string, details?: Record<string, unknown>) {
-  if (details) {
-    console.log(`[PDF][${PDF_TRACE_VERSION}][${traceId}] ${step}`, details);
-    return;
+/**
+ * Get an element's top offset relative to a given ancestor container.
+ * Uses offsetTop chain — works correctly regardless of iframe position on screen,
+ * unlike getBoundingClientRect() which is viewport-relative.
+ */
+function getOffsetTopFromContainer(element: HTMLElement, container: HTMLElement): number {
+  let top = 0;
+  let el: HTMLElement | null = element;
+  while (el && el !== container) {
+    top += el.offsetTop;
+    el = el.offsetParent as HTMLElement | null;
   }
-  console.log(`[PDF][${PDF_TRACE_VERSION}][${traceId}] ${step}`);
+  return top;
 }
 
-// Auto-add pdf-flow-break classes to main > * > * (direct grandchildren of main)
-function autoAddPdfFlowBreakClasses(doc: Document, target: HTMLElement, traceId: string) {
-  pdfLog(traceId, 'auto-add:start');
-
-  const main = target.querySelector('main') || target;
-  // Get direct children of main (e.g., sections or columns)
-  const mainChildren = Array.from(main.children).filter(child =>
-    child.nodeType === 1 && !['script', 'style'].includes(child.tagName.toLowerCase())
-  ) as HTMLElement[];
-
-  let totalAdded = 0;
-
-  mainChildren.forEach((parentBlock, parentIndex) => {
-    // Get direct children of each parent block (grandchildren of main)
-    const blocks = Array.from(parentBlock.children).filter(child =>
-      child.nodeType === 1 && !['script', 'style'].includes(child.tagName.toLowerCase())
-    ) as HTMLElement[];
-
-    blocks.forEach((block, blockIndex) => {
-      if (!block.classList.contains('pdf-flow-break')) {
-        block.classList.add('pdf-flow-break');
-        totalAdded++;
-        pdfLog(traceId, `auto-add:added-${parentIndex}-${blockIndex}`, {
-          tagName: block.tagName,
-          className: block.className
-        });
-      }
-    });
-  });
-
-  pdfLog(traceId, 'auto-add:complete', { parentBlocksProcessed: mainChildren.length, totalClassesAdded: totalAdded });
-  return totalAdded;
-}
-
-// Get layout metrics for an element — must pass the correct window context (iframe or main)
-function getLayoutMetrics(element: HTMLElement, win: Window = window) {
-  const rect = element.getBoundingClientRect();
-  const scrollTop = win.pageYOffset || win.document.documentElement.scrollTop;
-
-  return {
-    nodeTop: rect.top + scrollTop,
-    nodeBottom: rect.bottom + scrollTop,
-    nodeHeight: rect.height,
-    pageTop: Math.floor((rect.top + scrollTop) / A4_HEIGHT_PX) * A4_HEIGHT_PX,
-    pageBottom: Math.ceil((rect.top + scrollTop) / A4_HEIGHT_PX) * A4_HEIGHT_PX
-  };
-}
-
-// Check if element should be moved to next page
-function shouldMoveToNextPage(element: HTMLElement, win: Window, traceId: string): boolean {
-  const metrics = getLayoutMetrics(element, win);
-  if (!metrics) return false;
-
-  // Calculate which page we are currently on based on nodeTop
-  const currentPageIndex = Math.floor(metrics.nodeTop / A4_HEIGHT_PX);
-  const currentPageBottom = (currentPageIndex + 1) * A4_HEIGHT_PX;
-  const bottomSafeBoundary = currentPageBottom - PAGE_BOTTOM_SAFE_PX;
-
-  // Relative position within current page
-  const relTop = metrics.nodeTop % A4_HEIGHT_PX;
-
-  // Element is at top of a page if its relative position is small.
-  // Use PAGE_TOP_GAP_PX + a buffer so that freshly-moved elements (with padding-top) aren't re-evaluated
-  const isAlreadyAtTop = relTop < (PAGE_TOP_GAP_PX + 20);
-  const crossesSafeBoundary = metrics.nodeBottom > bottomSafeBoundary;
-
-  const shouldMove = crossesSafeBoundary && !isAlreadyAtTop;
-
-  if (DEBUG_MODE) {
-    pdfLog(traceId, 'move-debug', {
-      tagName: element.tagName,
-      nodeTop: Math.round(metrics.nodeTop),
-      nodeBottom: Math.round(metrics.nodeBottom),
-      relTop: Math.round(relTop),
-      currentPageIndex,
-      currentPageBottom,
-      bottomSafeBoundary,
-      isAlreadyAtTop,
-      shouldMove
-    });
+/**
+ * Get all direct grandchildren of main inside the container (main > * > *).
+ * These are the only elements that are candidates for page breaks.
+ */
+function getBreakCandidates(container: HTMLElement): HTMLElement[] {
+  const main = container.querySelector('main') as HTMLElement | null;
+  if (!main) {
+    console.warn('[PDF] No <main> element found inside container. Falling back to container children.');
+    return [];
   }
 
-  return shouldMove;
+  const candidates: HTMLElement[] = [];
+  const skipTags = new Set(['script', 'style', 'link', 'meta']);
+
+  for (const parent of Array.from(main.children)) {
+    if (skipTags.has(parent.tagName.toLowerCase())) continue;
+    for (const child of Array.from(parent.children)) {
+      if (skipTags.has(child.tagName.toLowerCase())) continue;
+      candidates.push(child as HTMLElement);
+    }
+  }
+
+  console.log(`[PDF] Break candidates (main > * > *): ${candidates.length}`);
+  return candidates;
 }
 
-// Add page break marker before element
-function addPageBreakMarker(doc: Document, element: HTMLElement, bgColor: string, traceId: string): boolean {
-  const parent = element.parentNode;
-  if (!parent || parent.nodeType !== 1) return false;
+/**
+ * Insert page-break markers before blocks that overflow the safe zone and
+ * add top padding to those blocks so content starts properly on the new page.
+ *
+ * Uses offsetTop so calculation is independent of iframe's screen position.
+ */
+function insertPageBreaks(doc: Document, container: HTMLElement): void {
+  // Force layout to stabilize before measuring
+  container.offsetHeight; // eslint-disable-line @typescript-eslint/no-unused-expressions
 
-  const marker = doc.createElement('div');
-  marker.className = 'pdf-page-break-marker';
-  marker.innerHTML = '&nbsp;';
+  const candidates = getBreakCandidates(container);
 
-  // 1px transparent marker that forces a page break
-  marker.style.cssText = `
-    background-color: transparent !important;
-    height: 1px !important;
-    min-height: 1px !important;
-    display: block !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    box-sizing: border-box !important;
-    line-height: 0 !important;
-    font-size: 0 !important;
-    break-before: page !important;
-    page-break-before: always !important;
-  `;
+  for (const block of candidates) {
+    // Measure position relative to container
+    const blockTop = getOffsetTopFromContainer(block, container);
+    const blockBottom = blockTop + block.offsetHeight;
 
-  parent.insertBefore(marker, element);
+    // Which A4 page does the top of this block land on?
+    const pageIndex = Math.floor(blockTop / A4_HEIGHT_PX);
+    const pageStart = pageIndex * A4_HEIGHT_PX;
+    const pageEnd = (pageIndex + 1) * A4_HEIGHT_PX;
+    const safeEnd = pageEnd - PAGE_BOTTOM_SAFE_PX;
 
-  // Apply top gap to the element itself so content starts with padding on new page
-  element.classList.add('pdf-break-after-marker');
-  element.style.setProperty('padding-top', `${PAGE_TOP_GAP_PX}px`, 'important');
-  element.style.setProperty('margin-top', '0px', 'important');
+    const isAtTopOfPage = (blockTop - pageStart) < PAGE_TOP_PADDING_PX + 10;
+    const crossesSafeZone = blockBottom > safeEnd;
 
-  pdfLog(traceId, 'marker-added', {
-    tagName: element.tagName,
-    paddingTop: PAGE_TOP_GAP_PX
-  });
+    console.log(`[PDF] block`, {
+      tag: block.tagName,
+      class: block.className.split(' ').find(c => c),
+      blockTop: Math.round(blockTop),
+      blockBottom: Math.round(blockBottom),
+      pageEnd,
+      safeEnd,
+      isAtTopOfPage,
+      crossesSafeZone,
+      decision: crossesSafeZone && !isAtTopOfPage ? '→ BREAK' : '→ stay'
+    });
 
-  return true;
+    if (crossesSafeZone && !isAtTopOfPage) {
+      // Insert an invisible page-break marker before the block
+      const marker = doc.createElement('div');
+      marker.className = 'pdf-page-break';
+      marker.style.cssText = [
+        'display: block !important',
+        'height: 0 !important',
+        'min-height: 0 !important',
+        'overflow: hidden !important',
+        'line-height: 0 !important',
+        'font-size: 0 !important',
+        'margin: 0 !important',
+        'padding: 0 !important',
+        'page-break-before: always !important',
+        'break-before: page !important',
+      ].join('; ');
+
+      block.parentNode!.insertBefore(marker, block);
+
+      // Add top padding to the block so it doesn't slam into the top of the new page
+      block.style.setProperty('padding-top', `${PAGE_TOP_PADDING_PX}px`, 'important');
+      block.style.setProperty('margin-top', '0', 'important');
+    }
+  }
 }
 
-// Ensure the container fills integer number of A4 pages with background color
-function ensureFullPageBackgrounds(doc: Document, target: HTMLElement, bgColor: string, traceId: string) {
-  const totalHeight = target.scrollHeight;
-  // Use a small epsilon (5px) to avoid adding an entire page for a tiny overflow
-  const pageCount = Math.ceil((totalHeight - 5) / A4_HEIGHT_PX);
+/**
+ * Ensure the container's min-height is an exact multiple of A4_HEIGHT_PX
+ * so the last (possibly short) page gets a full-color background.
+ * Also paints html, body, and container with the background color.
+ */
+function fillLastPageBackground(doc: Document, container: HTMLElement, bgColor: string): void {
+  const totalHeight = container.scrollHeight;
+  const pageCount = Math.ceil(totalHeight / A4_HEIGHT_PX);
   const targetHeight = pageCount * A4_HEIGHT_PX;
 
-  pdfLog(traceId, 'background-fill-check', {
-    totalHeight,
-    pageCount,
-    targetHeight,
-    diff: targetHeight - totalHeight
-  });
+  console.log(`[PDF] Background fill`, { totalHeight, pageCount, targetHeight, bgColor });
 
-  // Always ensure background color is applied globally
-  target.style.setProperty('background-color', bgColor, 'important');
+  // Always paint globally
+  container.style.setProperty('background-color', bgColor, 'important');
   doc.documentElement.style.setProperty('background-color', bgColor, 'important');
   doc.body.style.setProperty('background-color', bgColor, 'important');
 
+  // Stretch to fill the last page
   if (targetHeight > totalHeight) {
-    target.style.setProperty('min-height', `${targetHeight}px`, 'important');
-    pdfLog(traceId, 'min-height-applied', { minHeight: targetHeight, bgColor });
+    container.style.setProperty('min-height', `${targetHeight}px`, 'important');
   }
 }
 
-// Main PDF generation from URL
+// ─── Common PDF options ───────────────────────────────────────────────────────
+function buildPdfOptions(filename: string, bgColor: string, windowWidth: number) {
+  return {
+    margin: 0,
+    filename,
+    pagebreak: {
+      // Only use CSS-driven breaks via our .pdf-page-break markers
+      mode: ['css'] as any,
+      before: ['.pdf-page-break'],
+    },
+    image: { type: 'jpeg' as const, quality: 0.98 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: bgColor,
+      width: windowWidth,
+      windowWidth,
+      logging: false,
+    },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const, compress: true },
+  };
+}
+
+// ─── Overlay / spinner UI ────────────────────────────────────────────────────
+
+function createLoadingOverlay() {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position: fixed !important;
+    top: 0 !important; left: 0 !important;
+    width: 100% !important; height: 100% !important;
+    background: rgba(0,0,0,0.8) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 999999 !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    backdrop-filter: blur(4px) !important;
+  `;
+
+  const box = document.createElement('div');
+  box.style.cssText = `
+    background: white !important;
+    padding: 32px !important;
+    border-radius: 16px !important;
+    text-align: center !important;
+    max-width: 400px !important;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,.1) !important;
+  `;
+
+  const spinStyle = document.createElement('style');
+  spinStyle.textContent = `@keyframes _pdf_spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }`;
+  document.head.appendChild(spinStyle);
+
+  const spinner = document.createElement('div');
+  spinner.style.cssText = `
+    width:40px !important; height:40px !important;
+    margin: 0 auto 20px auto !important;
+    border: 3px solid #f3f4f6 !important;
+    border-top: 3px solid #3b82f6 !important;
+    border-radius: 50% !important;
+    animation: _pdf_spin 1s linear infinite !important;
+  `;
+
+  const statusText = document.createElement('div');
+  statusText.textContent = 'Generating PDF...';
+  statusText.style.cssText = `font-size:18px !important; font-weight:600 !important; margin-bottom:8px !important; color:#1f2937 !important;`;
+
+  const subText = document.createElement('div');
+  subText.textContent = 'Please wait while we create your document';
+  subText.style.cssText = `font-size:14px !important; color:#6b7280 !important;`;
+
+  box.appendChild(spinner);
+  box.appendChild(statusText);
+  box.appendChild(subText);
+  overlay.appendChild(box);
+
+  return { overlay, statusText, spinStyle };
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
 export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<void> {
   const { url, htmlContent, filename = 'document.pdf', onLoadingChange, windowWidth = 794 } = options;
 
-  if (!url && !htmlContent) {
-    throw new Error('Either url or htmlContent must be provided');
+  if (!url && !htmlContent) throw new Error('Either url or htmlContent must be provided');
+
+  onLoadingChange?.(true);
+
+  // Fetch HTML
+  let html: string;
+  if (url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
+    html = await res.text();
+  } else {
+    html = htmlContent!;
   }
 
-  const traceId = makeTraceId();
-  pdfLog(traceId, 'start', { url: !!url, htmlContent: !!htmlContent, filename });
+  const { overlay, statusText, spinStyle } = createLoadingOverlay();
+  document.body.appendChild(overlay);
 
-  try {
-    onLoadingChange?.(true);
+  // Create offscreen iframe — give it a large height so layout is correct
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = `
+    position: fixed !important;
+    top: 0 !important;
+    left: -${windowWidth + 100}px !important;
+    width: ${windowWidth}px !important;
+    height: ${A4_HEIGHT_PX * 20}px !important;
+    border: none !important;
+    visibility: hidden !important;
+  `;
+  document.body.appendChild(iframe);
 
-    // Fetch HTML content
-    let html: string;
-    if (url) {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
-      html = await response.text();
-    } else {
-      html = htmlContent!;
-    }
+  const iframeDoc = iframe.contentDocument!;
+  iframeDoc.open();
+  iframeDoc.write(`<!DOCTYPE html><html><head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>html,body{margin:0;padding:0;}</style>
+  </head><body>${html}</body></html>`);
+  iframeDoc.close();
 
-    pdfLog(traceId, 'content-loaded', { htmlLength: html.length });
+  iframe.onload = () => {
+    // Wait for fonts / images to settle
+    setTimeout(() => {
+      try {
+        const iframeWindow = iframe.contentWindow!;
 
-    // Create modal overlay
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
-      background: rgba(0, 0, 0, 0.8) !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      z-index: 999999 !important;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-      backdrop-filter: blur(4px) !important;
-    `;
+        // Find the container
+        const container = iframeDoc.querySelector('.container') as HTMLElement | null;
+        if (!container) throw new Error('No .container element found in template');
 
-    const statusContainer = document.createElement('div');
-    statusContainer.style.cssText = `
-      background: white !important;
-      padding: 32px !important;
-      border-radius: 16px !important;
-      text-align: center !important;
-      max-width: 400px !important;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
-      border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    `;
+        // Lock width before measuring  
+        container.style.setProperty('width', '210mm', 'important');
+        container.style.setProperty('max-width', '210mm', 'important');
+        container.style.setProperty('margin', '0', 'important');
+        container.style.setProperty('box-shadow', 'none', 'important');
+        container.style.setProperty('border', 'none', 'important');
 
-    // Add spinner
-    const spinner = document.createElement('div');
-    spinner.style.cssText = `
-      width: 40px !important;
-      height: 40px !important;
-      margin: 0 auto 20px auto !important;
-      border: 3px solid #f3f4f6 !important;
-      border-top: 3px solid #3b82f6 !important;
-      border-radius: 50% !important;
-      animation: spin 1s linear infinite !important;
-    `;
+        // Force a layout reflow
+        void container.offsetHeight;
 
-    // Add spinner keyframes
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    `;
-    document.head.appendChild(style);
+        // Get background color before we mutate anything
+        const bgColor = iframeWindow.getComputedStyle(container).backgroundColor || '#ffffff';
 
-    const statusText = document.createElement('div');
-    statusText.textContent = 'Generating PDF...';
-    statusText.style.cssText = `
-      font-size: 18px !important;
-      font-weight: 600 !important;
-      margin-bottom: 8px !important;
-      color: #1f2937 !important;
-    `;
+        console.log(`[PDF] Container found. Height=${container.scrollHeight}px  bgColor=${bgColor}`);
 
-    const subText = document.createElement('div');
-    subText.textContent = 'Please wait while we create your document';
-    subText.style.cssText = `
-      font-size: 14px !important;
-      color: #6b7280 !important;
-      margin-bottom: 0 !important;
-    `;
-
-    statusContainer.appendChild(spinner);
-    statusContainer.appendChild(statusText);
-    statusContainer.appendChild(subText);
-    overlay.appendChild(statusContainer);
-    document.body.appendChild(overlay);
-
-    // Create iframe for rendering with large height to avoid clipping during measurement
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = `
-      position: absolute !important;
-      top: -9999px !important;
-      left: -9999px !important;
-      width: ${windowWidth}px !important;
-      height: 8000px !important;
-      border: none !important;
-      overflow: hidden !important;
-    `;
-
-    document.body.appendChild(iframe);
-
-    // Setup iframe content with html2pdf library
-    const iframeDoc = iframe.contentDocument!;
-    iframeDoc.open();
-    iframeDoc.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-          <style>
-            body { margin: 0; padding: 0; }
-          </style>
-        </head>
-        <body>
-          ${html}
-        </body>
-      </html>
-    `);
-    iframeDoc.close();
-
-    // Wait for iframe to load
-    iframe.onload = () => {
-      setTimeout(() => {
-        try {
-          const iframeWindow = iframe.contentWindow!;
-          const iframeDoc = iframe.contentDocument!;
-
-          // Get target element
-          const target = iframeDoc.querySelector('.container') as HTMLElement;
-          if (!target) throw new Error('Target element not found');
-
-          // Set final width immediately to ensure stable layout before metrics
-          target.style.width = '210mm';
-          target.style.maxWidth = '210mm';
-          target.style.margin = '0 auto';
-          target.style.boxSizing = 'border-box';
-
-          // Get background color
-          const computedStyle = iframeWindow.getComputedStyle(target);
-          const bgColor = computedStyle.backgroundColor || 'rgb(255, 255, 255)';
-
-          pdfLog(traceId, 'target-found', {
-            tagName: target.tagName,
-            contentHeight: target.scrollHeight,
-            bgColor,
-            windowWidth
-          });
-
-          // Auto-add pdf-flow-break classes
-          autoAddPdfFlowBreakClasses(iframeDoc, target, traceId);
-
-          // Add CSS for PDF generation
-          const style = iframeDoc.createElement('style');
-          style.textContent = `
-            .pdf-break-after-marker {
-              padding-top: ${PAGE_TOP_GAP_PX}px !important;
-              margin-top: 0 !important;
-              box-sizing: border-box !important;
-            }
-            .pdf-page-break-marker {
-              background-color: transparent !important;
-              height: 1px !important;
-              page-break-before: always !important;
-            }
-            /* Prevent breaking inside flow-break elements */
-            .pdf-flow-break {
-              break-inside: avoid !important;
-              page-break-inside: avoid !important;
-            }
-            /* Allow breaking between flow-break elements */
-            .pdf-flow-break + .pdf-flow-break {
-              break-before: auto !important;
-              page-break-before: auto !important;
-            }
-          `;
-          iframeDoc.head.appendChild(style);
-
-          // Process page breaks
-          const candidates = Array.from(target.querySelectorAll('.pdf-flow-break')) as HTMLElement[];
-          pdfLog(traceId, 'processing-breaks', { candidatesCount: candidates.length });
-
-          // Debug: show all candidates before processing
-          candidates.forEach((candidate, index) => {
-            const metrics = getLayoutMetrics(candidate);
-            pdfLog(traceId, `candidate-before-${index}`, {
-              tagName: candidate.tagName,
-              nodeTop: metrics?.nodeTop,
-              nodeBottom: metrics?.nodeBottom,
-              className: candidate.className,
-              textContent: candidate.textContent?.substring(0, 30) + '...'
-            });
-          });
-
-          let breaksAdded = 0;
-          // Process candidates one by one and RECALCULATE positions after each break
-          for (let i = 0; i < candidates.length; i++) {
-            const element = candidates[i];
-
-            // Critical: get fresh metrics for every check because previous breaks shift elements
-            if (shouldMoveToNextPage(element, iframeWindow, traceId)) {
-              pdfLog(traceId, `processing-candidate-${i}`, {
-                tagName: element.tagName,
-                willMove: true,
-                breaksSoFar: breaksAdded
-              });
-
-              if (addPageBreakMarker(iframeDoc, element, bgColor, traceId)) {
-                breaksAdded++;
-              }
-            }
+        // Add CSS guardrails
+        const css = iframeDoc.createElement('style');
+        css.textContent = `
+          /* Elements that received a page-top gap */
+          .pdf-page-break + * {
+            /* padding already applied inline */
           }
+        `;
+        iframeDoc.head.appendChild(css);
 
-          pdfLog(traceId, 'breaks-complete', { breaksAdded });
+        // ── Core logic ──
+        insertPageBreaks(iframeDoc, container);
+        fillLastPageBackground(iframeDoc, container, bgColor);
 
-          // Debug: check all markers after processing
-          const allMarkers = Array.from(iframeDoc.querySelectorAll('.pdf-page-break-marker')) as HTMLElement[];
-          pdfLog(traceId, 'markers-after-processing', {
-            totalMarkers: allMarkers.length,
-            markerDetails: allMarkers.map((marker, index) => ({
-              index,
-              height: marker.offsetHeight,
-              backgroundColor: marker.style.backgroundColor,
-              parentTag: marker.parentElement?.tagName,
-              nextElementTag: marker.nextElementSibling?.tagName
-            }))
-          });
+        // Also make sure body/html are the same color so html2canvas doesn't bleed white
+        iframeDoc.body.style.backgroundColor = bgColor;
+        iframeDoc.documentElement.style.backgroundColor = bgColor;
 
-          // Debug: check elements with padding
-          const elementsWithPadding = Array.from(iframeDoc.querySelectorAll('.pdf-break-after-marker')) as HTMLElement[];
-          pdfLog(traceId, 'elements-with-padding', {
-            totalElements: elementsWithPadding.length,
-            elementDetails: elementsWithPadding.map((element, index) => ({
-              index,
-              tagName: element.tagName,
-              paddingTop: element.style.paddingTop,
-              marginTop: element.style.marginTop,
-              textContent: element.textContent?.substring(0, 30) + '...'
-            }))
-          });
+        const pdfOptions = buildPdfOptions(filename, bgColor, windowWidth);
 
-          // Ensure background for all pages
-          ensureFullPageBackgrounds(iframeDoc, target, bgColor, traceId);
+        console.log('[PDF] Starting html2pdf generation...');
 
-          // Set final dimensions
-          target.style.width = '210mm';
-          target.style.maxWidth = '210mm';
-          target.style.margin = '0';
-          target.style.boxShadow = 'none';
-          target.style.border = 'none';
-
-          iframeDoc.body.style.backgroundColor = bgColor;
-          iframeDoc.documentElement.style.backgroundColor = bgColor;
-
-          // Generate PDF
-          const pdfOptions = {
-            margin: 0,
-            filename,
-            pagebreak: {
-              mode: ['css'],
-              before: ['.pdf-page-break-marker']
-            },
-            image: { type: 'jpeg' as const, quality: 0.98 },
-            html2canvas: {
-              scale: 2,
-              useCORS: true,
-              backgroundColor: bgColor,
-              width: windowWidth,
-              windowWidth: windowWidth,
-              logging: false
-            },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const, compress: true }
-          };
-
-          pdfLog(traceId, 'generating-pdf', { bgColor, targetHeight: target.style.minHeight });
-
-          (iframeWindow as any).html2pdf().from(target).set(pdfOptions).save().then(() => {
-            pdfLog(traceId, 'pdf-generated');
+        (iframeWindow as any).html2pdf()
+          .from(container)
+          .set(pdfOptions)
+          .save()
+          .then(() => {
             statusText.textContent = 'PDF generated successfully!';
             setTimeout(() => {
               overlay.remove();
               iframe.remove();
+              spinStyle.remove();
               onLoadingChange?.(false);
             }, 1000);
-          }).catch((error: any) => {
-            console.error('PDF generation error:', error);
+          })
+          .catch((err: unknown) => {
+            console.error('[PDF] html2pdf error:', err);
             statusText.textContent = 'PDF generation failed';
             setTimeout(() => {
               overlay.remove();
               iframe.remove();
+              spinStyle.remove();
               onLoadingChange?.(false);
             }, 2000);
           });
 
-        } catch (error) {
-          console.error('PDF processing error:', error);
-          statusText.textContent = 'Processing failed';
-          setTimeout(() => {
-            overlay.remove();
-            iframe.remove();
-            onLoadingChange?.(false);
-          }, 2000);
-        }
-      }, 1500);
-    };
-
-  } catch (error) {
-    console.error('PDF generation error:', error);
-    onLoadingChange?.(false);
-    throw error;
-  }
+      } catch (err) {
+        console.error('[PDF] Processing error:', err);
+        overlay.remove();
+        iframe.remove();
+        spinStyle.remove();
+        onLoadingChange?.(false);
+      }
+    }, 1500);
+  };
 }
 
-// Main PDF generation from element
 export async function generatePdfFromElement(options: PdfFromElementOptions): Promise<void> {
   const { element, filename = 'document.pdf', onLoadingChange } = options;
 
-  const traceId = makeTraceId();
-  pdfLog(traceId, 'start-from-element', { tagName: element.tagName, filename });
+  onLoadingChange?.(true);
 
   try {
-    onLoadingChange?.(true);
+    const container = element.querySelector('.container') as HTMLElement ?? element;
+    const bgColor = window.getComputedStyle(container).backgroundColor || '#ffffff';
+    const windowWidth = container.offsetWidth || 794;
 
-    // Get background color
-    const computedStyle = window.getComputedStyle(element);
-    const bgColor = computedStyle.backgroundColor || 'rgb(255, 255, 255)';
+    container.style.setProperty('width', '210mm', 'important');
+    container.style.setProperty('max-width', '210mm', 'important');
+    container.style.setProperty('margin', '0', 'important');
+    container.style.setProperty('box-shadow', 'none', 'important');
+    container.style.setProperty('border', 'none', 'important');
 
-    // Auto-add pdf-flow-break classes
-    autoAddPdfFlowBreakClasses(document, element, traceId);
+    void container.offsetHeight;
 
-    // Add CSS for PDF generation
-    const style = document.createElement('style');
-    style.textContent = `
-      .pdf-break-after-marker {
-        padding-top: ${PAGE_TOP_GAP_PX}px !important;
-        margin-top: 0 !important;
-        box-sizing: border-box !important;
-      }
-      .pdf-page-break-marker {
-        background-color: transparent !important;
-        height: 1px !important;
-        page-break-before: always !important;
-      }
-      /* Prevent breaking inside flow-break elements */
-      .pdf-flow-break {
-        break-inside: avoid !important;
-        page-break-inside: avoid !important;
-      }
-      /* Allow breaking between flow-break elements */
-      .pdf-flow-break + .pdf-flow-break {
-        break-before: auto !important;
-        page-break-before: auto !important;
-      }
-    `;
-    document.head.appendChild(style);
-
-    // Process page breaks
-    const candidates = Array.from(element.querySelectorAll('.pdf-flow-break')) as HTMLElement[];
-    pdfLog(traceId, 'processing-breaks', { candidatesCount: candidates.length });
-
-    let breaksAdded = 0;
-    // Use a for-loop so fresh metrics are evaluated after each break insertion
-    for (const candidate of candidates) {
-      if (shouldMoveToNextPage(candidate, window, traceId)) {
-        if (addPageBreakMarker(document, candidate, bgColor, traceId)) {
-          breaksAdded++;
-        }
-      }
-    }
-
-    pdfLog(traceId, 'breaks-complete', { breaksAdded });
-
-    // Ensure background for all pages
-    ensureFullPageBackgrounds(document, element, bgColor, traceId);
-
-    // Set final dimensions
-    element.style.width = '210mm';
-    element.style.maxWidth = '210mm';
-    element.style.margin = '0';
-    element.style.boxShadow = 'none';
-    element.style.border = 'none';
+    insertPageBreaks(document, container);
+    fillLastPageBackground(document, container, bgColor);
 
     document.body.style.backgroundColor = bgColor;
     document.documentElement.style.backgroundColor = bgColor;
 
-    // Generate PDF
-    const pdfOptions = {
-      margin: 0,
-      filename,
-      pagebreak: {
-        mode: ['css', 'legacy'],
-        before: ['.pdf-page-break-marker'],
-        avoid: ['h1', 'h2', 'h3', 'img', 'tr', 'thead', 'tbody']
-      },
-      image: { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: bgColor
-      },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
-    };
+    const pdfOptions = buildPdfOptions(filename, bgColor, windowWidth);
 
-    pdfLog(traceId, 'generating-pdf');
+    await html2pdf().from(container).set(pdfOptions).save();
 
-    await html2pdf().from(element).set(pdfOptions).save();
-
-    pdfLog(traceId, 'pdf-generated');
     onLoadingChange?.(false);
-
-  } catch (error) {
-    console.error('PDF generation error:', error);
+  } catch (err) {
+    console.error('[PDF] Element generation error:', err);
     onLoadingChange?.(false);
-    throw error;
+    throw err;
   }
 }
