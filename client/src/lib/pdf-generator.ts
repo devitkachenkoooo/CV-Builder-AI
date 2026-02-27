@@ -385,16 +385,68 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
           const candidates = Array.from(target.querySelectorAll('.pdf-flow-break')) as HTMLElement[];
           pdfLog(traceId, 'processing-breaks', { candidatesCount: candidates.length });
           
+          // Debug: show all candidates before processing
+          candidates.forEach((candidate, index) => {
+            const metrics = getLayoutMetrics(candidate);
+            pdfLog(traceId, `candidate-before-${index}`, {
+              tagName: candidate.tagName,
+              nodeTop: metrics?.nodeTop,
+              nodeBottom: metrics?.nodeBottom,
+              className: candidate.className,
+              textContent: candidate.textContent?.substring(0, 30) + '...'
+            });
+          });
+          
           let breaksAdded = 0;
-          candidates.forEach(element => {
+          candidates.forEach((element, index) => {
             if (shouldMoveToNextPage(element, traceId)) {
+              pdfLog(traceId, `processing-candidate-${index}`, {
+                tagName: element.tagName,
+                willMove: true
+              });
+              
               if (addPageBreakMarker(iframeDoc, element, bgColor, traceId)) {
                 breaksAdded++;
+                pdfLog(traceId, `marker-success-${index}`, {
+                  tagName: element.tagName,
+                  totalBreaks: breaksAdded
+                });
               }
+            } else {
+              pdfLog(traceId, `candidate-will-stay-${index}`, {
+                tagName: element.tagName,
+                nodeTop: getLayoutMetrics(element)?.nodeTop
+              });
             }
           });
           
           pdfLog(traceId, 'breaks-complete', { breaksAdded });
+          
+          // Debug: check all markers after processing
+          const allMarkers = Array.from(iframeDoc.querySelectorAll('.pdf-page-break-marker')) as HTMLElement[];
+          pdfLog(traceId, 'markers-after-processing', {
+            totalMarkers: allMarkers.length,
+            markerDetails: allMarkers.map((marker, index) => ({
+              index,
+              height: marker.offsetHeight,
+              backgroundColor: marker.style.backgroundColor,
+              parentTag: marker.parentElement?.tagName,
+              nextElementTag: marker.nextElementSibling?.tagName
+            }))
+          });
+          
+          // Debug: check elements with padding
+          const elementsWithPadding = Array.from(iframeDoc.querySelectorAll('.pdf-break-after-marker')) as HTMLElement[];
+          pdfLog(traceId, 'elements-with-padding', {
+            totalElements: elementsWithPadding.length,
+            elementDetails: elementsWithPadding.map((element, index) => ({
+              index,
+              tagName: element.tagName,
+              paddingTop: element.style.paddingTop,
+              marginTop: element.style.marginTop,
+              textContent: element.textContent?.substring(0, 30) + '...'
+            }))
+          });
           
           // Ensure last page background
           ensureLastPageBackground(iframeDoc, target, bgColor, traceId);
