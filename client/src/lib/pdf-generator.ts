@@ -198,7 +198,9 @@ function fillLastPageBackground(
 ): void {
   const totalHeight = container.scrollHeight;
   const pageCount = Math.ceil(totalHeight / A4_HEIGHT_PX);
-  const targetHeight = pageCount * A4_HEIGHT_PX;
+  // +2px buffer prevents a hairline white strip at the very bottom caused
+  // by subpixel rounding when html2canvas captures the container.
+  const targetHeight = pageCount * A4_HEIGHT_PX + 2;
 
   console.log('[PDF] fillLastPageBackground', { totalHeight, pageCount, targetHeight, bgColor });
 
