@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePollingJob } from "@/hooks/use-generate";
 import { FileText, Loader2, CheckCircle2, AlertCircle, Calendar, Eye, Download, Trash2 } from "lucide-react";
@@ -37,6 +37,9 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [iframeHeight, setIframeHeight] = useState('297mm');
+  const containerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const handleDelete = async () => {
@@ -70,6 +73,56 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
 
   const templateScreenshot = displayData.template?.screenshotUrl || cv.template?.screenshotUrl;
   const templateName = displayData.template?.name || cv.template?.name || "Template";
+
+  // Scale calculation for iframe
+  useEffect(() => {
+    const updateScale = () => {
+      if (containerRef.current && isComplete) {
+        const containerWidth = containerRef.current.offsetWidth;
+        // 210mm is approximately 794px at 96 DPI, but for card we use smaller scale
+        const cvWidthPx = 794;
+        const padding = 16; // Total horizontal padding in the card container
+        const availableWidth = containerWidth - padding;
+
+        if (availableWidth < cvWidthPx) {
+          setScale(availableWidth / cvWidthPx);
+        } else {
+          setScale(1);
+        }
+      }
+    };
+
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    const timer = setTimeout(updateScale, 100);
+
+    return () => {
+      window.removeEventListener('resize', updateScale);
+      clearTimeout(timer);
+    };
+  }, [isComplete]);
+
+  const handleIframeLoad = (e: React.SyntheticEvent<HTMLIFrameElement>) => {
+    const iframe = e.currentTarget;
+    try {
+      if (iframe.contentWindow) {
+        setTimeout(() => {
+          if (iframe.contentWindow) {
+            const body = iframe.contentWindow.document.body;
+            const html = iframe.contentWindow.document.documentElement;
+            const height = Math.max(
+              body.scrollHeight, body.offsetHeight,
+              html.clientHeight, html.scrollHeight, html.offsetHeight
+            );
+            setIframeHeight(`${height}px`);
+          }
+        }, 100);
+      }
+    } catch (err) {
+      console.error("Could not access iframe content for height calculation:", err);
+      setIframeHeight('297mm');
+    }
+  };
 
   return (
     <>
@@ -140,7 +193,43 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
           )}
 
           <div className="relative aspect-[4/5] lg:aspect-[1/1.414] bg-secondary/30 w-full overflow-hidden border-b border-border/50">
-            {templateScreenshot ? (
+            {isComplete && displayData.pdfUrl ? (
+              <div 
+                ref={containerRef}
+                className="w-full h-full flex justify-center items-center bg-gray-100"
+              >
+                <div
+                  className="transition-transform duration-200 ease-out"
+                  style={{
+                    transform: `scale(${scale})`,
+                    transformOrigin: 'top center',
+                    width: '210mm',
+                    height: `calc(${iframeHeight} * ${scale})`,
+                  }}
+                >
+                  <div
+                    className="bg-white shadow-sm relative"
+                    style={{
+                      width: '210mm',
+                      minWidth: '210mm',
+                      height: iframeHeight,
+                      minHeight: '297mm'
+                    }}
+                  >
+                    <iframe
+                      src={displayData.pdfUrl}
+                      onLoad={handleIframeLoad}
+                      className="w-full h-full border-0 absolute top-0 left-0"
+                      style={{
+                        width: '210mm',
+                        height: iframeHeight
+                      }}
+                      title="Generated CV HTML Preview"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : templateScreenshot ? (
               <img
                 src={templateScreenshot}
                 alt={templateName}
@@ -192,7 +281,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
           </div>
 
           {/* Info Area */}
-          <div className="p-4 lg:p-5 h-[110px] lg:h-[140px] flex flex-col justify-between bg-card">
+          <div className="p-4 lg:p-5 h-[110px] lg:h-[110px] flex flex-col justify-between bg-card">
             <div>
               <div className="flex justify-between items-start mb-2">
                 <h3 className="font-display font-bold text-foreground line-clamp-1">{templateName}</h3>
