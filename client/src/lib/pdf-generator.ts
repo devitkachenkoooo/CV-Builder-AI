@@ -914,7 +914,7 @@ function createPdfModal(
                 pagebreak: {
                   mode: ['css', 'legacy'],
                   before: ['.pdf-page-break-marker'],
-                  avoid: ['.pdf-keep-block', 'h1', 'h2', 'h3', '.section-title', 'img', 'tr', 'thead', 'tbody']
+                  avoid: ['.pdf-page-break-marker', 'h1', 'h2', 'h3', '.section-title', 'img', 'tr', 'thead', 'tbody']
                 },
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
