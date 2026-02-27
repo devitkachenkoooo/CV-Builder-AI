@@ -140,51 +140,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
           )}
 
           <div className="relative aspect-[4/5] lg:aspect-[1/1.414] bg-secondary/30 w-full overflow-hidden border-b border-border/50">
-            {isComplete && displayData.pdfUrl ? (
-              <div className="w-full h-full overflow-hidden relative">
-                <iframe
-                  src={displayData.pdfUrl}
-                  className="absolute top-0 left-0 w-full h-auto border-0 transition-transform duration-500 group-hover:scale-105"
-                  style={{
-                    overflow: 'hidden',
-                    scrollbarWidth: 'none',
-                    msOverflowStyle: 'none',
-                    minHeight: '100%',
-                    width: '100%'
-                  }}
-                  title="Generated CV"
-                  onError={(e: React.SyntheticEvent<HTMLIFrameElement>) => {
-                    // Fallback to template screenshot if iframe fails
-                    const iframe = e.currentTarget;
-                    const fallbackDiv = document.createElement('div');
-                    fallbackDiv.className = 'w-full h-full flex items-center justify-center text-muted-foreground';
-                    fallbackDiv.innerHTML = '<svg class="w-12 h-12 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
-                    iframe.parentNode?.replaceChild(fallbackDiv, iframe);
-                  }}
-                  onLoad={(e: React.SyntheticEvent<HTMLIFrameElement>) => {
-                    // Hide scrollbars
-                    try {
-                      const iframe = e.currentTarget;
-                      if (iframe.contentWindow) {
-                        const style = iframe.contentWindow.document.createElement('style');
-                        style.textContent = `
-                          ::-webkit-scrollbar { display: none; } 
-                          html, body { 
-                            overflow-x: hidden !important; 
-                            margin: 0 !important;
-                            padding: 0 !important;
-                            width: 100% !important;
-                          }
-                        `;
-                        iframe.contentWindow.document.head.appendChild(style);
-                      }
-                    } catch (err) {
-                      // Cross-origin iframe, ignore
-                    }
-                  }}
-                />
-              </div>
-            ) : templateScreenshot ? (
+            {templateScreenshot ? (
               <img
                 src={templateScreenshot}
                 alt={templateName}
