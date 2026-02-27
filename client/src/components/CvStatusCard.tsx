@@ -196,7 +196,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
             {isComplete && displayData.pdfUrl ? (
               <div 
                 ref={containerRef}
-                className="w-full h-full flex justify-center items-center bg-gray-100"
+                className="w-full h-full flex justify-center items-start bg-gray-100 pt-4"
               >
                 <div
                   className="transition-transform duration-200 ease-out"
