@@ -168,10 +168,23 @@ function createPdfModal(
           pdfLog(traceId, 'analysis:start');
           statusText.textContent = 'Preparing content...';
 
-          const captureElement = doc.querySelector('.container') ||
+          // Find the actual content container more robustly
+          let captureElement = doc.querySelector('.container') ||
             doc.querySelector('.cv-container') ||
             doc.querySelector('.resume') ||
+            doc.querySelector('main') ||
             doc.body;
+
+          // If we got body, try to find the first meaningful content element
+          if (captureElement === doc.body) {
+            const firstChild = Array.from(doc.body.children).find(child => 
+              child.nodeType === 1 && 
+              !['script', 'style', 'meta', 'link'].includes(child.tagName.toLowerCase())
+            ) as HTMLElement;
+            if (firstChild) {
+              captureElement = firstChild;
+            }
+          }
 
           if (!captureElement || (captureElement as any).nodeType !== 1) {
             throw new Error('Could not find a valid content element to capture');
@@ -196,6 +209,28 @@ function createPdfModal(
             estimatedPages: numPages,
           });
 
+          // Enhanced background detection and page styling
+          const parseBackground = (el: Element | null): string | null => {
+            if (!el || !iframe.contentWindow) return null;
+            const color = iframe.contentWindow.getComputedStyle(el).backgroundColor;
+            if (!color || color === 'transparent' || color === 'rgba(0, 0, 0, 0)') return null;
+            return color;
+          };
+          const isWhiteLike = (color: string | null) =>
+            color === 'rgb(255, 255, 255)' || color === 'rgba(255, 255, 255, 1)';
+          
+          const captureBg = parseBackground(captureElement);
+          const bodyBg = parseBackground(doc.body);
+          const htmlBg = parseBackground(doc.documentElement);
+          
+          // Use container background if available, otherwise fallback to body or default white
+          let bgColor = captureBg || bodyBg || htmlBg || '#ffffff';
+          
+          // Ensure we have a valid background color
+          if (!bgColor || isWhiteLike(bgColor)) {
+            bgColor = '#ffffff';
+          }
+
           // Keep a deterministic A4 rendering world for every template.
           const normalizeStyle = doc.createElement('style');
           normalizeStyle.textContent = `
@@ -219,6 +254,7 @@ function createPdfModal(
               margin-top: 0 !important;
               box-sizing: border-box !important;
             }
+            // Enhanced page break styling to ensure proper background on all pages
             .pdf-page-break-marker {
               break-before: page !important;
               page-break-before: always !important;
@@ -229,6 +265,18 @@ function createPdfModal(
               margin: 0 !important;
               padding: 0 !important;
               box-sizing: border-box !important;
+              background-color: ${bgColor} !important;
+              position: relative !important;
+            }
+            .pdf-page-break-marker::after {
+              content: '' !important;
+              position: absolute !important;
+              top: 0 !important;
+              left: 0 !important;
+              right: 0 !important;
+              bottom: 0 !important;
+              background-color: ${bgColor} !important;
+              z-index: -1 !important;
             }
             .pdf-break-before {
               padding-top: ${pageTopGapPx}px !important;
@@ -266,25 +314,11 @@ function createPdfModal(
             block.style.pageBreakInside = 'avoid';
           });
 
-          const parseBackground = (el: Element | null): string | null => {
-            if (!el || !iframe.contentWindow) return null;
-            const color = iframe.contentWindow.getComputedStyle(el).backgroundColor;
-            if (!color || color === 'transparent' || color === 'rgba(0, 0, 0, 0)') return null;
-            return color;
-          };
-          const isWhiteLike = (color: string | null) =>
-            color === 'rgb(255, 255, 255)' || color === 'rgba(255, 255, 255, 1)';
-          const captureBg = parseBackground(captureElement);
-          const bodyBg = parseBackground(doc.body);
-          const htmlBg = parseBackground(doc.documentElement);
-          const bgColor =
-            (!isWhiteLike(captureBg || null) ? captureBg : null) ||
-            bodyBg ||
-            htmlBg ||
-            captureBg ||
-            '#ffffff';
+          // Apply background to all elements for consistent page coloring
           doc.body.style.backgroundColor = bgColor;
           doc.documentElement.style.backgroundColor = bgColor;
+          target.style.backgroundColor = bgColor;
+          
           pdfLog(traceId, 'analysis:background', {
             captureBg,
             bodyBg,
@@ -377,21 +411,36 @@ function createPdfModal(
                 if (!parent) return false;
                 const prev = node.previousElementSibling;
                 if (prev && prev.classList.contains('pdf-page-break-marker')) return false;
+                
                 const marker = doc.createElement('div');
                 marker.className = 'pdf-page-break-marker';
                 marker.innerHTML = '&nbsp;';
-                marker.style.setProperty('background-color', bgColor, 'important');
-                marker.style.setProperty('height', `${pageTopGapPx}px`, 'important');
-                marker.style.setProperty('min-height', `${pageTopGapPx}px`, 'important');
-                marker.style.setProperty('display', 'block', 'important');
-                marker.style.setProperty('line-height', '0', 'important');
-                marker.style.setProperty('font-size', '0', 'important');
+                
+                // Set explicit styles for the marker
+                marker.style.cssText = `
+                  background-color: ${bgColor} !important;
+                  height: ${pageTopGapPx}px !important;
+                  min-height: ${pageTopGapPx}px !important;
+                  display: block !important;
+                  width: 100% !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  box-sizing: border-box !important;
+                  line-height: 0 !important;
+                  font-size: 0 !important;
+                  break-before: page !important;
+                  page-break-before: always !important;
+                `;
+                
                 parent.insertBefore(marker, node);
-                // Fallback for html2pdf engines that ignore marker height after page break.
+                
+                // Add break class to the node itself
                 node.classList.add('pdf-break-before');
-                node.style.setProperty('padding-top', `${pageTopGapPx}px`, 'important');
-                node.style.setProperty('margin-top', '0', 'important');
-                node.style.setProperty('box-sizing', 'border-box', 'important');
+                node.style.cssText += `
+                  padding-top: ${pageTopGapPx}px !important;
+                  margin-top: 0 !important;
+                  box-sizing: border-box !important;
+                `;
                 return true;
               };
 
@@ -501,17 +550,33 @@ function createPdfModal(
                 sample: markerMetrics,
               });
 
+              // Ensure proper content height and page breaks
               target.style.boxSizing = 'border-box';
               target.style.backgroundColor = bgColor;
+              
+              // Calculate final page count and set minimum height
               const fullPageCount = Math.max(1, Math.ceil(target.scrollHeight / a4HeightPx));
-              target.style.minHeight = `${fullPageCount * a4HeightPx}px`;
-              doc.body.style.minHeight = target.style.minHeight;
-              doc.documentElement.style.minHeight = target.style.minHeight;
+              const totalMinHeight = fullPageCount * a4HeightPx;
+              
+              target.style.minHeight = `${totalMinHeight}px`;
+              doc.body.style.minHeight = `${totalMinHeight}px`;
+              doc.documentElement.style.minHeight = `${totalMinHeight}px`;
+              
+              // Ensure all page break markers have proper background
+              const allMarkers = Array.from(doc.querySelectorAll('.pdf-page-break-marker')) as HTMLElement[];
+              allMarkers.forEach(marker => {
+                marker.style.backgroundColor = bgColor;
+                marker.style.setProperty('background-color', bgColor, 'important');
+              });
+              
               pdfLog(traceId, 'layout:final-height', {
                 targetScrollHeight: target.scrollHeight,
                 fullPageCount,
                 minHeight: target.style.minHeight,
+                markersCount: allMarkers.length,
               });
+              
+              // Final background application
               doc.body.style.backgroundColor = bgColor;
               doc.documentElement.style.backgroundColor = bgColor;
 
