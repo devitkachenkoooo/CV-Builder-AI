@@ -84,48 +84,56 @@ function autoAddPdfFlowBreakClasses(doc: Document, target: HTMLElement, traceId:
   pdfLog(traceId, 'debug:auto-add-classes-start');
   
   const main = target.querySelector('main') || target;
-  const sections = Array.from(main.querySelectorAll('section'));
+  
+  // Get direct children of main (excluding text nodes and unwanted elements)
+  const directChildrenOfMain = Array.from(main.children).filter(child => 
+    child.nodeType === 1 && // Element node
+    !['script', 'style'].includes(child.tagName.toLowerCase())
+  ) as HTMLElement[];
   
   let totalAdded = 0;
   
-  sections.forEach((section, sectionIndex) => {
-    pdfLog(traceId, `debug:processing-section-${sectionIndex}`, {
-      sectionId: section.id,
-      sectionClass: section.className,
-      childrenCount: section.children.length
+  directChildrenOfMain.forEach((mainChild, mainChildIndex) => {
+    pdfLog(traceId, `debug:processing-main-child-${mainChildIndex}`, {
+      tagName: mainChild.tagName,
+      className: mainChild.className,
+      id: mainChild.id || null,
+      childrenCount: mainChild.children.length
     });
     
-    // Get direct children of section (excluding text nodes)
-    const directChildren = Array.from(section.children).filter(child => 
-      child.nodeType === 1 && // Element node
-      !['script', 'style'].includes(child.tagName.toLowerCase())
+    // Get direct children of main's direct children (main > child > grandchild)
+    const grandChildren = Array.from(mainChild.children).filter(grandChild => 
+      grandChild.nodeType === 1 && // Element node
+      !['script', 'style'].includes(grandChild.tagName.toLowerCase())
     ) as HTMLElement[];
     
-    directChildren.forEach((child, childIndex) => {
+    grandChildren.forEach((grandChild, grandChildIndex) => {
       // Skip if already has pdf-flow-break class
-      if (child.classList.contains('pdf-flow-break')) {
-        pdfLog(traceId, `debug:child-already-has-class-${childIndex}`, {
-          tagName: child.tagName,
-          className: child.className
+      if (grandChild.classList.contains('pdf-flow-break')) {
+        pdfLog(traceId, `debug:grandchild-already-has-class-${mainChildIndex}-${grandChildIndex}`, {
+          parentTag: mainChild.tagName,
+          grandChildTag: grandChild.tagName,
+          grandChildClassName: grandChild.className
         });
         return;
       }
       
-      // Add pdf-flow-break class
-      child.classList.add('pdf-flow-break');
+      // Add pdf-flow-break class to grandchildren (main > child > grandchild)
+      grandChild.classList.add('pdf-flow-break');
       totalAdded++;
       
-      pdfLog(traceId, `debug:added-class-to-child-${childIndex}`, {
-        tagName: child.tagName,
-        className: child.className,
-        textContent: child.textContent?.substring(0, 30) + '...',
+      pdfLog(traceId, `debug:added-class-to-grandchild-${mainChildIndex}-${grandChildIndex}`, {
+        parentTag: mainChild.tagName,
+        grandChildTag: grandChild.tagName,
+        grandChildClassName: grandChild.className,
+        textContent: grandChild.textContent?.substring(0, 30) + '...',
         newClasses: 'pdf-flow-break'
       });
     });
   });
   
   pdfLog(traceId, 'debug:auto-add-classes-complete', {
-    sectionsProcessed: sections.length,
+    mainChildrenProcessed: directChildrenOfMain.length,
     totalClassesAdded: totalAdded
   });
   
@@ -896,27 +904,36 @@ function createPdfModal(
                 const lastPageTop = fullPages * a4HeightPx;
                 const lastPageHeight = totalHeight - lastPageTop;
                 
-                // If last page has less than 20% of page height, extend it
-                if (lastPageHeight > 0 && lastPageHeight < a4HeightPx * 0.2) {
+                // Always ensure last page has full background, regardless of content height
+                if (lastPageHeight > 0 && lastPageHeight < a4HeightPx) {
                   const spacer = doc.createElement('div');
                   spacer.className = 'pdf-last-page-spacer';
+                  const spacerHeight = a4HeightPx - lastPageHeight;
+                  
                   spacer.style.cssText = `
-                    height: ${a4HeightPx - lastPageHeight}px !important;
-                    min-height: ${a4HeightPx - lastPageHeight}px !important;
+                    height: ${spacerHeight}px !important;
+                    min-height: ${spacerHeight}px !important;
                     width: 100% !important;
                     background-color: ${bgColor} !important;
                     display: block !important;
                     margin: 0 !important;
                     padding: 0 !important;
                     box-sizing: border-box !important;
+                    visibility: hidden !important;
+                    pointer-events: none !important;
                   `;
+                  
                   target.appendChild(spacer);
                   
                   if (DEBUG_MODE) {
                     pdfLog(traceId, 'debug:last-page-spacer-added', {
+                      totalHeight,
+                      fullPages,
+                      lastPageTop,
                       lastPageHeight,
-                      spacerHeight: a4HeightPx - lastPageHeight,
-                      totalHeightAfter: target.scrollHeight
+                      spacerHeight,
+                      totalHeightAfter: target.scrollHeight,
+                      reason: 'Ensure full page background'
                     });
                   }
                 }
