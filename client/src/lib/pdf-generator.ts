@@ -373,6 +373,16 @@ function createPdfModal(
                 );
               };
 
+              const isOversizedNearPageBottom = (node: HTMLElement) => {
+                const metrics = getLayoutMetrics(node);
+                if (!metrics) return false;
+                const maxChunkHeight = a4HeightPx - pageTopGapPx - pageBottomSafePx;
+                return (
+                  metrics.nodeHeight > maxChunkHeight &&
+                  metrics.nodeBottom > (metrics.pageBottom - pageBottomSafePx)
+                );
+              };
+
               const markBreakBefore = (node: HTMLElement) => {
                 const parent = node.parentElement;
                 if (!parent) return false;
@@ -380,82 +390,79 @@ function createPdfModal(
                 if (prev && prev.classList.contains('pdf-page-break-marker')) return false;
                 const marker = doc.createElement('div');
                 marker.className = 'pdf-page-break-marker';
-                marker.style.backgroundColor = bgColor;
+                marker.innerHTML = '&nbsp;';
+                marker.style.setProperty('background-color', bgColor, 'important');
+                marker.style.setProperty('height', `${pageTopGapPx}px`, 'important');
+                marker.style.setProperty('min-height', `${pageTopGapPx}px`, 'important');
+                marker.style.setProperty('display', 'block', 'important');
+                marker.style.setProperty('line-height', '0', 'important');
+                marker.style.setProperty('font-size', '0', 'important');
                 parent.insertBefore(marker, node);
                 // Fallback for html2pdf engines that ignore marker height after page break.
                 node.classList.add('pdf-break-before');
-                node.style.paddingTop = `${pageTopGapPx}px`;
-                node.style.boxSizing = 'border-box';
+                node.style.setProperty('padding-top', `${pageTopGapPx}px`, 'important');
+                node.style.setProperty('margin-top', '0', 'important');
+                node.style.setProperty('box-sizing', 'border-box', 'important');
                 return true;
               };
 
-              // Universal strategy: walk DOM depth levels instead of template-specific class selectors.
-              const levels: Array<{
-                label: string;
-                maxBreaks: number;
-                maxNodeHeightPx: number;
-                getCandidates: () => HTMLElement[];
-              }> = [
-                {
-                  label: 'depth-1-direct-children',
-                  maxBreaks: 8,
-                  maxNodeHeightPx: 420,
-                  getCandidates: () =>
-                    Array.from(flowRoot.children).filter((el): el is HTMLElement => isHtmlElementNode(el)),
-                },
-                {
-                  label: 'depth-2-inner-blocks',
-                  maxBreaks: 14,
-                  maxNodeHeightPx: 320,
-                  getCandidates: () =>
-                    Array.from(flowRoot.querySelectorAll(':scope > * > *')).filter((el): el is HTMLElement => isHtmlElementNode(el)),
-                },
-                {
-                  label: 'depth-3-small-blocks-and-text',
-                  maxBreaks: 24,
-                  maxNodeHeightPx: 220,
-                  getCandidates: () =>
-                    Array.from(flowRoot.querySelectorAll(':scope > * > * > *, p, li')).filter((el): el is HTMLElement => isHtmlElementNode(el)),
-                },
-              ];
-
-              const findFirstOverflowCandidate = (label: string, maxNodeHeightPx: number, getCandidates: () => HTMLElement[]): HTMLElement | null => {
-                const candidates = getCandidates()
+              const collectChildren = (node: HTMLElement): HTMLElement[] =>
+                Array.from(node.children)
+                  .filter((el): el is HTMLElement => isHtmlElementNode(el))
                   .filter((el) => !el.classList.contains('pdf-break-before'))
                   .filter((el) => !el.classList.contains('pdf-page-break-marker'))
-                  .filter((el) => el.offsetHeight > 8)
-                  .filter((el) => el.offsetHeight <= maxNodeHeightPx);
-                pdfLog(traceId, 'flow:candidates', { label, maxNodeHeightPx, count: candidates.length });
+                  .filter((el) => el.offsetHeight > 8);
 
-                for (const candidate of candidates) {
-                  candidate.classList.add('pdf-keep-block');
-                  candidate.style.breakInside = 'avoid';
-                  candidate.style.pageBreakInside = 'avoid';
-                  if (shouldMoveNodeToNextPage(candidate)) {
-                    return candidate;
+              const findSplitCandidateWithin = (node: HTMLElement, depth: number): HTMLElement | null => {
+                const children = collectChildren(node);
+                for (const child of children) {
+                  child.classList.add('pdf-keep-block');
+                  child.style.breakInside = 'avoid';
+                  child.style.pageBreakInside = 'avoid';
+                  if (shouldMoveNodeToNextPage(child)) return child;
+                  if (depth > 0 && isOversizedNearPageBottom(child)) {
+                    const nested = findSplitCandidateWithin(child, depth - 1);
+                    if (nested) return nested;
                   }
                 }
-
                 return null;
               };
 
-              levels.forEach((level) => {
-                let insertedForLevel = 0;
-                for (let i = 0; i < level.maxBreaks; i++) {
-                  const candidate = findFirstOverflowCandidate(level.label, level.maxNodeHeightPx, level.getCandidates);
-                  if (!candidate) break;
-                  if (markBreakBefore(candidate)) insertedForLevel++;
-                }
-                pdfLog(traceId, 'flow:level-complete', {
-                  label: level.label,
-                  maxBreaks: level.maxBreaks,
-                  maxNodeHeightPx: level.maxNodeHeightPx,
-                  inserted: insertedForLevel,
-                });
+              const directBlocks = collectChildren(flowRoot);
+              directBlocks.forEach((block) => {
+                block.classList.add('pdf-keep-block');
+                block.style.breakInside = 'avoid';
+                block.style.pageBreakInside = 'avoid';
               });
+              pdfLog(traceId, 'flow:direct-blocks', { count: directBlocks.length });
+
+              const maxPasses = 5;
+              let directBreaks = 0;
+              let nestedBreaks = 0;
+              for (let pass = 0; pass < maxPasses; pass++) {
+                let changed = false;
+                for (const block of directBlocks) {
+                  if (shouldMoveNodeToNextPage(block)) {
+                    if (markBreakBefore(block)) {
+                      directBreaks++;
+                      changed = true;
+                    }
+                    continue;
+                  }
+                  if (isOversizedNearPageBottom(block)) {
+                    const splitCandidate = findSplitCandidateWithin(block, 2);
+                    if (splitCandidate && markBreakBefore(splitCandidate)) {
+                      nestedBreaks++;
+                      changed = true;
+                    }
+                  }
+                }
+                pdfLog(traceId, 'flow:pass-complete', { pass: pass + 1, changed, directBreaks, nestedBreaks });
+                if (!changed) break;
+              }
               const totalBreaks = flowRoot.querySelectorAll('.pdf-page-break-marker').length;
               const totalKeepBlocks = flowRoot.querySelectorAll('.pdf-keep-block').length;
-              pdfLog(traceId, 'flow:summary', { totalBreaks, totalKeepBlocks });
+              pdfLog(traceId, 'flow:summary', { totalBreaks, totalKeepBlocks, directBreaks, nestedBreaks });
               const markerNodes = Array.from(flowRoot.querySelectorAll('.pdf-page-break-marker'))
                 .filter((el): el is HTMLElement => isHtmlElementNode(el));
               const markerMetrics = markerNodes.slice(0, 5).map((marker, idx) => {
