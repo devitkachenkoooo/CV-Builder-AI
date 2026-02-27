@@ -1,5 +1,7 @@
 ﻿import html2pdf from 'html2pdf.js';
 
+// ─── Interfaces ───────────────────────────────────────────────────────────────
+
 interface PdfFromUrlOptions {
   url?: string;
   htmlContent?: string;
@@ -16,18 +18,38 @@ interface PdfFromElementOptions {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const A4_HEIGHT_PX = 1123;
-const PAGE_BOTTOM_SAFE_PX = 80;  // safe zone: 80px from bottom before forcing break
-const PAGE_TOP_PADDING_PX = 60;  // padding added at the top of content on a new page
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Get an element's top offset relative to a given ancestor container.
- * Uses offsetTop chain — works correctly regardless of iframe position on screen,
- * unlike getBoundingClientRect() which is viewport-relative.
+ * A4 page height in CSS pixels at 794px width (210mm at ~96dpi).
+ * 794px / 210mm * 297mm = 1123px
  */
-function getOffsetTopFromContainer(element: HTMLElement, container: HTMLElement): number {
+const A4_HEIGHT_PX = 1123;
+
+/**
+ * Safe zone: if a block's bottom edge is within this many pixels of the
+ * page bottom, move it to the next page.
+ */
+const PAGE_BOTTOM_SAFE_PX = 80;
+
+/**
+ * Gap inserted at the top of every new page before the first block.
+ */
+const PAGE_TOP_PADDING_PX = 60;
+
+// ─── Core layout helpers ──────────────────────────────────────────────────────
+
+/**
+ * Walk the offsetParent chain to compute an element's top position
+ * relative to a known ancestor container.
+ *
+ * WHY: getBoundingClientRect() is viewport-relative and returns garbage
+ * when the iframe is off-screen. offsetTop is layout-relative and always
+ * correct regardless of where the iframe is positioned.
+ */
+function getOffsetTopFromContainer(
+  element: HTMLElement,
+  container: HTMLElement,
+): number {
   let top = 0;
   let el: HTMLElement | null = element;
   while (el && el !== container) {
@@ -38,18 +60,19 @@ function getOffsetTopFromContainer(element: HTMLElement, container: HTMLElement)
 }
 
 /**
- * Get all direct grandchildren of main inside the container (main > * > *).
- * These are the only elements that are candidates for page breaks.
+ * Collect all direct grandchildren of <main> inside the container.
+ * These are the ONLY elements considered for page-break decisions.
+ * Selector equivalent: main > * > *
  */
 function getBreakCandidates(container: HTMLElement): HTMLElement[] {
   const main = container.querySelector('main') as HTMLElement | null;
   if (!main) {
-    console.warn('[PDF] No <main> element found inside container. Falling back to container children.');
+    console.warn('[PDF] <main> not found in container — no breaks will be inserted.');
     return [];
   }
 
+  const skipTags = new Set(['script', 'style', 'link', 'meta', 'noscript']);
   const candidates: HTMLElement[] = [];
-  const skipTags = new Set(['script', 'style', 'link', 'meta']);
 
   for (const parent of Array.from(main.children)) {
     if (skipTags.has(parent.tagName.toLowerCase())) continue;
@@ -63,103 +86,140 @@ function getBreakCandidates(container: HTMLElement): HTMLElement[] {
   return candidates;
 }
 
+// ─── Page break insertion ─────────────────────────────────────────────────────
+
 /**
- * Insert page-break markers before blocks that overflow the safe zone and
- * add top padding to those blocks so content starts properly on the new page.
+ * THE KEY INSIGHT:
  *
- * Uses offsetTop so calculation is independent of iframe's screen position.
+ * Instead of inserting a 0-height marker + padding-top on the block,
+ * we insert a SOLID SPACER that fills the remaining space on the current
+ * page (with bgColor), followed by a TOP-PADDING spacer for the new page.
+ *
+ * This means:
+ *   - The block's new offsetTop = currentPageEnd + PAGE_TOP_PADDING_PX
+ *   - All subsequent blocks' positions are exact multiples of A4_HEIGHT_PX + some offset
+ *   - html2pdf crops the canvas every 1123px and gets exactly the right content
+ *     on every page — NO mismatch between our math and html2pdf's math.
+ *
+ * Without this, 0-height markers at y=900 would cause html2pdf to still split
+ * at y=1123 (its natural A4 boundary), making the second page start wrong.
  */
-function insertPageBreaks(doc: Document, container: HTMLElement): void {
-  // Force layout to stabilize before measuring
-  container.offsetHeight; // eslint-disable-line @typescript-eslint/no-unused-expressions
+function insertPageBreaks(
+  doc: Document,
+  container: HTMLElement,
+  bgColor: string,
+): void {
+  // Trigger layout stabilisation before measuring
+  void container.offsetHeight;
 
   const candidates = getBreakCandidates(container);
 
   for (const block of candidates) {
-    // Measure position relative to container
+    // Re-measure every iteration because previous insertions shift things
     const blockTop = getOffsetTopFromContainer(block, container);
     const blockBottom = blockTop + block.offsetHeight;
 
-    // Which A4 page does the top of this block land on?
+    // Which full A4 page does this block's top land on?
     const pageIndex = Math.floor(blockTop / A4_HEIGHT_PX);
-    const pageStart = pageIndex * A4_HEIGHT_PX;
-    const pageEnd = (pageIndex + 1) * A4_HEIGHT_PX;
-    const safeEnd = pageEnd - PAGE_BOTTOM_SAFE_PX;
+    const currentPageEnd = (pageIndex + 1) * A4_HEIGHT_PX;  // bottom of that page
+    const safeEnd = currentPageEnd - PAGE_BOTTOM_SAFE_PX;
 
-    const isAtTopOfPage = (blockTop - pageStart) < PAGE_TOP_PADDING_PX + 10;
+    // Position of blockTop within the current page (0 = very top)
+    const relTop = blockTop - pageIndex * A4_HEIGHT_PX;
+
+    // Avoid double-breaking a block that was JUST moved to the top of a page
+    const isAlreadyAtTop = relTop < (PAGE_TOP_PADDING_PX + 10);
     const crossesSafeZone = blockBottom > safeEnd;
 
-    console.log(`[PDF] block`, {
+    console.log('[PDF] checking block', {
       tag: block.tagName,
-      class: block.className.split(' ').find(c => c),
+      cls: block.className.trim().split(/\s+/)[0] ?? '',
       blockTop: Math.round(blockTop),
       blockBottom: Math.round(blockBottom),
-      pageEnd,
+      relTop: Math.round(relTop),
       safeEnd,
-      isAtTopOfPage,
       crossesSafeZone,
-      decision: crossesSafeZone && !isAtTopOfPage ? '→ BREAK' : '→ stay'
+      isAlreadyAtTop,
+      action: (crossesSafeZone && !isAlreadyAtTop) ? '→ BREAK' : '→ stay',
     });
 
-    if (crossesSafeZone && !isAtTopOfPage) {
-      // Insert an invisible page-break marker before the block
-      const marker = doc.createElement('div');
-      marker.className = 'pdf-page-break';
-      marker.style.cssText = [
-        'display: block !important',
-        'height: 0 !important',
-        'min-height: 0 !important',
-        'overflow: hidden !important',
-        'line-height: 0 !important',
-        'font-size: 0 !important',
-        'margin: 0 !important',
-        'padding: 0 !important',
-        'page-break-before: always !important',
-        'break-before: page !important',
-      ].join('; ');
+    if (!crossesSafeZone || isAlreadyAtTop) continue;
 
-      block.parentNode!.insertBefore(marker, block);
+    // ── Insert spacer that fills the rest of the current page ──────────────
+    // Height = how much of the current page is still "empty" after blockTop
+    const spacerHeight = currentPageEnd - blockTop;
 
-      // Add top padding to the block so it doesn't slam into the top of the new page
-      block.style.setProperty('padding-top', `${PAGE_TOP_PADDING_PX}px`, 'important');
-      block.style.setProperty('margin-top', '0', 'important');
-    }
+    const bottomSpacer = doc.createElement('div');
+    bottomSpacer.className = 'pdf-page-bottom-spacer';
+    bottomSpacer.style.cssText =
+      `height:${spacerHeight}px !important;` +
+      `min-height:${spacerHeight}px !important;` +
+      `background-color:${bgColor} !important;` +
+      `display:block !important;` +
+      `width:100% !important;` +
+      `margin:0 !important;` +
+      `padding:0 !important;` +
+      `box-sizing:border-box !important;`;
+
+    // ── Insert top-padding spacer at the top of the new page ───────────────
+    const topSpacer = doc.createElement('div');
+    topSpacer.className = 'pdf-page-top-spacer';
+    topSpacer.style.cssText =
+      `height:${PAGE_TOP_PADDING_PX}px !important;` +
+      `min-height:${PAGE_TOP_PADDING_PX}px !important;` +
+      `background-color:${bgColor} !important;` +
+      `display:block !important;` +
+      `width:100% !important;` +
+      `margin:0 !important;` +
+      `padding:0 !important;` +
+      `box-sizing:border-box !important;`;
+
+    block.parentNode!.insertBefore(bottomSpacer, block);
+    block.parentNode!.insertBefore(topSpacer, block);
+
+    console.log(`[PDF] → BREAK inserted. bottomSpacer=${spacerHeight}px, topSpacer=${PAGE_TOP_PADDING_PX}px`);
+
+    // Force reflow so next iteration reads accurate offsetTops
+    void container.offsetHeight;
   }
 }
 
+// ─── Background fill ──────────────────────────────────────────────────────────
+
 /**
- * Ensure the container's min-height is an exact multiple of A4_HEIGHT_PX
- * so the last (possibly short) page gets a full-color background.
- * Also paints html, body, and container with the background color.
+ * After all breaks are inserted, round the container height UP to the next
+ * full A4 page so the last (often short) page is filled with bgColor.
+ * Also paints html and body so html2canvas captures no white edges.
  */
-function fillLastPageBackground(doc: Document, container: HTMLElement, bgColor: string): void {
+function fillLastPageBackground(
+  doc: Document,
+  container: HTMLElement,
+  bgColor: string,
+): void {
   const totalHeight = container.scrollHeight;
   const pageCount = Math.ceil(totalHeight / A4_HEIGHT_PX);
   const targetHeight = pageCount * A4_HEIGHT_PX;
 
-  console.log(`[PDF] Background fill`, { totalHeight, pageCount, targetHeight, bgColor });
+  console.log('[PDF] fillLastPageBackground', { totalHeight, pageCount, targetHeight, bgColor });
 
   // Always paint globally
   container.style.setProperty('background-color', bgColor, 'important');
   doc.documentElement.style.setProperty('background-color', bgColor, 'important');
   doc.body.style.setProperty('background-color', bgColor, 'important');
 
-  // Stretch to fill the last page
-  if (targetHeight > totalHeight) {
-    container.style.setProperty('min-height', `${targetHeight}px`, 'important');
-  }
+  // Stretch container to fill the last page
+  container.style.setProperty('min-height', `${targetHeight}px`, 'important');
 }
 
-// ─── Common PDF options ───────────────────────────────────────────────────────
+// ─── PDF options ──────────────────────────────────────────────────────────────
+
 function buildPdfOptions(filename: string, bgColor: string, windowWidth: number) {
   return {
     margin: 0,
     filename,
-    pagebreak: {
-      // Only use CSS-driven breaks via our .pdf-page-break markers
-      mode: ['css'] as any,
-      before: ['.pdf-page-break'],
-    },
+    // NO explicit pagebreak mode — we rely on the spacers pushing content
+    // to exact A4 boundaries, so html2pdf's natural 1123px slicing is correct.
+    pagebreak: { mode: [] as any },
     image: { type: 'jpeg' as const, quality: 0.98 },
     html2canvas: {
       scale: 2,
@@ -169,58 +229,56 @@ function buildPdfOptions(filename: string, bgColor: string, windowWidth: number)
       windowWidth,
       logging: false,
     },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const, compress: true },
+    jsPDF: {
+      unit: 'mm' as const,
+      format: 'a4',
+      orientation: 'portrait' as const,
+      compress: true,
+    },
   };
 }
 
-// ─── Overlay / spinner UI ────────────────────────────────────────────────────
+// ─── Loading overlay ──────────────────────────────────────────────────────────
 
 function createLoadingOverlay() {
   const overlay = document.createElement('div');
   overlay.style.cssText = `
-    position: fixed !important;
-    top: 0 !important; left: 0 !important;
-    width: 100% !important; height: 100% !important;
-    background: rgba(0,0,0,0.8) !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    z-index: 999999 !important;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-    backdrop-filter: blur(4px) !important;
+    position:fixed !important;top:0 !important;left:0 !important;
+    width:100% !important;height:100% !important;
+    background:rgba(0,0,0,.8) !important;
+    display:flex !important;align-items:center !important;justify-content:center !important;
+    z-index:999999 !important;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif !important;
+    backdrop-filter:blur(4px) !important;
   `;
 
   const box = document.createElement('div');
   box.style.cssText = `
-    background: white !important;
-    padding: 32px !important;
-    border-radius: 16px !important;
-    text-align: center !important;
-    max-width: 400px !important;
-    box-shadow: 0 20px 25px -5px rgba(0,0,0,.1) !important;
+    background:white !important;padding:32px !important;border-radius:16px !important;
+    text-align:center !important;max-width:400px !important;
+    box-shadow:0 20px 25px -5px rgba(0,0,0,.1) !important;
   `;
 
   const spinStyle = document.createElement('style');
-  spinStyle.textContent = `@keyframes _pdf_spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }`;
+  spinStyle.textContent =
+    '@keyframes _pdf_spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}';
   document.head.appendChild(spinStyle);
 
   const spinner = document.createElement('div');
   spinner.style.cssText = `
-    width:40px !important; height:40px !important;
-    margin: 0 auto 20px auto !important;
-    border: 3px solid #f3f4f6 !important;
-    border-top: 3px solid #3b82f6 !important;
-    border-radius: 50% !important;
-    animation: _pdf_spin 1s linear infinite !important;
+    width:40px !important;height:40px !important;margin:0 auto 20px !important;
+    border:3px solid #f3f4f6 !important;border-top:3px solid #3b82f6 !important;
+    border-radius:50% !important;animation:_pdf_spin 1s linear infinite !important;
   `;
 
   const statusText = document.createElement('div');
   statusText.textContent = 'Generating PDF...';
-  statusText.style.cssText = `font-size:18px !important; font-weight:600 !important; margin-bottom:8px !important; color:#1f2937 !important;`;
+  statusText.style.cssText =
+    'font-size:18px !important;font-weight:600 !important;margin-bottom:8px !important;color:#1f2937 !important;';
 
   const subText = document.createElement('div');
   subText.textContent = 'Please wait while we create your document';
-  subText.style.cssText = `font-size:14px !important; color:#6b7280 !important;`;
+  subText.style.cssText = 'font-size:14px !important;color:#6b7280 !important;';
 
   box.appendChild(spinner);
   box.appendChild(statusText);
@@ -230,20 +288,26 @@ function createLoadingOverlay() {
   return { overlay, statusText, spinStyle };
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────────
+// ─── Public: generate from URL ────────────────────────────────────────────────
 
 export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<void> {
-  const { url, htmlContent, filename = 'document.pdf', onLoadingChange, windowWidth = 794 } = options;
+  const {
+    url,
+    htmlContent,
+    filename = 'document.pdf',
+    onLoadingChange,
+    windowWidth = 794,
+  } = options;
 
   if (!url && !htmlContent) throw new Error('Either url or htmlContent must be provided');
 
   onLoadingChange?.(true);
 
-  // Fetch HTML
+  // Fetch HTML source
   let html: string;
   if (url) {
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
+    if (!res.ok) throw new Error(`Failed to fetch template: ${res.status}`);
     html = await res.text();
   } else {
     html = htmlContent!;
@@ -252,16 +316,18 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
   const { overlay, statusText, spinStyle } = createLoadingOverlay();
   document.body.appendChild(overlay);
 
-  // Create offscreen iframe — give it a large height so layout is correct
+  // Off-screen iframe — fixed position keeps it in the layout flow but invisible.
+  // We use a large height so the entire multi-page document can render at once.
   const iframe = document.createElement('iframe');
   iframe.style.cssText = `
-    position: fixed !important;
-    top: 0 !important;
-    left: -${windowWidth + 100}px !important;
-    width: ${windowWidth}px !important;
-    height: ${A4_HEIGHT_PX * 20}px !important;
-    border: none !important;
-    visibility: hidden !important;
+    position:fixed !important;
+    top:0 !important;
+    left:-${windowWidth + 200}px !important;
+    width:${windowWidth}px !important;
+    height:${A4_HEIGHT_PX * 25}px !important;
+    border:none !important;
+    visibility:hidden !important;
+    pointer-events:none !important;
   `;
   document.body.appendChild(iframe);
 
@@ -274,53 +340,43 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
   iframeDoc.close();
 
   iframe.onload = () => {
-    // Wait for fonts / images to settle
+    // 1.5 s gives fonts & images time to finish loading
     setTimeout(() => {
       try {
         const iframeWindow = iframe.contentWindow!;
 
-        // Find the container
         const container = iframeDoc.querySelector('.container') as HTMLElement | null;
-        if (!container) throw new Error('No .container element found in template');
+        if (!container) throw new Error('No .container element found in the template HTML');
 
-        // Lock width before measuring  
+        // Lock width first so layout is stable before any measurement
         container.style.setProperty('width', '210mm', 'important');
         container.style.setProperty('max-width', '210mm', 'important');
         container.style.setProperty('margin', '0', 'important');
         container.style.setProperty('box-shadow', 'none', 'important');
         container.style.setProperty('border', 'none', 'important');
+        void container.offsetHeight; // force reflow
 
-        // Force a layout reflow
-        void container.offsetHeight;
+        const bgColor =
+          iframeWindow.getComputedStyle(container).backgroundColor || '#ffffff';
 
-        // Get background color before we mutate anything
-        const bgColor = iframeWindow.getComputedStyle(container).backgroundColor || '#ffffff';
+        console.log(
+          `[PDF] Container ready. height=${container.scrollHeight}px  bg=${bgColor}`,
+        );
 
-        console.log(`[PDF] Container found. Height=${container.scrollHeight}px  bgColor=${bgColor}`);
-
-        // Add CSS guardrails
-        const css = iframeDoc.createElement('style');
-        css.textContent = `
-          /* Elements that received a page-top gap */
-          .pdf-page-break + * {
-            /* padding already applied inline */
-          }
-        `;
-        iframeDoc.head.appendChild(css);
-
-        // ── Core logic ──
-        insertPageBreaks(iframeDoc, container);
+        // ── Main logic ──────────────────────────────────────────────────────
+        insertPageBreaks(iframeDoc, container, bgColor);
         fillLastPageBackground(iframeDoc, container, bgColor);
 
-        // Also make sure body/html are the same color so html2canvas doesn't bleed white
+        // Redundant safety — ensure body/html share the background
         iframeDoc.body.style.backgroundColor = bgColor;
         iframeDoc.documentElement.style.backgroundColor = bgColor;
 
         const pdfOptions = buildPdfOptions(filename, bgColor, windowWidth);
 
-        console.log('[PDF] Starting html2pdf generation...');
+        console.log('[PDF] Calling html2pdf…');
 
-        (iframeWindow as any).html2pdf()
+        (iframeWindow as any)
+          .html2pdf()
           .from(container)
           .set(pdfOptions)
           .save()
@@ -343,7 +399,6 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
               onLoadingChange?.(false);
             }, 2000);
           });
-
       } catch (err) {
         console.error('[PDF] Processing error:', err);
         overlay.remove();
@@ -355,14 +410,21 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
   };
 }
 
-export async function generatePdfFromElement(options: PdfFromElementOptions): Promise<void> {
+// ─── Public: generate from element ───────────────────────────────────────────
+
+export async function generatePdfFromElement(
+  options: PdfFromElementOptions,
+): Promise<void> {
   const { element, filename = 'document.pdf', onLoadingChange } = options;
 
   onLoadingChange?.(true);
 
   try {
-    const container = element.querySelector('.container') as HTMLElement ?? element;
-    const bgColor = window.getComputedStyle(container).backgroundColor || '#ffffff';
+    const container =
+      (element.querySelector('.container') as HTMLElement | null) ?? element;
+
+    const bgColor =
+      window.getComputedStyle(container).backgroundColor || '#ffffff';
     const windowWidth = container.offsetWidth || 794;
 
     container.style.setProperty('width', '210mm', 'important');
@@ -370,17 +432,15 @@ export async function generatePdfFromElement(options: PdfFromElementOptions): Pr
     container.style.setProperty('margin', '0', 'important');
     container.style.setProperty('box-shadow', 'none', 'important');
     container.style.setProperty('border', 'none', 'important');
-
     void container.offsetHeight;
 
-    insertPageBreaks(document, container);
+    insertPageBreaks(document, container, bgColor);
     fillLastPageBackground(document, container, bgColor);
 
     document.body.style.backgroundColor = bgColor;
     document.documentElement.style.backgroundColor = bgColor;
 
     const pdfOptions = buildPdfOptions(filename, bgColor, windowWidth);
-
     await html2pdf().from(container).set(pdfOptions).save();
 
     onLoadingChange?.(false);
