@@ -186,12 +186,14 @@ function createPdfModal(
           const a4HeightPx = 1123;
           const pageTopGapPx = 50;
           const pageBottomSafePx = 50;
+          const pageBottomTriggerBandPx = 180;
           const numPages = Math.max(1, Math.ceil(contentHeight / a4HeightPx));
           pdfLog(traceId, 'analysis:dimensions', {
             contentHeight,
             a4HeightPx,
             pageTopGapPx,
             pageBottomSafePx,
+            pageBottomTriggerBandPx,
             estimatedPages: numPages,
           });
 
@@ -350,8 +352,12 @@ function createPdfModal(
                 if (!metrics) return false;
                 const maxChunkHeight = a4HeightPx - pageTopGapPx - pageBottomSafePx;
                 if (metrics.nodeHeight > maxChunkHeight) return false;
+                const isInBottomTriggerBand =
+                  metrics.nodeTop >= (metrics.pageBottom - (pageBottomSafePx + pageBottomTriggerBandPx));
+                const entersBottomSafeZone = metrics.nodeBottom > (metrics.pageBottom - pageBottomSafePx);
                 return (
-                  metrics.nodeBottom > metrics.pageBottom - pageBottomSafePx &&
+                  isInBottomTriggerBand &&
+                  entersBottomSafeZone &&
                   metrics.nodeTop > metrics.pageTop + 6 &&
                   metrics.nodeTop < metrics.pageBottom - pageTopGapPx
                 );
@@ -364,27 +370,32 @@ function createPdfModal(
               };
 
               // Flexible but deterministic strategy: split by levels from larger chunks to smaller ones.
-              const levels: Array<{ selector: string; maxBreaks: number }> = [
+              // Large candidates can create huge empty bottoms, so each level has a size cap.
+              const levels: Array<{ selector: string; maxBreaks: number; maxNodeHeightPx: number }> = [
                 {
                   selector: ':scope > section, :scope > article, :scope > div, :scope > .grid-container, :scope > .split-layout',
                   maxBreaks: 8,
+                  maxNodeHeightPx: 420,
                 },
                 {
                   selector: '.exp-item, .edu-item, .projects-item, .content-block, .sub-item, .item, .split-layout, .left-col > section, .right-col > section',
                   maxBreaks: 14,
+                  maxNodeHeightPx: 320,
                 },
                 {
                   selector: '.row, .item-row, .meta-col, .content-col, ul > li, ol > li, p',
                   maxBreaks: 24,
+                  maxNodeHeightPx: 220,
                 },
               ];
 
-              const findFirstOverflowCandidate = (selector: string): HTMLElement | null => {
+              const findFirstOverflowCandidate = (selector: string, maxNodeHeightPx: number): HTMLElement | null => {
                 const candidates = Array.from(flowRoot.querySelectorAll(selector))
                   .filter((el): el is HTMLElement => isHtmlElementNode(el))
                   .filter((el) => !el.classList.contains('pdf-break-before'))
-                  .filter((el) => el.offsetHeight > 8);
-                pdfLog(traceId, 'flow:candidates', { selector, count: candidates.length });
+                  .filter((el) => el.offsetHeight > 8)
+                  .filter((el) => el.offsetHeight <= maxNodeHeightPx);
+                pdfLog(traceId, 'flow:candidates', { selector, maxNodeHeightPx, count: candidates.length });
 
                 for (const candidate of candidates) {
                   candidate.classList.add('pdf-keep-block');
@@ -401,13 +412,14 @@ function createPdfModal(
               levels.forEach((level) => {
                 let insertedForLevel = 0;
                 for (let i = 0; i < level.maxBreaks; i++) {
-                  const candidate = findFirstOverflowCandidate(level.selector);
+                  const candidate = findFirstOverflowCandidate(level.selector, level.maxNodeHeightPx);
                   if (!candidate) break;
                   if (markBreakBefore(candidate)) insertedForLevel++;
                 }
                 pdfLog(traceId, 'flow:level-complete', {
                   selector: level.selector,
                   maxBreaks: level.maxBreaks,
+                  maxNodeHeightPx: level.maxNodeHeightPx,
                   inserted: insertedForLevel,
                 });
               });
