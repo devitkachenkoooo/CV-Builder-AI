@@ -94,9 +94,9 @@ export default function LandingPage() {
             {/* Template Grid Mock */}
             <div className="grid grid-cols-2 gap-4">
               {[
-                { id: 1, src: '/images/templates/template-1.png' },
-                { id: 2, src: '/images/templates/template-3.png' },
-                { id: 3, src: '/images/templates/template-7.png' },
+                { id: 1, src: '/images/templates/template-5.png' },
+                { id: 2, src: '/images/templates/template-6.png' },
+                { id: 3, src: '/images/templates/template-4.png' },
                 { id: 4, src: '/images/templates/template-10.png' }
               ].map((template) => (
                 <div key={template.id} className="bg-secondary/40 rounded-xl overflow-hidden border border-border/50 aspect-[1/1.4] relative group">

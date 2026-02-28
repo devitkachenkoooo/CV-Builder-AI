@@ -56,12 +56,15 @@ ${cvText}
 """
 
 VALIDATION RULES:
-1. "isValid" should be TRUE if the text contains any professional info: names, contact info, skills, work experience, or education.
-2. "isValid" should be FALSE ONLY if the text is:
-   - Completely random chars (gibberish)
-   - Extremely offensive or inappropriate
-   - A completely different type of document (e.g., a cooking recipe, a fictional story, technical manual for a car) with NO personal info.
-3. Be lenient. If it looks like a rough draft of a CV, it IS valid.
+1. "isValid" should be TRUE only if the text contains actual, meaningful professional information with real values: real names, real contact details, actual skills listed, real work experience entries, or real education records.
+2. "isValid" should be FALSE if the text:
+   - Has correct CV structure/fields/sections but all or most fields are empty, placeholder, or blank (e.g., "Name: ", "Skills: ", "Experience: " with no actual data)
+   - Contains only section headers or labels without any real content
+   - Is completely random chars (gibberish)
+   - Is extremely offensive or inappropriate
+   - Is a completely different type of document (e.g., cooking recipe, fictional story, technical manual) with NO personal info
+3. Be strict about content presence: structure alone does not make a CV valid — there must be actual data filled in.
+4. If it looks like a rough draft of a CV with at least some real information filled in, it IS valid.
 
 RESPONSE FORMAT (Return ONLY a raw JSON object):
 {

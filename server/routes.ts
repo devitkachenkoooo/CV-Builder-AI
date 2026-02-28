@@ -345,31 +345,28 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
       lang === 'ua' ? "ШІ аналізує та форматує резюме..." : "AI is analyzing and formatting your CV..."
     );
 
-    const prompt = `You are a CV expert. Your task is to inject the provided CV content into the HTML template while preserving the template structure and styling.
+    const prompt = `You are an HTML injection specialist. Inject the CV content into the HTML template.
 
-    🚨 CRITICAL REQUIREMENTS:
-    1. Preserve the EXACT HTML styling and CSS classes for the elements you keep.
-    2. Replace text content within appropriate elements with the provided CV data.
-    3. 🌐 LANGUAGE CONSISTENCY: The entire output MUST be in the same language as the provided "CV CONTENT". This includes all section headers, labels, and static text from the template (e.g., if the CV is in Ukrainian, "Experience" must become "Досвід роботи").
-    4. 🗑️ MISSING DATA RULE: If a section, field, or list item in the template has no corresponding information in the CV content, REMOVE that entire HTML element (and its parent container if necessary) from the final code. 
-    5. DO NOT leave empty headers, placeholders (e.g., "[Phone Number]"), or empty bullet points.
-    6. Maintain responsive design and layout for the remaining elements.
-    7. Return ONLY the final HTML code without markdown formatting.
+    ⚠️ STEP 1 — DETECT LANGUAGE FIRST:
+    Read the CV CONTENT below and identify its language (e.g. English, Ukrainian, German, etc.).
+    All output text MUST be in this detected language. This is non-negotiable.
 
-    🔒 TEMPLATE STRUCTURE:
+    ⚠️ STEP 2 — INJECT AND TRANSLATE:
+    - Replace every piece of text in the template with the corresponding CV data.
+    - Translate ALL static template labels and section headers (e.g. "Досвід" → "Experience" if CV is in English).
+    - Preserve ONLY HTML tags, CSS classes, and attributes — never preserve Ukrainian or any other language text from the template.
+
+    ⚠️ STEP 3 — CLEAN UP:
+    - Remove any section, field, or list item that has no matching data in the CV content.
+    - Do not leave empty tags, placeholder text, or untranslated headers.
+
+    🔒 HTML TEMPLATE (structure only — ignore its language):
     ${templateHtml}
 
-    📝 CV CONTENT TO INJECT:
+    📝 CV CONTENT (your language source of truth):
     ${cvText}
 
-    🎯 INSTRUCTIONS:
-    - Detect the language of the CV CONTENT and apply it to the entire document.
-    - Map the CV content to the relevant parts of the template.
-    - If a whole section (like "Projects" or "Languages") is missing in the CV text, delete the entire section from the HTML.
-    - Keep all remaining HTML tags, classes, and attributes exactly as they are.
-    - Focus on a clean, professional result without empty spaces or missing data artifacts.
-
-    Return ONLY the complete HTML code.`;
+    Return ONLY raw HTML. No markdown. No explanation.`;
 
     try {
       const response = await openrouter.chat.completions.create({
