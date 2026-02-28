@@ -392,10 +392,8 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
 
       // Перевіряємо, чи AI зберіг pdf-flow-break класи
       const pdfFlowBreakCount = (generatedHtml.match(/pdf-flow-break/g) || []).length;
-      console.log(`[AI Generation] PDF flow break classes found: ${pdfFlowBreakCount}`);
       
       if (pdfFlowBreakCount === 0) {
-        console.warn("[AI Generation] WARNING: No pdf-flow-break classes found in generated HTML!");
         // Тут можна додати логіку для виправлення або повторної генерації
       }
 

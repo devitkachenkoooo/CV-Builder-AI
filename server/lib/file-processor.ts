@@ -10,11 +10,7 @@ export async function extractTextFromDocx(buffer: Buffer): Promise<{
 }> {
   try {
     const result = await mammoth.extractRawText({ buffer });
-    
-    if (result.messages.length > 0) {
-      console.warn('Docx processing warnings:', result.messages);
-    }
-    
+
     return {
       text: result.value,
       success: true

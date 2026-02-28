@@ -61,35 +61,27 @@ export function useGenerateCv() {
 // Hook for polling an individual CV's status
 export function usePollingJob(jobId: number, initialStatus: string) {
   const isPolling = (initialStatus === "pending" || initialStatus === "processing") && jobId > 0;
-  console.log(`[usePollingJob] Hook called with jobId: ${jobId}, initialStatus: ${initialStatus}, isPolling: ${isPolling}`);
   const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: [api.generate.status.path, jobId],
     queryFn: async () => {
-      console.log(`[usePollingJob] Polling status for job ${jobId}`);
       const url = buildUrl(api.generate.status.path, { jobId });
-      console.log(`[usePollingJob] Fetching from URL: ${url}`);
 
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) {
-        console.log(`[usePollingJob] HTTP Error: ${res.status} ${res.statusText}`);
         throw new Error("Failed to fetch job status");
       }
 
       const data = await res.json();
-      console.log(`[usePollingJob] Raw response data:`, data);
 
       const parsed = parseWithLogging(api.generate.status.responses[200], data, "generate.status");
-      console.log(`[usePollingJob] Job ${jobId} status:`, parsed.status);
-      console.log(`[usePollingJob] Job ${jobId} full response:`, parsed);
 
       return parsed;
     },
     // Poll every 2 seconds if status is still pending or processing
     refetchInterval: (query) => {
       const currentStatus = query.state.data?.status || initialStatus;
-      console.log(`[usePollingJob] Job ${jobId} current status:`, currentStatus, "isPolling:", currentStatus === "pending" || currentStatus === "processing");
       if (currentStatus === "pending" || currentStatus === "processing") {
         return 2000;
       }
@@ -101,7 +93,6 @@ export function usePollingJob(jobId: number, initialStatus: string) {
   // Handle side effects (like invalidating queries) in useEffect, not in queryFn
   useEffect(() => {
     if (query.data?.status === "complete" || query.data?.status === "failed") {
-      console.log(`[usePollingJob] Job ${jobId} finished with status: ${query.data.status}, invalidating list`);
       queryClient.invalidateQueries({ queryKey: [api.resumes.list.path] });
     }
   }, [query.data?.status, queryClient]);

@@ -17,7 +17,6 @@ interface GenerateModalProps {
 
 export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps) {
   const { t } = useTranslation();
-  console.log("[GenerateModal] Component render, isOpen:", isOpen, "template:", template?.name);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isValidating, setIsValidating] = useState(false);
@@ -28,12 +27,10 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
 
   // Log when onClose is called
   const handleClose = () => {
-    console.log("[GenerateModal] onClose called");
     onClose();
   };
 
   if (!template || !isOpen) {
-    console.log("[GenerateModal] Modal not rendering - isOpen:", isOpen, "template:", template?.name);
     return null;
   }
 
@@ -59,21 +56,15 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
     }
 
     try {
-      console.log("[GenerateModal] Starting generation with template:", template.id);
-
       generateCv({
         templateId: template.id,
         file: selectedFile,
       }, {
         onSuccess: (response) => {
-          console.log("[GenerateModal] Generation started, response:", response);
-
           toast({
             title: t("toast.gen_started_title"),
             description: t("toast.gen_started_desc"),
           });
-
-          console.log("[GenerateModal] Redirecting to /my-resumes immediately");
 
           // Close modal and redirect to my-resumes
           handleClose();

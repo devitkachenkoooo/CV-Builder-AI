@@ -67,7 +67,6 @@ function getOffsetTopFromContainer(
 function getBreakCandidates(container: HTMLElement): HTMLElement[] {
   const main = container.querySelector('main') as HTMLElement | null;
   if (!main) {
-    console.warn('[PDF] <main> not found in container — no breaks will be inserted.');
     return [];
   }
 
@@ -82,7 +81,6 @@ function getBreakCandidates(container: HTMLElement): HTMLElement[] {
     }
   }
 
-  console.log(`[PDF] Break candidates (main > * > *): ${candidates.length}`);
   return candidates;
 }
 
@@ -131,18 +129,6 @@ function insertPageBreaks(
     const isAlreadyAtTop = relTop < (PAGE_TOP_PADDING_PX + 10);
     const crossesSafeZone = blockBottom > safeEnd;
 
-    console.log('[PDF] checking block', {
-      tag: block.tagName,
-      cls: block.className.trim().split(/\s+/)[0] ?? '',
-      blockTop: Math.round(blockTop),
-      blockBottom: Math.round(blockBottom),
-      relTop: Math.round(relTop),
-      safeEnd,
-      crossesSafeZone,
-      isAlreadyAtTop,
-      action: (crossesSafeZone && !isAlreadyAtTop) ? '→ BREAK' : '→ stay',
-    });
-
     if (!crossesSafeZone || isAlreadyAtTop) continue;
 
     // ── Insert spacer that fills the rest of the current page ──────────────
@@ -177,8 +163,6 @@ function insertPageBreaks(
     block.parentNode!.insertBefore(bottomSpacer, block);
     block.parentNode!.insertBefore(topSpacer, block);
 
-    console.log(`[PDF] → BREAK inserted. bottomSpacer=${spacerHeight}px, topSpacer=${PAGE_TOP_PADDING_PX}px`);
-
     // Force reflow so next iteration reads accurate offsetTops
     void container.offsetHeight;
   }
@@ -201,8 +185,6 @@ function fillLastPageBackground(
   // +2px buffer prevents a hairline white strip at the very bottom caused
   // by subpixel rounding when html2canvas captures the container.
   const targetHeight = pageCount * A4_HEIGHT_PX + 2;
-
-  console.log('[PDF] fillLastPageBackground', { totalHeight, pageCount, targetHeight, bgColor });
 
   // Always paint globally
   container.style.setProperty('background-color', bgColor, 'important');
@@ -361,10 +343,6 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
         const bgColor =
           iframeWindow.getComputedStyle(container).backgroundColor || '#ffffff';
 
-        console.log(
-          `[PDF] Container ready. height=${container.scrollHeight}px  bg=${bgColor}`,
-        );
-
         // ── Main logic ──────────────────────────────────────────────────────
         insertPageBreaks(iframeDoc, container, bgColor);
         fillLastPageBackground(iframeDoc, container, bgColor);
@@ -374,8 +352,6 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
         iframeDoc.documentElement.style.backgroundColor = bgColor;
 
         const pdfOptions = buildPdfOptions(filename, bgColor, windowWidth);
-
-        console.log('[PDF] Calling html2pdf…');
 
         (iframeWindow as any)
           .html2pdf()

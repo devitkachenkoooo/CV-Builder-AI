@@ -131,10 +131,6 @@ export default function CvViewPage() {
   }, [id, toast]);
 
   const handleDownloadPDF = async () => {
-    console.log('CvViewPage handleDownloadPDF called');
-    console.log('cvData:', cvData);
-    console.log('pdfUrl:', pdfUrl);
-
     if (!cvData?.id || !pdfUrl) {
       console.error('Missing cvData.id or pdfUrl:', { cvDataId: cvData?.id, pdfUrl });
       toast({
@@ -147,8 +143,6 @@ export default function CvViewPage() {
 
     try {
       setIsGeneratingPdf(true);
-
-      console.log('Calling generatePdfFromUrl with:', pdfUrl);
 
       await generatePdfFromUrl({
         url: pdfUrl,

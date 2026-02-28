@@ -25,10 +25,8 @@ export interface ValidationIssue {
 export async function validateCVContent(cvText: string): Promise<ValidationResult> {
   try {
     const textSnippet = cvText.trim();
-    console.log(`[VALIDATION] Starting CV content analysis. Text length: ${textSnippet.length} chars`);
 
     if (textSnippet.length < 50) {
-      console.log('[VALIDATION] Content too short for meaningful analysis');
       const shortMsg = 'CV text is too short. Please add more professional information.';
 
       return {
@@ -91,7 +89,6 @@ Respond with JSON only.`;
     });
 
     const content = response.choices[0]?.message?.content || '';
-    console.log('[VALIDATION] Raw AI response received');
 
     // Improved JSON extraction: find the first '{' and last '}'
     const startIndex = content.indexOf('{');
@@ -110,12 +107,6 @@ Respond with JSON only.`;
       if (typeof result.isValid !== 'boolean') {
         throw new Error('Missing "isValid" field in response');
       }
-
-      console.log('[VALIDATION] Analysis result:', {
-        isValid: result.isValid,
-        quality: result.quality,
-        confidence: result.confidence
-      });
 
       return result;
     } catch (parseError) {
