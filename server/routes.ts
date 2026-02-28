@@ -383,9 +383,6 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
         throw new Error("AI returned empty HTML");
       }
 
-      const outputHasCyrillic = /[\u0400-\u04FF]/.test(generatedHtml);
-      if (!cvHasCyrillic && outputHasCyrillic) {
-        const retryPrompt = `${prompt}\n\nCRITICAL OVERRIDE:\n- The CV CONTENT is in English (Latin alphabet).\n- Your output MUST be 100% English and MUST NOT contain any Cyrillic characters.\n- Translate all headings/labels to English.\n- If you are unsure about a translation, use a common English CV heading.\n\nReturn ONLY raw HTML.`;
 
         const retryResponse = await openrouter.chat.completions.create({
           model: "meta-llama/llama-3.3-70b-instruct",
@@ -404,12 +401,6 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
         }
       }
 
-      // Перевіряємо, чи AI зберіг pdf-flow-break класи
-      const pdfFlowBreakCount = (generatedHtml.match(/pdf-flow-break/g) || []).length;
-      
-      if (pdfFlowBreakCount === 0) {
-        // Тут можна додати логіку для виправлення або повторної генерації
-      }
 
       const pdfUrl = buildUrl(api.generatedCv.render.path, { id: jobId });
       await storage.updateGeneratedCvStatus(
