@@ -64,14 +64,11 @@ export async function registerRoutes(
   app.post(api.generate.start.path, isAuthenticated, upload.single('file'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const lang = (req.headers['x-language'] as 'ua' | 'en') || 'ua';
 
       // Handle file upload
       if (!req.file) {
         return res.status(400).json({
-          message: lang === 'ua'
-            ? "❌ Файл не завантажено! Будь ласка, виберіть файл .docx для створення CV."
-            : "❌ No file uploaded! Please select a .docx file to create your CV.",
+          message: "❌ No file uploaded! Please select a .docx file to create your CV.",
           field: "file"
         });
       }
@@ -83,31 +80,16 @@ export async function registerRoutes(
         let errorMessage = fileResult.error || "Failed to process file";
 
         // Add user-friendly messages for common errors
-        if (lang === 'ua') {
-          if (errorMessage.includes("File must have .docx extension")) {
-            errorMessage = "❌ Невірний формат файлу! Будь ласка, завантажте файл у форматі .docx (Microsoft Word).";
-          } else if (errorMessage.includes("Invalid MIME type")) {
-            errorMessage = "❌ Невірний тип файлу! Файл повинен бути документом Microsoft Word (.docx).";
-          } else if (errorMessage.includes("File too large")) {
-            errorMessage = "❌ Файл занадто великий! Максимальний розмір: 5MB.";
-          } else if (errorMessage.includes("Empty file")) {
-            errorMessage = "❌ Файл порожній! Будь ласка, виберіть файл з вмістом.";
-          } else if (errorMessage.includes("Failed to extract text")) {
-            errorMessage = "❌ Не вдалося прочитати вміст файлу! Перевірте, що файл не пошкоджений.";
-          }
-        } else {
-          // English error messages
-          if (errorMessage.includes("File must have .docx extension")) {
-            errorMessage = "❌ Invalid file format! Please upload a .docx file (Microsoft Word).";
-          } else if (errorMessage.includes("Invalid MIME type")) {
-            errorMessage = "❌ Invalid file type! File must be a Microsoft Word document (.docx).";
-          } else if (errorMessage.includes("File too large")) {
-            errorMessage = "❌ File too large! Maximum size: 5MB.";
-          } else if (errorMessage.includes("Empty file")) {
-            errorMessage = "❌ File is empty! Please select a file with content.";
-          } else if (errorMessage.includes("Failed to extract text")) {
-            errorMessage = "❌ Failed to read file content! Please check that the file is not corrupted.";
-          }
+        if (errorMessage.includes("File must have .docx extension")) {
+          errorMessage = "❌ Invalid file format! Please upload a .docx file (Microsoft Word).";
+        } else if (errorMessage.includes("Invalid MIME type")) {
+          errorMessage = "❌ Invalid file type! File must be a Microsoft Word document (.docx).";
+        } else if (errorMessage.includes("File too large")) {
+          errorMessage = "❌ File too large! Maximum size: 5MB.";
+        } else if (errorMessage.includes("Empty file")) {
+          errorMessage = "❌ File is empty! Please select a file with content.";
+        } else if (errorMessage.includes("Failed to extract text")) {
+          errorMessage = "❌ Failed to read file content! Please check that the file is not corrupted.";
         }
 
         return res.status(400).json({
@@ -123,20 +105,18 @@ export async function registerRoutes(
       const templateId = parseInt(req.body.templateId);
       if (isNaN(templateId) || templateId <= 0) {
         return res.status(400).json({
-          message: lang === 'ua'
-            ? "❌ Невірний ID шаблону! Будь ласка, виберіть правильний шаблон CV."
-            : "❌ Invalid template ID! Please select a valid CV template.",
+          message: "❌ Invalid template ID! Please select a valid CV template.",
           field: "templateId"
         });
       }
 
       // 1. Validate CV content using AI FIRST (before creating anything in DB)
 
-      const validationResult = await validateCVContent(cvText, lang);
+      const validationResult = await validateCVContent(cvText);
 
       if (!validationResult.isValid) {
-        const userMessage = generateUserFriendlyMessage(validationResult, lang);
-        const suggestions = formatSuggestionsForUser(validationResult.suggestions || [], lang);
+        const userMessage = generateUserFriendlyMessage(validationResult);
+        const suggestions = formatSuggestionsForUser(validationResult.suggestions || []);
         const fullMessage = userMessage + suggestions;
 
 
@@ -151,7 +131,7 @@ export async function registerRoutes(
         });
       }
 
-      const userFriendlyStatus = generateUserFriendlyMessage(validationResult, lang);
+      const userFriendlyStatus = generateUserFriendlyMessage(validationResult);
 
       // 2. ONLY NOW create the job in the database
       const cv = await storage.createGeneratedCv({
@@ -162,7 +142,7 @@ export async function registerRoutes(
       });
 
       // 3. Start async generation
-      generateCvAsync(cv.id, templateId, cvText, lang, sourceInfo).catch(err => {
+      generateCvAsync(cv.id, templateId, cvText, sourceInfo).catch(err => {
       });
 
       res.status(202).json({ jobId: cv.id });
@@ -319,7 +299,7 @@ async function seedTemplates() {
 
 }
 
-async function generateCvAsync(jobId: number, templateId: number, cvText: string, lang: 'ua' | 'en' = 'ua', sourceInfo?: string) {
+async function generateCvAsync(jobId: number, templateId: number, cvText: string, sourceInfo?: string) {
   try {
     const template = await storage.getTemplate(templateId);
     if (!template) {
@@ -342,7 +322,7 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
     await storage.updateGeneratedCvStatus(
       jobId, 
       "processing", 
-      lang === 'ua' ? "ШІ аналізує та форматує резюме..." : "AI is analyzing and formatting your CV..."
+      "AI is analyzing and formatting your CV..."
     );
 
     const prompt = `You are an HTML injection specialist. Inject the CV content into the HTML template.
@@ -396,7 +376,7 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
       await storage.updateGeneratedCvStatus(
         jobId, 
         "complete", 
-        lang === 'ua' ? "✅ Резюме успішно створено!" : "✅ CV successfully created!", 
+        "✅ CV successfully created!", 
         pdfUrl,
         generatedHtml
       );
@@ -406,7 +386,7 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
       await storage.updateGeneratedCvStatus(
         jobId, 
         "failed", 
-        lang === 'ua' ? "❌ Помилка штучного інтелекту" : "❌ AI generation failed"
+        "❌ AI generation failed"
       );
     }
 
@@ -415,7 +395,7 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
     await storage.updateGeneratedCvStatus(
       jobId, 
       "failed", 
-      lang === 'ua' ? "❌ Критична помилка генерації" : "❌ Critical generation error"
+      "❌ Critical generation error"
     );
   }
 }
