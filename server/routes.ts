@@ -306,29 +306,6 @@ function cleanModelHtmlResponse(raw: string): string {
     .trim();
 }
 
-function extractJsonObject(raw: string): string | null {
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start === -1 || end === -1 || end < start) {
-    return null;
-  }
-  return raw.slice(start, end + 1);
-}
-
-function uniqueStrings(items: string[]): string[] {
-  return Array.from(new Set(items.map((item) => item.trim()).filter((item) => item.length > 0)));
-}
-
-type CoverageAuditPayload = {
-  isPass?: boolean;
-  missingItems?: string[];
-  misplacedItems?: string[];
-  extraSections?: string[];
-  structuralIssues?: string[];
-  fixInstructions?: string[];
-  reason?: string;
-};
-
 async function generateCvAsync(jobId: number, templateId: number, cvText: string, sourceInfo?: string) {
   try {
     const template = await storage.getTemplate(templateId);
@@ -403,106 +380,6 @@ ${normalizedCvText}`;
       let generatedHtml = cleanModelHtmlResponse(response.choices[0]?.message?.content || "");
       if (!generatedHtml) {
         throw new Error("AI returned empty HTML");
-      }
-
-      for (let attempt = 0; attempt < 2; attempt++) {
-        const auditPrompt = `You are a strict CV-to-HTML auditor.
-
-Compare CV_CONTENT and GENERATED_HTML.
-Check:
-- output language must match CV language;
-- no important source data is missing;
-- no important data is misplaced into wrong section;
-- no extra section exists without source data;
-- structure follows source CV meaning while preserving template style.
-
-Return JSON only:
-{
-  "isPass": true,
-  "missingItems": [],
-  "misplacedItems": [],
-  "extraSections": [],
-  "structuralIssues": [],
-  "fixInstructions": [],
-  "reason": "short reason"
-}
-
-CV_CONTENT:
-${normalizedCvText}
-
-GENERATED_HTML:
-${generatedHtml}`;
-
-        const auditResponse = await openrouter.chat.completions.create({
-          model,
-          messages: [{ role: "user", content: auditPrompt }],
-          max_tokens: 1800,
-          temperature: 0.1,
-        });
-
-        const auditRaw = auditResponse.choices[0]?.message?.content || "";
-        const auditJson = extractJsonObject(auditRaw);
-        let audit: CoverageAuditPayload = {};
-        if (auditJson) {
-          try {
-            audit = JSON.parse(auditJson) as CoverageAuditPayload;
-          } catch (parseError) {
-            console.warn("Audit JSON parse failed:", parseError);
-          }
-        }
-
-        const issues = uniqueStrings([
-          ...(Array.isArray(audit.missingItems) ? audit.missingItems : []),
-          ...(Array.isArray(audit.misplacedItems) ? audit.misplacedItems : []),
-          ...(Array.isArray(audit.extraSections) ? audit.extraSections.map((s) => `Remove extra section: ${s}`) : []),
-          ...(Array.isArray(audit.structuralIssues) ? audit.structuralIssues : []),
-          ...(Array.isArray(audit.fixInstructions) ? audit.fixInstructions : []),
-        ]);
-
-        const needsRepair = audit.isPass === false || issues.length > 0;
-        if (!needsRepair) {
-          break;
-        }
-
-        const repairPrompt = `You previously generated HTML from CV content and audit detected issues.
-
-Fix all issues while preserving template visual style.
-
-Rules:
-- Keep CSS/classes/layout style unchanged.
-- Adapt section structure to source CV content only.
-- Remove extra sections with no source data.
-- Place each item in correct semantic section.
-- Keep output language the same as CV language.
-- Keep technology/brand names unchanged.
-- Remove empty placeholders.
-
-AUDIT_ISSUES:
-${issues.join("\n")}
-
-CURRENT_HTML:
-${generatedHtml}
-
-CV_CONTENT:
-${normalizedCvText}
-
-Return only raw HTML.`;
-
-        const repairResponse = await openrouter.chat.completions.create({
-          model,
-          messages: [
-            { role: "system", content: systemMessage },
-            { role: "user", content: repairPrompt },
-          ],
-          max_tokens: 8192,
-          temperature: 0.1,
-        });
-
-        const repairedHtml = cleanModelHtmlResponse(repairResponse.choices[0]?.message?.content || "");
-        if (!repairedHtml) {
-          break;
-        }
-        generatedHtml = repairedHtml;
       }
 
       const pdfUrl = buildUrl(api.generatedCv.render.path, { id: jobId });
