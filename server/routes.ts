@@ -315,6 +315,20 @@ function extractJsonObject(raw: string): string | null {
   return raw.slice(start, end + 1);
 }
 
+function uniqueStrings(items: string[]): string[] {
+  return Array.from(new Set(items.map((item) => item.trim()).filter((item) => item.length > 0)));
+}
+
+type CoverageAuditPayload = {
+  isPass?: boolean;
+  missingItems?: string[];
+  misplacedItems?: string[];
+  extraSections?: string[];
+  structuralIssues?: string[];
+  fixInstructions?: string[];
+  reason?: string;
+};
+
 async function generateCvAsync(jobId: number, templateId: number, cvText: string, sourceInfo?: string) {
   try {
     const template = await storage.getTemplate(templateId);
@@ -348,32 +362,32 @@ Output requirements:
 
     const generationPrompt = `Inject CV data into the provided HTML template.
 
-Step 1: Language
-- Detect CV content language directly from CV text.
-- Do not use any hardcoded language assumptions.
-- Do not apply any allow/deny rules for scripts (Cyrillic, Latin, etc.).
-- All output text must match detected CV language.
+Requirements:
+- Detect language from CV content and keep output in that same language.
+- Preserve template visual style exactly: CSS, classes, typography, spacing, and overall look.
+- Adapt structure to CV content:
+  - remove template sections that have no matching source data;
+  - do not invent sections that are not in source CV.
+- Keep data in correct semantic blocks:
+  - do not place soft skills/languages into unrelated blocks (for example interests) unless source CV explicitly has such block and data.
+- Extract all important data from CV: personal info, experience, education, skills, soft skills, languages, links, tools, grouped skill lists.
+- Do not drop grouped items (if source has "Category: a, b, c", keep all items).
+- Keep brand and technology names unchanged.
+- Remove placeholders and empty content blocks.
 
-Step 2: Full data extraction (critical)
-- Extract every relevant fact from CV content before writing HTML.
-- Include all personal info, experience, education, links, and achievements.
-- Include all skills/tools/technologies/models/platforms/soft skills/languages.
-- If source groups skills by categories (e.g. "AI Models: Gemini, ChatGPT, Claude"), keep category meaning and include every listed item.
-- Do not drop items because of template defaults. Add extra list items where needed.
+Output:
+- Return only raw HTML.
+- No markdown.
+- No explanations.
 
-Step 3: Injection rules
-- Replace template placeholder/demo text with CV data.
-- Keep existing HTML/CSS structure valid.
-- Translate static template labels/headings to detected CV language.
-- Remove empty blocks if there is no matching data.
+SOURCE INFO:
+${sourceInfo || "N/A"}
 
 HTML TEMPLATE:
 ${templateHtml}
 
-CV CONTENT (single source of truth):
-${normalizedCvText}
-
-Return only raw HTML.`;
+CV CONTENT:
+${normalizedCvText}`;
 
     try {
       const response = await openrouter.chat.completions.create({
@@ -391,24 +405,27 @@ Return only raw HTML.`;
         throw new Error("AI returned empty HTML");
       }
 
-      const auditPrompt = `You are a strict CV coverage auditor.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const auditPrompt = `You are a strict CV-to-HTML auditor.
 
 Compare CV_CONTENT and GENERATED_HTML.
-Find only truly missing important items in GENERATED_HTML.
-Focus on:
-- every skill/tool/technology/model/platform
-- grouped skill items (all comma-separated items must be present)
-- soft skills and languages
-- major experience/education entries
+Check:
+- output language must match CV language;
+- no important source data is missing;
+- no important data is misplaced into wrong section;
+- no extra section exists without source data;
+- structure follows source CV meaning while preserving template style.
 
 Return JSON only:
 {
-  "missingItems": ["item 1", "item 2"],
+  "isPass": true,
+  "missingItems": [],
+  "misplacedItems": [],
+  "extraSections": [],
+  "structuralIssues": [],
+  "fixInstructions": [],
   "reason": "short reason"
 }
-
-If nothing important is missing, return:
-{"missingItems":[],"reason":"complete"}
 
 CV_CONTENT:
 ${normalizedCvText}
@@ -416,41 +433,52 @@ ${normalizedCvText}
 GENERATED_HTML:
 ${generatedHtml}`;
 
-      const auditResponse = await openrouter.chat.completions.create({
-        model,
-        messages: [{ role: "user", content: auditPrompt }],
-        max_tokens: 1200,
-        temperature: 0.1,
-      });
+        const auditResponse = await openrouter.chat.completions.create({
+          model,
+          messages: [{ role: "user", content: auditPrompt }],
+          max_tokens: 1800,
+          temperature: 0.1,
+        });
 
-      let missingItems: string[] = [];
-      const auditRaw = auditResponse.choices[0]?.message?.content || "";
-      const auditJson = extractJsonObject(auditRaw);
-      if (auditJson) {
-        try {
-          const parsed = JSON.parse(auditJson) as { missingItems?: unknown };
-          if (Array.isArray(parsed.missingItems)) {
-            missingItems = parsed.missingItems
-              .filter((item): item is string => typeof item === "string")
-              .map((item) => item.trim())
-              .filter((item) => item.length > 0);
+        const auditRaw = auditResponse.choices[0]?.message?.content || "";
+        const auditJson = extractJsonObject(auditRaw);
+        let audit: CoverageAuditPayload = {};
+        if (auditJson) {
+          try {
+            audit = JSON.parse(auditJson) as CoverageAuditPayload;
+          } catch (parseError) {
+            console.warn("Audit JSON parse failed:", parseError);
           }
-        } catch (parseError) {
-          console.warn("Audit JSON parse failed:", parseError);
         }
-      }
 
-      if (missingItems.length > 0) {
-        const repairPrompt = `You previously generated HTML from CV content, but some important items were omitted.
+        const issues = uniqueStrings([
+          ...(Array.isArray(audit.missingItems) ? audit.missingItems : []),
+          ...(Array.isArray(audit.misplacedItems) ? audit.misplacedItems : []),
+          ...(Array.isArray(audit.extraSections) ? audit.extraSections.map((s) => `Remove extra section: ${s}`) : []),
+          ...(Array.isArray(audit.structuralIssues) ? audit.structuralIssues : []),
+          ...(Array.isArray(audit.fixInstructions) ? audit.fixInstructions : []),
+        ]);
 
-Task:
-- Update HTML to include every missing item.
-- Keep existing HTML/CSS structure and style integrity.
-- Prefer adding items to skills/experience/education sections where appropriate.
-- Keep output language matched to CV language.
+        const needsRepair = audit.isPass === false || issues.length > 0;
+        if (!needsRepair) {
+          break;
+        }
 
-MISSING_ITEMS:
-${missingItems.join("\n")}
+        const repairPrompt = `You previously generated HTML from CV content and audit detected issues.
+
+Fix all issues while preserving template visual style.
+
+Rules:
+- Keep CSS/classes/layout style unchanged.
+- Adapt section structure to source CV content only.
+- Remove extra sections with no source data.
+- Place each item in correct semantic section.
+- Keep output language the same as CV language.
+- Keep technology/brand names unchanged.
+- Remove empty placeholders.
+
+AUDIT_ISSUES:
+${issues.join("\n")}
 
 CURRENT_HTML:
 ${generatedHtml}
@@ -471,9 +499,10 @@ Return only raw HTML.`;
         });
 
         const repairedHtml = cleanModelHtmlResponse(repairResponse.choices[0]?.message?.content || "");
-        if (repairedHtml) {
-          generatedHtml = repairedHtml;
+        if (!repairedHtml) {
+          break;
         }
+        generatedHtml = repairedHtml;
       }
 
       const pdfUrl = buildUrl(api.generatedCv.render.path, { id: jobId });
