@@ -6,3 +6,4 @@ vite.config.ts.*
 *.tar.gz
 client/public/generated/
 .bak-templates
+.mock-data

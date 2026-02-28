@@ -299,6 +299,22 @@ async function seedTemplates() {
 
 }
 
+function cleanModelHtmlResponse(raw: string): string {
+  return raw
+    .replace(/```html\s*/gi, "")
+    .replace(/```\s*$/g, "")
+    .trim();
+}
+
+function extractJsonObject(raw: string): string | null {
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start === -1 || end === -1 || end < start) {
+    return null;
+  }
+  return raw.slice(start, end + 1);
+}
+
 async function generateCvAsync(jobId: number, templateId: number, cvText: string, sourceInfo?: string) {
   try {
     const template = await storage.getTemplate(templateId);
@@ -306,10 +322,7 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
       throw new Error("Template not found in DB");
     }
 
-    // Очищаємо назву файлу від можливих timestamp (template-1_123.html -> template-1.html)
-    const cleanFileName = template.fileName.split('_')[0].replace('.html', '') + '.html';
-
-    // Визначаємо шлях до шаблону (пріоритет на public папку)
+    const cleanFileName = template.fileName.split("_")[0].replace(".html", "") + ".html";
     const templatePath = path.join(process.cwd(), "client", "public", "templates", cleanFileName);
 
     if (!fsSync.existsSync(templatePath)) {
@@ -317,115 +330,174 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
     }
 
     const templateHtml = await fs.readFile(templatePath, "utf-8");
+    const normalizedCvText = cvText.replace(/\u0000/g, "").trim();
 
-    // Оновлюємо статус для користувача
     await storage.updateGeneratedCvStatus(
-      jobId, 
-      "processing", 
+      jobId,
+      "processing",
       "AI is analyzing and formatting your CV..."
     );
 
+    const model = "meta-llama/llama-3.3-70b-instruct";
     const systemMessage = `You are a deterministic HTML transformation engine. Follow instructions exactly.
 
-    LANGUAGE RULE (highest priority):
-    - Detect the language of the CV CONTENT.
-    - Match output language 100% to CV CONTENT language.
+Output requirements:
+- Return only raw HTML.
+- No markdown code fences.
+- No explanations.`;
 
-    Return ONLY raw HTML. No markdown. No explanation.`;
+    const generationPrompt = `Inject CV data into the provided HTML template.
 
-    const prompt = `You are an HTML injection specialist. Inject ALL CV content into the HTML template.
+Step 1: Language
+- Detect CV content language directly from CV text.
+- Do not use any hardcoded language assumptions.
+- Do not apply any allow/deny rules for scripts (Cyrillic, Latin, etc.).
+- All output text must match detected CV language.
 
-    ⚠️ STEP 1 — DETECT LANGUAGE:
-    Read the CV CONTENT and identify its language.
-    ALL output text MUST be in this detected language. Non-negotiable.
+Step 2: Full data extraction (critical)
+- Extract every relevant fact from CV content before writing HTML.
+- Include all personal info, experience, education, links, and achievements.
+- Include all skills/tools/technologies/models/platforms/soft skills/languages.
+- If source groups skills by categories (e.g. "AI Models: Gemini, ChatGPT, Claude"), keep category meaning and include every listed item.
+- Do not drop items because of template defaults. Add extra list items where needed.
 
-    ⚠️ STEP 2 — EXTRACT ALL DATA (critical):
-    Before injecting, extract EVERY piece of information from the CV:
-    - All skills, tools, technologies (including soft skills, languages, AI tools — everything listed)
-    - All job positions, companies, dates, descriptions
-    - All education entries
-    - All personal info (name, contacts, links)
-    - Do NOT skip any item. If the CV groups skills (e.g. "AI Models: X, Y, Z") — extract ALL items including labels like "Advanced Prompting & Context Engineering"
-    - Soft skills (e.g. "High learning adaptability", "Problem-solving mindset") must also be included
+Step 3: Injection rules
+- Replace template placeholder/demo text with CV data.
+- Keep existing HTML/CSS structure valid.
+- Translate static template labels/headings to detected CV language.
+- Remove empty blocks if there is no matching data.
 
-    ⚠️ STEP 3 — INJECT AND TRANSLATE:
-    - Replace every piece of text in the template with corresponding CV data.
-    - Translate ALL static template labels/headers to match the detected CV language.
-    - Preserve ONLY HTML tags, CSS classes, and attributes.
+HTML TEMPLATE:
+${templateHtml}
 
-    ⚠️ STEP 4 — CLEAN UP:
-    - Remove sections/fields with NO matching CV data.
-    - Do not leave empty tags or placeholder text.
+CV CONTENT (single source of truth):
+${normalizedCvText}
 
-    🔒 HTML TEMPLATE (structure only — ignore its language):
-    ${templateHtml}
-
-    📝 CV CONTENT (source of truth — extract everything):
-    ${cvText}
-
-    Return ONLY raw HTML.`;
+Return only raw HTML.`;
 
     try {
       const response = await openrouter.chat.completions.create({
-        model: "meta-llama/llama-3.3-70b-instruct",
+        model,
         messages: [
           { role: "system", content: systemMessage },
-          { role: "user", content: prompt },
+          { role: "user", content: generationPrompt },
         ],
         max_tokens: 8192,
-        temperature: 0.1, // Зменшено для більш детермінованого результату
+        temperature: 0.1,
       });
 
-      let generatedHtml = response.choices[0]?.message?.content || "";
-      // Очищаємо від Markdown тегів, якщо ШІ їх додав
-      generatedHtml = generatedHtml.replace(/```html\n?/g, "").replace(/```\n?$/g, "").trim();
+      let generatedHtml = cleanModelHtmlResponse(response.choices[0]?.message?.content || "");
       if (!generatedHtml) {
         throw new Error("AI returned empty HTML");
       }
 
+      const auditPrompt = `You are a strict CV coverage auditor.
 
-        const retryResponse = await openrouter.chat.completions.create({
-          model: "meta-llama/llama-3.3-70b-instruct",
-          messages: [
-            { role: "system", content: systemMessage },
-            { role: "user", content: retryPrompt },
-          ],
-          max_tokens: 8192,
-          temperature: 0.2,
-        });
+Compare CV_CONTENT and GENERATED_HTML.
+Find only truly missing important items in GENERATED_HTML.
+Focus on:
+- every skill/tool/technology/model/platform
+- grouped skill items (all comma-separated items must be present)
+- soft skills and languages
+- major experience/education entries
 
-        let retryHtml = retryResponse.choices[0]?.message?.content || "";
-        retryHtml = retryHtml.replace(/```html\n?/g, "").replace(/```\n?$/g, "").trim();
-        if (retryHtml) {
-          generatedHtml = retryHtml;
+Return JSON only:
+{
+  "missingItems": ["item 1", "item 2"],
+  "reason": "short reason"
+}
+
+If nothing important is missing, return:
+{"missingItems":[],"reason":"complete"}
+
+CV_CONTENT:
+${normalizedCvText}
+
+GENERATED_HTML:
+${generatedHtml}`;
+
+      const auditResponse = await openrouter.chat.completions.create({
+        model,
+        messages: [{ role: "user", content: auditPrompt }],
+        max_tokens: 1200,
+        temperature: 0.1,
+      });
+
+      let missingItems: string[] = [];
+      const auditRaw = auditResponse.choices[0]?.message?.content || "";
+      const auditJson = extractJsonObject(auditRaw);
+      if (auditJson) {
+        try {
+          const parsed = JSON.parse(auditJson) as { missingItems?: unknown };
+          if (Array.isArray(parsed.missingItems)) {
+            missingItems = parsed.missingItems
+              .filter((item): item is string => typeof item === "string")
+              .map((item) => item.trim())
+              .filter((item) => item.length > 0);
+          }
+        } catch (parseError) {
+          console.warn("Audit JSON parse failed:", parseError);
         }
       }
 
+      if (missingItems.length > 0) {
+        const repairPrompt = `You previously generated HTML from CV content, but some important items were omitted.
+
+Task:
+- Update HTML to include every missing item.
+- Keep existing HTML/CSS structure and style integrity.
+- Prefer adding items to skills/experience/education sections where appropriate.
+- Keep output language matched to CV language.
+
+MISSING_ITEMS:
+${missingItems.join("\n")}
+
+CURRENT_HTML:
+${generatedHtml}
+
+CV_CONTENT:
+${normalizedCvText}
+
+Return only raw HTML.`;
+
+        const repairResponse = await openrouter.chat.completions.create({
+          model,
+          messages: [
+            { role: "system", content: systemMessage },
+            { role: "user", content: repairPrompt },
+          ],
+          max_tokens: 8192,
+          temperature: 0.1,
+        });
+
+        const repairedHtml = cleanModelHtmlResponse(repairResponse.choices[0]?.message?.content || "");
+        if (repairedHtml) {
+          generatedHtml = repairedHtml;
+        }
+      }
 
       const pdfUrl = buildUrl(api.generatedCv.render.path, { id: jobId });
       await storage.updateGeneratedCvStatus(
-        jobId, 
-        "complete", 
-        "✅ CV successfully created!", 
+        jobId,
+        "complete",
+        "CV successfully created!",
         pdfUrl,
         generatedHtml
       );
-
     } catch (apiError: any) {
       console.error("AI Generation Error:", apiError.message);
       await storage.updateGeneratedCvStatus(
-        jobId, 
-        "failed", 
-        "❌ AI generation failed"
+        jobId,
+        "failed",
+        "AI generation failed"
       );
     }
-
   } catch (error: any) {
     console.error("Critical CV Generation Error:", error.message);
     await storage.updateGeneratedCvStatus(
-      jobId, 
-      "failed", 
-      "❌ Critical generation error"
+      jobId,
+      "failed",
+      "Critical generation error"
     );
   }
 }
