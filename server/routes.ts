@@ -325,6 +325,9 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
       "AI is analyzing and formatting your CV..."
     );
 
+    const cvHasCyrillic = /[\u0400-\u04FF]/.test(cvText);
+    const systemMessage = `You are a deterministic HTML transformation engine. Follow instructions exactly.\n\nLANGUAGE RULE (highest priority):\n- The output language MUST match the language of the CV CONTENT, not the template.\n- If CV CONTENT is Latin-only (no Cyrillic), output MUST NOT contain any Cyrillic characters.\n\nReturn ONLY raw HTML.`;
+
     const prompt = `You are an HTML injection specialist. Inject the CV content into the HTML template.
 
     ⚠️ STEP 1 — DETECT LANGUAGE FIRST:
@@ -351,9 +354,12 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
     try {
       const response = await openrouter.chat.completions.create({
         model: "meta-llama/llama-3.3-70b-instruct",
-        messages: [{ role: "user", content: prompt }],
+        messages: [
+          { role: "system", content: systemMessage },
+          { role: "user", content: prompt },
+        ],
         max_tokens: 8192,
-        temperature: 0.3, // Зменшено для більш детермінованого результату
+        temperature: 0.1, // Зменшено для більш детермінованого результату
       });
 
       let generatedHtml = response.choices[0]?.message?.content || "";
@@ -361,6 +367,27 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
       generatedHtml = generatedHtml.replace(/```html\n?/g, "").replace(/```\n?$/g, "").trim();
       if (!generatedHtml) {
         throw new Error("AI returned empty HTML");
+      }
+
+      const outputHasCyrillic = /[\u0400-\u04FF]/.test(generatedHtml);
+      if (!cvHasCyrillic && outputHasCyrillic) {
+        const retryPrompt = `${prompt}\n\nCRITICAL OVERRIDE:\n- The CV CONTENT is in English (Latin alphabet).\n- Your output MUST be 100% English and MUST NOT contain any Cyrillic characters.\n- Translate all headings/labels to English.\n- If you are unsure about a translation, use a common English CV heading.\n\nReturn ONLY raw HTML.`;
+
+        const retryResponse = await openrouter.chat.completions.create({
+          model: "meta-llama/llama-3.3-70b-instruct",
+          messages: [
+            { role: "system", content: systemMessage },
+            { role: "user", content: retryPrompt },
+          ],
+          max_tokens: 8192,
+          temperature: 0.2,
+        });
+
+        let retryHtml = retryResponse.choices[0]?.message?.content || "";
+        retryHtml = retryHtml.replace(/```html\n?/g, "").replace(/```\n?$/g, "").trim();
+        if (retryHtml) {
+          generatedHtml = retryHtml;
+        }
       }
 
       // Перевіряємо, чи AI зберіг pdf-flow-break класи
