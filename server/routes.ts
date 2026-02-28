@@ -325,31 +325,45 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
       "AI is analyzing and formatting your CV..."
     );
 
-    const cvHasCyrillic = /[\u0400-\u04FF]/.test(cvText);
-    const systemMessage = `You are a deterministic HTML transformation engine. Follow instructions exactly.\n\nLANGUAGE RULE (highest priority):\n- The output language MUST match the language of the CV CONTENT, not the template.\n- If CV CONTENT is Latin-only (no Cyrillic), output MUST NOT contain any Cyrillic characters.\n\nReturn ONLY raw HTML.`;
+    const systemMessage = `You are a deterministic HTML transformation engine. Follow instructions exactly.
 
-    const prompt = `You are an HTML injection specialist. Inject the CV content into the HTML template.
+    LANGUAGE RULE (highest priority):
+    - Detect the language of the CV CONTENT.
+    - Match output language 100% to CV CONTENT language.
 
-    ⚠️ STEP 1 — DETECT LANGUAGE FIRST:
-    Read the CV CONTENT below and identify its language (e.g. English, Ukrainian, German, etc.).
-    All output text MUST be in this detected language. This is non-negotiable.
+    Return ONLY raw HTML. No markdown. No explanation.`;
 
-    ⚠️ STEP 2 — INJECT AND TRANSLATE:
-    - Replace every piece of text in the template with the corresponding CV data.
-    - Translate ALL static template labels and section headers (e.g. "Досвід" → "Experience" if CV is in English).
-    - Preserve ONLY HTML tags, CSS classes, and attributes — never preserve Ukrainian or any other language text from the template.
+    const prompt = `You are an HTML injection specialist. Inject ALL CV content into the HTML template.
 
-    ⚠️ STEP 3 — CLEAN UP:
-    - Remove any section, field, or list item that has no matching data in the CV content.
-    - Do not leave empty tags, placeholder text, or untranslated headers.
+    ⚠️ STEP 1 — DETECT LANGUAGE:
+    Read the CV CONTENT and identify its language.
+    ALL output text MUST be in this detected language. Non-negotiable.
+
+    ⚠️ STEP 2 — EXTRACT ALL DATA (critical):
+    Before injecting, extract EVERY piece of information from the CV:
+    - All skills, tools, technologies (including soft skills, languages, AI tools — everything listed)
+    - All job positions, companies, dates, descriptions
+    - All education entries
+    - All personal info (name, contacts, links)
+    - Do NOT skip any item. If the CV groups skills (e.g. "AI Models: X, Y, Z") — extract ALL items including labels like "Advanced Prompting & Context Engineering"
+    - Soft skills (e.g. "High learning adaptability", "Problem-solving mindset") must also be included
+
+    ⚠️ STEP 3 — INJECT AND TRANSLATE:
+    - Replace every piece of text in the template with corresponding CV data.
+    - Translate ALL static template labels/headers to match the detected CV language.
+    - Preserve ONLY HTML tags, CSS classes, and attributes.
+
+    ⚠️ STEP 4 — CLEAN UP:
+    - Remove sections/fields with NO matching CV data.
+    - Do not leave empty tags or placeholder text.
 
     🔒 HTML TEMPLATE (structure only — ignore its language):
     ${templateHtml}
 
-    📝 CV CONTENT (your language source of truth):
+    📝 CV CONTENT (source of truth — extract everything):
     ${cvText}
 
-    Return ONLY raw HTML. No markdown. No explanation.`;
+    Return ONLY raw HTML.`;
 
     try {
       const response = await openrouter.chat.completions.create({
