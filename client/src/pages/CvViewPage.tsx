@@ -107,6 +107,17 @@ export default function CvViewPage() {
       setPdfUrl(shouldBust ? withCacheBust(polledJob.pdfUrl, Date.now()) : polledJob.pdfUrl);
     }
 
+    if (polledJob.status === "complete" && polledJob.errorMessage) {
+      if (lastFailedMessageRef.current !== polledJob.errorMessage) {
+        lastFailedMessageRef.current = polledJob.errorMessage;
+        toast({
+          title: t("cv_view.toasts.ai_edit_failed_title"),
+          description: polledJob.errorMessage,
+          variant: "destructive",
+        });
+      }
+    }
+
     if (polledJob.status === "complete" || polledJob.status === "failed") {
       if (syncedTerminalStatusRef.current !== polledJob.status) {
         syncedTerminalStatusRef.current = polledJob.status;
@@ -115,7 +126,7 @@ export default function CvViewPage() {
     } else {
       syncedTerminalStatusRef.current = null;
     }
-  }, [polledJob, fetchCvData]);
+  }, [polledJob, fetchCvData, t, toast]);
 
   useEffect(() => {
     if (!cvData || cvData.status !== "failed") return;

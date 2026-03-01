@@ -861,8 +861,8 @@ ${cv.htmlContent}`;
     if (wasSameAsOriginal) {
       await storage.updateGeneratedCvStatus(
         cvId,
-        "failed",
-        "AI edit produced no visible changes.",
+        "complete",
+        "AI edit did not change the CV. Showing previous version.",
         undefined,
         undefined,
         "AI did not apply visible changes. Try a more specific prompt."
@@ -883,8 +883,8 @@ ${cv.htmlContent}`;
     console.error("AI Edit Error:", error);
     await storage.updateGeneratedCvStatus(
       cvId,
-      "failed",
-      "AI edit failed",
+      "complete",
+      "AI edit failed. Showing previous version.",
       undefined,
       undefined,
       "Failed to edit CV with AI. Please try again."
