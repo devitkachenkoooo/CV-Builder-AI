@@ -280,6 +280,7 @@ export async function registerRoutes(
 
 async function seedTemplates() {
   const existing = await storage.getTemplates();
+  console.log('Template synchronization: checking templates...');
 
   // Auto-generate templates from files in templates directory
   const templatesDir = path.join(process.cwd(), "client", "public", "templates");
@@ -306,14 +307,20 @@ async function seedTemplates() {
   const requiredFileNames = templates.map(t => t.fileName);
   const templatesToRemove = existing.filter(t => !requiredFileNames.includes(t.fileName));
 
+  if (templatesToAdd.length > 0 || templatesToRemove.length > 0) {
+    console.log(`Templates: adding ${templatesToAdd.length}, removing ${templatesToRemove.length}`);
+  }
+
   // Add new templates
   for (const template of templatesToAdd) {
     await storage.createTemplate(template);
+    console.log(`✓ Added template: ${template.name}`);
   }
 
   // Remove obsolete templates (will also delete related CVs)
   for (const template of templatesToRemove) {
     await storage.deleteTemplate(template.id);
+    console.log(`✓ Removed template: ${template.name}`);
   }
 }
 

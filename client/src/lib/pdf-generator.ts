@@ -368,7 +368,6 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
             }, 1000);
           })
           .catch((err: unknown) => {
-            console.error('[PDF] html2pdf error:', err);
             statusText.textContent = 'PDF generation failed';
             setTimeout(() => {
               overlay.remove();
@@ -378,7 +377,6 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
             }, 2000);
           });
       } catch (err) {
-        console.error('[PDF] Processing error:', err);
         overlay.remove();
         iframe.remove();
         spinStyle.remove();
@@ -423,7 +421,6 @@ export async function generatePdfFromElement(
 
     onLoadingChange?.(false);
   } catch (err) {
-    console.error('[PDF] Element generation error:', err);
     onLoadingChange?.(false);
     throw err;
   }
