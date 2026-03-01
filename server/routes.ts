@@ -290,8 +290,6 @@ async function seedTemplates() {
   const templates = templateFiles.map((fileName) => {
     const templateNumber = fileName.replace('.html', '');
     const templateId = parseInt(templateNumber.split('-')[1]); // Extract number from template-X
-    
-    console.log(`Processing ${fileName} -> templateId: ${templateId}`);
 
     return {
       id: templateId,
@@ -336,22 +334,17 @@ function cleanModelHtmlResponse(raw: string): string {
 }
 
 async function generateCvAsync(jobId: number, templateId: number, cvText: string, sourceInfo?: string) {
-  console.log(`Generating CV with templateId: ${templateId}`);
-  
   try {
     const template = await storage.getTemplate(templateId);
     if (!template) {
-      console.log(`Template not found in DB for ID: ${templateId}`);
       throw new Error("Template not found in DB");
     }
 
-    console.log(`Found template: ${template.name}, fileName: ${template.fileName}`);
-
     const templatePath = path.join(process.cwd(), "client", "public", "templates", template.fileName);
 
-    console.log('Looking for template file:', template.fileName);
-    console.log('Template path:', templatePath);
-    console.log('File exists:', fsSync.existsSync(templatePath));
+    if (!fsSync.existsSync(templatePath)) {
+      throw new Error(`Template file ${template.fileName} not found in templates directory`);
+    }
 
     const templateHtml = await fs.readFile(templatePath, "utf-8");
     const normalizedCvText = cvText.replace(/\u0000/g, "").trim();
