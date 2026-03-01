@@ -27,6 +27,7 @@ export const errorSchemas = {
   validation: z.object({
     message: z.string(),
     field: z.string().optional(),
+    code: z.string().optional(),
   }),
   notFound: z.object({
     message: z.string(),
@@ -83,6 +84,20 @@ export const api = {
       responses: {
         200: z.array(z.custom<GeneratedCvResponse>()),
         401: errorSchemas.unauthorized,
+      },
+    },
+    aiEdit: {
+      method: 'POST' as const,
+      path: '/api/resumes/:id/ai-edit' as const,
+      input: z.object({
+        prompt: z.string(),
+      }),
+      responses: {
+        202: z.object({ jobId: z.number() }),
+        400: errorSchemas.validation,
+        403: errorSchemas.unauthorized,
+        404: errorSchemas.notFound,
+        409: errorSchemas.validation,
       },
     },
     delete: {

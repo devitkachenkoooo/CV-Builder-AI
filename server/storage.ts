@@ -27,10 +27,10 @@ export interface IStorage {
   updateGeneratedCvStatus(
     id: number,
     status: string,
-    progress?: string,
-    pdfUrl?: string,
-    htmlContent?: string,
-    errorMessage?: string
+    progress?: string | null,
+    pdfUrl?: string | null,
+    htmlContent?: string | null,
+    errorMessage?: string | null
   ): Promise<GeneratedCv>;
   deleteGeneratedCv(id: number): Promise<void>;
 }
@@ -123,21 +123,32 @@ export class DatabaseStorage implements IStorage {
   async updateGeneratedCvStatus(
     id: number,
     status: string,
-    progress?: string,
-    pdfUrl?: string,
-    htmlContent?: string,
-    errorMessage?: string
+    progress?: string | null,
+    pdfUrl?: string | null,
+    htmlContent?: string | null,
+    errorMessage?: string | null
   ): Promise<GeneratedCv> {
+    const updateData: Partial<typeof generatedCvs.$inferInsert> = {
+      status,
+      updatedAt: new Date(),
+    };
+
+    if (progress !== undefined) {
+      updateData.progress = progress;
+    }
+    if (pdfUrl !== undefined) {
+      updateData.pdfUrl = pdfUrl;
+    }
+    if (htmlContent !== undefined) {
+      updateData.htmlContent = htmlContent;
+    }
+    if (errorMessage !== undefined) {
+      updateData.errorMessage = errorMessage;
+    }
+
     const [updated] = await db
       .update(generatedCvs)
-      .set({
-        status,
-        progress,
-        pdfUrl,
-        htmlContent,
-        errorMessage,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(generatedCvs.id, id))
       .returning();
     return updated;
