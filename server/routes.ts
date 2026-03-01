@@ -6,6 +6,7 @@ import { z } from "zod";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { processUploadedFile } from "./lib/file-processor";
 import { validateCVContent, generateUserFriendlyMessage, formatSuggestionsForUser } from "./lib/cv-validator";
+import { sanitizeHtml } from "./lib/html-sanitizer";
 import multer from "multer";
 import OpenAI from "openai";
 import fs from "fs/promises";
@@ -240,6 +241,7 @@ export async function registerRoutes(
       }
 
       res.setHeader("Content-Type", "text/html");
+      res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'none'; object-src 'none'; iframe-src 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:;");
       res.send(cv.htmlContent);
     } catch (error) {
       res.status(500).json({ message: "Failed to render CV" });
@@ -387,6 +389,9 @@ ${normalizedCvText}`;
       if (!generatedHtml) {
         throw new Error("AI returned empty HTML");
       }
+
+      // Sanitize HTML before saving
+      generatedHtml = sanitizeHtml(generatedHtml);
 
       const pdfUrl = buildUrl(api.generatedCv.render.path, { id: jobId });
       await storage.updateGeneratedCvStatus(
