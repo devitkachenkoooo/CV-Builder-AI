@@ -97,7 +97,7 @@ export default function LandingPage() {
                 { id: 1, src: '/images/templates/template-5.png' },
                 { id: 2, src: '/images/templates/template-6.png' },
                 { id: 3, src: '/images/templates/template-4.png' },
-                { id: 4, src: '/images/templates/template-10.png' }
+                { id: 4, src: '/images/templates/template-11.png' }
               ].map((template) => (
                 <div key={template.id} className="bg-secondary/40 rounded-xl overflow-hidden border border-border/50 aspect-[1/1.4] relative group">
                   <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
