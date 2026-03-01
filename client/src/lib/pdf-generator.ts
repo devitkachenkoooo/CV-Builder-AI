@@ -179,52 +179,34 @@ function fillLastPageBackground(
   doc: Document,
   container: HTMLElement,
   bgColor: string,
-): void {
+): number {
   // Measure AFTER page breaks are inserted — this is the true content height
   const totalHeight = container.scrollHeight;
   const pageCount = Math.ceil(totalHeight / A4_HEIGHT_PX);
+  // This is the canvas height we WANT — an exact multiple of the A4 page pixel height
   const targetHeight = pageCount * A4_HEIGHT_PX;
-  const gap = targetHeight - totalHeight;
 
-  console.log('[PDF] fillLastPageBackground', { totalHeight, pageCount, targetHeight, gap, bgColor });
+  console.log('[PDF] fillLastPageBackground', { totalHeight, pageCount, targetHeight, bgColor });
 
   // Always paint html / body so html2canvas captures no white edges
   container.style.setProperty('background-color', bgColor, 'important');
   doc.documentElement.style.setProperty('background-color', bgColor, 'important');
   doc.body.style.setProperty('background-color', bgColor, 'important');
 
-  // WHY a real div instead of min-height:
-  // html2canvas renders the actual pixel content of the DOM, not CSS sizing hints.
-  // `min-height` is often ignored during canvas capture, leaving a white strip.
-  // By inserting a real <div> with explicit height and bgColor, we guarantee the
-  // background fills all the way to the page bottom on every template.
-  //
-  // We only add the filler if there's a visible gap (> 2px to avoid extra blank pages).
-  if (gap > 2) {
-    // Remove any previously inserted filler so calling this twice is idempotent
-    const existing = container.querySelector('.pdf-bottom-filler');
-    if (existing) existing.remove();
-
-    const filler = doc.createElement('div');
-    filler.className = 'pdf-bottom-filler';
-    filler.style.cssText =
-      `height:${gap}px !important;` +
-      `min-height:${gap}px !important;` +
-      `background-color:${bgColor} !important;` +
-      `display:block !important;` +
-      `width:100% !important;` +
-      `margin:0 !important;` +
-      `padding:0 !important;` +
-      `box-sizing:border-box !important;`;
-
-    container.appendChild(filler);
-    console.log(`[PDF] bottom-filler added: ${gap}px`);
-  }
+  // Return targetHeight so the caller can pass it to html2canvas as `height`.
+  // html2canvas will render exactly this many pixels and fill any gap at the
+  // bottom with `backgroundColor` — this is more reliable than DOM padding tricks.
+  return targetHeight;
 }
 
 // ─── PDF options ──────────────────────────────────────────────────────────────
 
-function buildPdfOptions(filename: string, bgColor: string, windowWidth: number) {
+function buildPdfOptions(
+  filename: string,
+  bgColor: string,
+  windowWidth: number,
+  canvasHeight: number,
+) {
   return {
     margin: 0,
     filename,
@@ -238,6 +220,10 @@ function buildPdfOptions(filename: string, bgColor: string, windowWidth: number)
       backgroundColor: bgColor,
       width: windowWidth,
       windowWidth,
+      // Force the canvas to exactly pageCount*A4_HEIGHT_PX pixels tall.
+      // html2canvas fills any unfilled area at the bottom with backgroundColor,
+      // which eliminates the white strip regardless of DOM subpixel rounding.
+      height: canvasHeight,
       logging: false,
     },
     jsPDF: {
@@ -372,13 +358,13 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
 
         // ── Main logic ──────────────────────────────────────────────────────
         insertPageBreaks(iframeDoc, container, bgColor);
-        fillLastPageBackground(iframeDoc, container, bgColor);
+        const canvasHeight = fillLastPageBackground(iframeDoc, container, bgColor);
 
         // Redundant safety — ensure body/html share the background
         iframeDoc.body.style.backgroundColor = bgColor;
         iframeDoc.documentElement.style.backgroundColor = bgColor;
 
-        const pdfOptions = buildPdfOptions(filename, bgColor, windowWidth);
+        const pdfOptions = buildPdfOptions(filename, bgColor, windowWidth, canvasHeight);
 
         (iframeWindow as any)
           .html2pdf()
@@ -438,12 +424,12 @@ export async function generatePdfFromElement(
     void container.offsetHeight;
 
     insertPageBreaks(document, container, bgColor);
-    fillLastPageBackground(document, container, bgColor);
+    const canvasHeight = fillLastPageBackground(document, container, bgColor);
 
     document.body.style.backgroundColor = bgColor;
     document.documentElement.style.backgroundColor = bgColor;
 
-    const pdfOptions = buildPdfOptions(filename, bgColor, windowWidth);
+    const pdfOptions = buildPdfOptions(filename, bgColor, windowWidth, canvasHeight);
     await html2pdf().from(container).set(pdfOptions).save();
 
     onLoadingChange?.(false);
