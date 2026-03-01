@@ -1,4 +1,4 @@
-# CV Builder AI
+# CV Beautify
 
 > **🔗 Live demo:** [https://cv-builder-ai--devitkachenko.replit.app/](https://cv-builder-ai--devitkachenko.replit.app/)
 
