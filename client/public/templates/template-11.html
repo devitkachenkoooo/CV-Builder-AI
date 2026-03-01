@@ -41,8 +41,8 @@
             left: 0;
             bottom: 0;
             right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
-                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
             z-index: 100;
             background-size: 100% 4px, 3px 100%;
             pointer-events: none;
@@ -99,7 +99,9 @@
         }
 
         @keyframes blink {
-            50% { opacity: 0; }
+            50% {
+                opacity: 0;
+            }
         }
 
         .contact-info {
@@ -166,18 +168,16 @@
             flex-wrap: wrap;
             gap: 10px;
             margin: 10px 0;
+            /* Prevent pdf generator from cutting mid-row */
+            break-inside: avoid;
+            page-break-inside: avoid;
         }
 
         .pill {
             border: 1px solid var(--main-green);
             padding: 5px 15px;
             font-size: 13px;
-            transition: all 0.3s;
-        }
-
-        .pill:hover {
-            background-color: var(--main-green);
-            color: var(--bg-color);
+            /* No hover transitions — html2canvas doesn't support hover states */
         }
 
         .comment {
@@ -188,9 +188,28 @@
         }
 
         @media print {
-            body { background: white; padding: 0; }
-            .terminal-window, .container { box-shadow: none; border: 1px solid #000; width: 100%; }
-            body::before { display: none; }
+            body {
+                background: var(--bg-color);
+                padding: 0;
+            }
+
+            .terminal-window,
+            .container {
+                box-shadow: none;
+                border: 1px solid var(--dark-green);
+                width: 100%;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            body::before {
+                display: none;
+            }
+
+            .pill {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
         }
     </style>
 </head>
@@ -223,7 +242,7 @@
         <main>
             <section id="experience">
                 <h2>01. Professional_Experience</h2>
-                
+
                 <div class="item">
                     <h3 class="">Google Inc.</h3>
                     <p class="role">Web Developer</p>
@@ -241,14 +260,14 @@
                 <h2>02. Tech_Stack</h2>
                 <span class="comment">/* Primary languages and frameworks */</span>
                 <div class="pill-container">
-                    <!-- max 4 per conatiner -->
+                    <!-- MAX 4 elements per pill-container. For more skills, create a new pill-container below -->
                     <div class="pill">JavaScript_ES6</div>
                     <div class="pill">TypeScript</div>
                     <div class="pill">HTML5/CSS3</div>
                     <div class="pill">React.js</div>
                 </div>
                 <div class="pill-container">
-                    <!-- max 4 per conatiner -->
+                    <!-- MAX 4 elements per pill-container -->
                     <div class="pill">Node.js</div>
                     <div class="pill">Express.js</div>
                     <div class="pill">MongoDB</div>
@@ -267,7 +286,7 @@
             <section id="languages">
                 <h2>04. Languages</h2>
                 <div class="pill-container">
-                     <!-- max 4 per conatiner -->
+                    <!-- max 4 per conatiner -->
                     <div class="pill">English (Fluent)</div>
                     <div class="pill">Spanish (Native)</div>
                 </div>
