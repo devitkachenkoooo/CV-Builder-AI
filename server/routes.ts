@@ -283,26 +283,90 @@ async function seedTemplates() {
   console.log('Existing templates count:', existing.length);
   console.log('Existing template names:', existing.map(t => t.name));
 
-  const templates = [
-    { name: "Classic Minimalist", fileName: "template-1_1771944300652.html", screenshotUrl: "/images/templates/template-1.png", description: "Clean and professional layout with traditional styling" },
-    { name: "Modern Professional", fileName: "template-2_1771944300653.html", screenshotUrl: "/images/templates/template-2.png", description: "Contemporary design with clear sections" },
-    { name: "Tech Developer", fileName: "template-3_1771944300653.html", screenshotUrl: "/images/templates/template-3.png", description: "Perfect for software engineers and developers" },
-    { name: "Creative Designer", fileName: "template-4_1771944300654.html", screenshotUrl: "/images/templates/template-4.png", description: "Stylish design for creative professionals" },
-    { name: "Executive Bold", fileName: "template-5_1771944300654.html", screenshotUrl: "/images/templates/template-5.png", description: "Bold and impactful for senior positions" },
-    { name: "Elegant Profile", fileName: "template-6_1771944300655.html", screenshotUrl: "/images/templates/template-6.png", description: "Elegant with profile photo section" },
-    { name: "Game Industry", fileName: "template-8_1771944300656.html", screenshotUrl: "/images/templates/template-8.png", description: "Tailored for game industry professionals" },
-    { name: "Modern Accent", fileName: "template-9_1771944300656.html", screenshotUrl: "/images/templates/template-9.png", description: "Modern with accent colors" },
-    { name: "Dark Professional", fileName: "template-10_1771944300656.html", screenshotUrl: "/images/templates/template-10.png", description: "Professional dark theme design" },
-    { name: "Terminal Style", fileName: "template-11_1771944300657.html", screenshotUrl: "/images/templates/template-11.png", description: "Retro terminal hacker style with green text on black background" },
-  ];
+  // Auto-generate templates from files in templates directory
+  const templatesDir = path.join(process.cwd(), "client", "public", "templates");
+  const templateFiles = fsSync.readdirSync(templatesDir).filter(file => file.endsWith('.html'));
+  
+  const templates = templateFiles.map((fileName, index) => {
+    const templateNumber = fileName.replace('.html', '');
+    const templateId = index + 1;
+    
+    // Map template numbers to names and descriptions
+    const templateInfo: { [key: string]: { name: string; description: string; screenshotUrl: string } } = {
+      'template-1': { 
+        name: "Classic Minimalist", 
+        description: "Clean and professional layout with traditional styling", 
+        screenshotUrl: "/images/templates/template-1.png" 
+      },
+      'template-2': { 
+        name: "Modern Professional", 
+        description: "Contemporary design with clear sections", 
+        screenshotUrl: "/images/templates/template-2.png" 
+      },
+      'template-3': { 
+        name: "Tech Developer", 
+        description: "Perfect for software engineers and developers", 
+        screenshotUrl: "/images/templates/template-3.png" 
+      },
+      'template-4': { 
+        name: "Creative Designer", 
+        description: "Stylish design for creative professionals", 
+        screenshotUrl: "/images/templates/template-4.png" 
+      },
+      'template-5': { 
+        name: "Executive Bold", 
+        description: "Bold and impactful for senior positions", 
+        screenshotUrl: "/images/templates/template-5.png" 
+      },
+      'template-6': { 
+        name: "Elegant Profile", 
+        description: "Elegant with profile photo section", 
+        screenshotUrl: "/images/templates/template-6.png" 
+      },
+      'template-8': { 
+        name: "Game Industry", 
+        description: "Tailored for game industry professionals", 
+        screenshotUrl: "/images/templates/template-8.png" 
+      },
+      'template-9': { 
+        name: "Modern Accent", 
+        description: "Modern with accent colors", 
+        screenshotUrl: "/images/templates/template-9.png" 
+      },
+      'template-10': { 
+        name: "Dark Professional", 
+        description: "Professional dark theme design", 
+        screenshotUrl: "/images/templates/template-10.png" 
+      },
+      'template-11': { 
+        name: "Terminal Style", 
+        description: "Retro terminal hacker style with green text on black background", 
+        screenshotUrl: "/images/templates/template-11.png" 
+      }
+    };
+
+    const info = templateInfo[templateNumber] || { 
+      name: `Template ${templateId}`, 
+      description: `Template ${templateId} description`, 
+      screenshotUrl: `/images/templates/template-${templateId}.png` 
+    };
+
+    return {
+      id: templateId,
+      name: info.name,
+      fileName: `${templateNumber}_177194430065${50 + templateId}.html`,
+      screenshotUrl: info.screenshotUrl,
+      description: info.description
+    };
+  });
 
   // Find templates that need to be added
-  const existingFileNames = existing.map(t => t.fileName);
-  const templatesToAdd = templates.filter(t => !existingFileNames.includes(t.fileName));
+  const existingFileNames = existing.map(t => t.fileName.split("_")[0] + ".html");
+  const templatesToAdd = templates.filter(t => !existingFileNames.includes(t.fileName.split("_")[0] + ".html"));
   
-  // Find templates that should be removed (not in our list anymore)
-  const requiredFileNames = templates.map(t => t.fileName);
-  const templatesToRemove = existing.filter(t => !requiredFileNames.includes(t.fileName));
+  // Find templates that should be removed (not in files anymore)
+  const requiredFileNames = templates.map(t => t.fileName.split("_")[0] + ".html");
+  const templatesToRemove = existing.filter(t => !requiredFileNames.includes(t.fileName.split("_")[0] + ".html"));
 
   console.log('Templates to add:', templatesToAdd.length);
   console.log('Templates to remove:', templatesToRemove.length);
@@ -336,12 +400,12 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
       throw new Error("Template not found in DB");
     }
 
-    const cleanFileName = template.fileName.split("_")[0].replace(".html", "") + ".html";
+    const cleanFileName = template.fileName.split("_")[0] + ".html";
     const templatePath = path.join(process.cwd(), "client", "public", "templates", cleanFileName);
 
-    if (!fsSync.existsSync(templatePath)) {
-      throw new Error(`Template file ${cleanFileName} not found in templates directory`);
-    }
+    console.log('Looking for template file:', cleanFileName);
+    console.log('Template path:', templatePath);
+    console.log('File exists:', fsSync.existsSync(templatePath));
 
     const templateHtml = await fs.readFile(templatePath, "utf-8");
     const normalizedCvText = cvText.replace(/\u0000/g, "").trim();
