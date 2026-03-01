@@ -9,6 +9,7 @@ import { generatePdfFromUrl } from "@/lib/pdf-generator";
 import { usePollingJob } from "@/hooks/use-generate";
 import { useQueryClient } from "@tanstack/react-query";
 import { Textarea } from "@/components/ui/textarea";
+import { useTranslation } from "react-i18next";
 
 const AI_EDIT_PROMPT_MIN_LENGTH = 10;
 const AI_EDIT_PROMPT_MAX_LENGTH = 1000;
@@ -25,6 +26,7 @@ export default function CvViewPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   const [cvData, setCvData] = useState<GeneratedCvResponse | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -54,9 +56,9 @@ export default function CvViewPage() {
 
       if (!response.ok) {
         if (response.status === 404) {
-          setError("CV not found");
+          setError(t("cv_view.errors.not_found"));
         } else {
-          setError("Failed to load CV");
+          setError(t("cv_view.errors.load_failed"));
         }
         return;
       }
@@ -71,11 +73,11 @@ export default function CvViewPage() {
       });
     } catch (err) {
       console.error("Error fetching CV:", err);
-      setError("Failed to load CV");
+      setError(t("cv_view.errors.load_failed"));
     } finally {
       setIsLoading(false);
     }
-  }, [id, queryClient]);
+  }, [id, queryClient, t]);
 
   useEffect(() => {
     fetchCvData();
@@ -117,16 +119,16 @@ export default function CvViewPage() {
   useEffect(() => {
     if (!cvData || cvData.status !== "failed") return;
 
-    const errorMessage = cvData.errorMessage || "AI edit failed. Please try again.";
+    const errorMessage = cvData.errorMessage || t("cv_view.toasts.ai_edit_failed_fallback");
     if (lastFailedMessageRef.current === errorMessage) return;
 
     lastFailedMessageRef.current = errorMessage;
     toast({
-      title: "AI editing failed",
+      title: t("cv_view.toasts.ai_edit_failed_title"),
       description: errorMessage,
       variant: "destructive",
     });
-  }, [cvData, toast]);
+  }, [cvData, t, toast]);
 
   useEffect(() => {
     const updateScale = () => {
@@ -176,8 +178,8 @@ export default function CvViewPage() {
   const handleDownloadPDF = async () => {
     if (!cvData?.id || !pdfUrl) {
       toast({
-        title: "Download failed",
-        description: "CV file is not ready yet.",
+        title: t("cv_view.toasts.download_failed_title"),
+        description: t("cv_view.toasts.download_failed_desc"),
         variant: "destructive",
       });
       return;
@@ -192,14 +194,14 @@ export default function CvViewPage() {
         contentWidthMm: 190,
       });
       toast({
-        title: "PDF generated",
-        description: "Your CV has been downloaded successfully.",
+        title: t("cv_view.toasts.pdf_generated_title"),
+        description: t("cv_view.toasts.pdf_generated_desc"),
       });
     } catch (downloadError) {
       console.error("Error generating PDF:", downloadError);
       toast({
-        title: "PDF generation failed",
-        description: "Could not generate PDF. Please try again.",
+        title: t("cv_view.toasts.pdf_generation_failed_title"),
+        description: t("cv_view.toasts.pdf_generation_failed_desc"),
         variant: "destructive",
       });
     } finally {
@@ -213,8 +215,8 @@ export default function CvViewPage() {
     const trimmedPrompt = aiPrompt.replace(/\u0000/g, "").trim();
     if (trimmedPrompt.length < AI_EDIT_PROMPT_MIN_LENGTH) {
       toast({
-        title: "Prompt is too short",
-        description: `Please enter at least ${AI_EDIT_PROMPT_MIN_LENGTH} characters.`,
+        title: t("cv_view.toasts.prompt_too_short_title"),
+        description: t("cv_view.toasts.prompt_too_short_desc", { min: AI_EDIT_PROMPT_MIN_LENGTH }),
         variant: "destructive",
       });
       return;
@@ -222,8 +224,8 @@ export default function CvViewPage() {
 
     if (trimmedPrompt.length > AI_EDIT_PROMPT_MAX_LENGTH) {
       toast({
-        title: "Prompt is too long",
-        description: `Please keep it under ${AI_EDIT_PROMPT_MAX_LENGTH} characters.`,
+        title: t("cv_view.toasts.prompt_too_long_title"),
+        description: t("cv_view.toasts.prompt_too_long_desc", { max: AI_EDIT_PROMPT_MAX_LENGTH }),
         variant: "destructive",
       });
       return;
@@ -242,7 +244,7 @@ export default function CvViewPage() {
       });
 
       if (!response.ok) {
-        let message = "Failed to start AI edit";
+        let message = t("cv_view.errors.ai_edit_start_failed");
         try {
           const errorBody = await response.json();
           if (typeof errorBody?.message === "string" && errorBody.message) {
@@ -253,7 +255,10 @@ export default function CvViewPage() {
         }
 
         toast({
-          title: response.status === 429 ? "Rate limit exceeded" : "AI edit rejected",
+          title:
+            response.status === 429
+              ? t("cv_view.errors.rate_limit_exceeded")
+              : t("cv_view.errors.ai_edit_rejected"),
           description: message,
           variant: "destructive",
         });
@@ -268,7 +273,7 @@ export default function CvViewPage() {
           ? {
               ...prev,
               status: "processing",
-              progress: "AI is editing your CV...",
+              progress: t("cv_view.progress.ai_editing"),
               errorMessage: null,
             }
           : prev
@@ -277,7 +282,7 @@ export default function CvViewPage() {
       queryClient.setQueryData([api.generate.status.path, cvData.id, "active"], {
         id: cvData.id,
         status: "processing",
-        progress: "AI is editing your CV...",
+        progress: t("cv_view.progress.ai_editing"),
         pdfUrl: cvData.pdfUrl || undefined,
         errorMessage: undefined,
         template: cvData.template,
@@ -289,7 +294,7 @@ export default function CvViewPage() {
             ? {
                 ...item,
                 status: "processing",
-                progress: "AI is editing your CV...",
+                progress: t("cv_view.progress.ai_editing"),
                 errorMessage: null,
               }
             : item
@@ -301,14 +306,14 @@ export default function CvViewPage() {
       setIsAiDialogOpen(false);
       setAiPrompt("");
       toast({
-        title: "AI edit started",
-        description: "Your CV is being updated. Please wait...",
+        title: t("cv_view.toasts.ai_edit_started_title"),
+        description: t("cv_view.toasts.ai_edit_started_desc"),
       });
     } catch (submitError) {
       console.error("AI edit submit error:", submitError);
       toast({
-        title: "AI edit failed",
-        description: "Could not send request. Please try again.",
+        title: t("cv_view.toasts.ai_edit_failed_title"),
+        description: t("cv_view.toasts.ai_edit_failed_desc"),
         variant: "destructive",
       });
     } finally {
@@ -325,7 +330,7 @@ export default function CvViewPage() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading your CV...</p>
+          <p className="text-muted-foreground">{t("cv_view.loading")}</p>
         </div>
       </div>
     );
@@ -335,14 +340,14 @@ export default function CvViewPage() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center max-w-md">
-          <h1 className="text-2xl font-bold text-foreground mb-4">CV not found</h1>
-          <p className="text-muted-foreground mb-6">{error || "Could not load this CV."}</p>
+          <h1 className="text-2xl font-bold text-foreground mb-4">{t("cv_view.errors.not_found")}</h1>
+          <p className="text-muted-foreground mb-6">{error || t("cv_view.errors.load_failed")}</p>
           <button
             onClick={handleGoBack}
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to my CVs
+            {t("cv_view.back_to_my_cvs")}
           </button>
         </div>
       </div>
@@ -352,7 +357,7 @@ export default function CvViewPage() {
   const isProcessing = cvData.status === "pending" || cvData.status === "processing";
   const isFailed = cvData.status === "failed";
   const canEditWithAi = !isProcessing && !isSubmittingAiEdit;
-  const statusLabel = isProcessing ? "Processing" : isFailed ? "Failed" : "Completed";
+  const statusLabel = isProcessing ? t("cv_view.status.processing") : isFailed ? t("cv_view.status.failed") : t("cv_view.status.completed");
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -365,12 +370,12 @@ export default function CvViewPage() {
                 className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span className="font-medium">Back</span>
+                <span className="font-medium">{t("common.back")}</span>
               </button>
               <div className="hidden sm:block h-6 w-px bg-gray-300" />
               <div className="hidden sm:block">
-                <h1 className="text-lg font-semibold text-gray-900">CV Viewer</h1>
-                <p className="text-sm text-gray-500">{cvData.template?.name || "Professional CV"}</p>
+                <h1 className="text-lg font-semibold text-gray-900">{t("cv_view.title")}</h1>
+                <p className="text-sm text-gray-500">{cvData.template?.name || t("cv_view.professional_cv")}</p>
               </div>
             </div>
 
@@ -381,7 +386,7 @@ export default function CvViewPage() {
                 className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
               >
                 <Sparkles className="w-4 h-4" />
-                <span className="hidden sm:inline">Edit with AI</span>
+                <span className="hidden sm:inline">{t("cv_view.edit_with_ai")}</span>
               </button>
 
               <button
@@ -392,12 +397,12 @@ export default function CvViewPage() {
                 {isGeneratingPdf ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="hidden sm:inline">Generating...</span>
+                    <span className="hidden sm:inline">{t("cv_view.generating")}</span>
                   </>
                 ) : (
                   <>
                     <Download className="w-4 h-4" />
-                    <span className="hidden sm:inline">Download PDF</span>
+                    <span className="hidden sm:inline">{t("cv_view.download_pdf")}</span>
                   </>
                 )}
               </button>
@@ -420,7 +425,7 @@ export default function CvViewPage() {
                 <div className="w-3 h-3 rounded-full bg-yellow-500" />
                 <div className="w-3 h-3 rounded-full bg-green-500" />
               </div>
-              <div className="text-sm text-gray-500 font-medium">A4 Format (210 x 297 mm)</div>
+              <div className="text-sm text-gray-500 font-medium">{t("cv_view.a4_format")}</div>
             </div>
 
             <div
@@ -450,17 +455,17 @@ export default function CvViewPage() {
                     <div className="w-full h-full flex items-center justify-center bg-white">
                       <div className="text-center p-8">
                         <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">AI is updating your CV</h3>
-                        <p className="text-gray-500">{cvData.progress || "Please wait..."}</p>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t("cv_view.processing_title")}</h3>
+                        <p className="text-gray-500">{cvData.progress || t("cv_view.please_wait")}</p>
                       </div>
                     </div>
                   ) : isFailed ? (
                     <div className="w-full h-full flex items-center justify-center bg-white">
                       <div className="text-center p-8 max-w-lg">
                         <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">CV update failed</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t("cv_view.failed_title")}</h3>
                         <p className="text-gray-500">
-                          {cvData.errorMessage || "Could not finish AI update. Try again with a different prompt."}
+                          {cvData.errorMessage || t("cv_view.failed_desc")}
                         </p>
                       </div>
                     </div>
@@ -473,7 +478,7 @@ export default function CvViewPage() {
                         width: "210mm",
                         height: iframeHeight,
                       }}
-                      title="Generated CV HTML"
+                      title={t("cv_view.iframe_title")}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-white">
@@ -481,8 +486,8 @@ export default function CvViewPage() {
                         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                           <FileText className="w-8 h-8 text-gray-400" />
                         </div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">CV is unavailable</h3>
-                        <p className="text-gray-500">Generated CV HTML is not available right now.</p>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">{t("cv_view.unavailable_title")}</h3>
+                        <p className="text-gray-500">{t("cv_view.unavailable_desc")}</p>
                       </div>
                     </div>
                   )}
@@ -497,9 +502,9 @@ export default function CvViewPage() {
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                   <FileText className="w-5 h-5 text-blue-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900">Format</h3>
+                <h3 className="font-semibold text-gray-900">{t("cv_view.cards.format_title")}</h3>
               </div>
-              <p className="text-gray-600 text-sm">Standard A4, print-ready layout.</p>
+              <p className="text-gray-600 text-sm">{t("cv_view.cards.format_desc")}</p>
             </div>
 
             <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
@@ -517,7 +522,7 @@ export default function CvViewPage() {
                     <CheckCircle className="w-5 h-5 text-green-600" />
                   )}
                 </div>
-                <h3 className="font-semibold text-gray-900">Status</h3>
+                <h3 className="font-semibold text-gray-900">{t("cv_view.cards.status_title")}</h3>
               </div>
               <p className="text-gray-600 text-sm">{statusLabel}</p>
             </div>
@@ -527,7 +532,7 @@ export default function CvViewPage() {
                 <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                   <CheckCircle className="w-5 h-5 text-purple-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900">Updated</h3>
+                <h3 className="font-semibold text-gray-900">{t("cv_view.cards.updated_title")}</h3>
               </div>
               <p className="text-gray-600 text-sm">
                 {new Date(cvData.updatedAt || cvData.createdAt).toLocaleString("uk-UA", {
@@ -556,9 +561,9 @@ export default function CvViewPage() {
               <div className="rounded-2xl border border-gray-200 bg-white/95 backdrop-blur-sm shadow-2xl overflow-hidden">
                 <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Edit CV with AI</h2>
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-900">{t("cv_view.ai_panel.title")}</h2>
                     <p className="text-sm text-gray-600 mt-1">
-                      Keep this panel open while scrolling the document and describe what should be changed.
+                      {t("cv_view.ai_panel.description")}
                     </p>
                   </div>
                   <button
@@ -566,7 +571,7 @@ export default function CvViewPage() {
                     onClick={() => setIsAiDialogOpen(false)}
                     disabled={isSubmittingAiEdit}
                     className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
-                    aria-label="Close AI edit panel"
+                    aria-label={t("cv_view.ai_panel.close_aria")}
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -576,14 +581,14 @@ export default function CvViewPage() {
                   <Textarea
                     value={aiPrompt}
                     onChange={(e) => setAiPrompt(e.target.value)}
-                    placeholder="Example: Rewrite the summary into 2 concise sentences and highlight React + TypeScript achievements."
+                    placeholder={t("cv_view.ai_panel.placeholder")}
                     className="min-h-[120px] max-h-[260px] resize-y"
                     maxLength={AI_EDIT_PROMPT_MAX_LENGTH}
                     disabled={isSubmittingAiEdit}
                   />
                   <div className="flex items-center justify-between gap-4">
                     <p className="text-xs text-gray-500">
-                      The request should be specific and factual to get visible changes.
+                      {t("cv_view.ai_panel.hint")}
                     </p>
                     <p className="text-xs text-gray-500">
                       {aiPrompt.length}/{AI_EDIT_PROMPT_MAX_LENGTH}
@@ -598,7 +603,7 @@ export default function CvViewPage() {
                     className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100"
                     disabled={isSubmittingAiEdit}
                   >
-                    Close
+                    {t("common.close")}
                   </button>
                   <button
                     type="button"
@@ -609,10 +614,10 @@ export default function CvViewPage() {
                     {isSubmittingAiEdit ? (
                       <span className="inline-flex items-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Sending...
+                        {t("common.sending")}
                       </span>
                     ) : (
-                      "Send"
+                      t("common.send")
                     )}
                   </button>
                 </div>

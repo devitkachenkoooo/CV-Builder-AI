@@ -41,9 +41,9 @@ export function useGenerateCv() {
       if (!res.ok) {
         if (res.status === 400 || res.status === 429) {
           const error = await res.json();
-          throw new Error(error.message || "Validation failed");
+          throw new Error(error.message || i18n.t("errors.validation_failed"));
         }
-        throw new Error("Failed to start CV generation");
+        throw new Error(i18n.t("errors.generate_start_failed"));
       }
 
       const responseData = await res.json();
@@ -71,7 +71,7 @@ export function usePollingJob(jobId: number, initialStatus: string) {
 
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) {
-        throw new Error("Failed to fetch job status");
+        throw new Error(i18n.t("errors.fetch_job_status_failed"));
       }
 
       const data = await res.json();
@@ -118,9 +118,9 @@ export function useDeleteResume() {
 
       if (!res.ok) {
         if (res.status === 404) {
-          throw new Error("Resume not found");
+          throw new Error(i18n.t("errors.resume_not_found"));
         }
-        throw new Error("Failed to delete resume");
+        throw new Error(i18n.t("errors.delete_resume_failed"));
       }
 
       return;

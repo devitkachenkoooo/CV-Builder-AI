@@ -1,11 +1,12 @@
 import { z } from 'zod';
+import i18n from "@/lib/i18n";
 
 // File validation schema
 export const docxFileSchema = z.object({
   name: z.string(),
-  size: z.number().max(5 * 1024 * 1024, "File size must be less than 5MB"), // 5MB limit
+  size: z.number().max(5 * 1024 * 1024, i18n.t("file_validation.size_max")), // 5MB limit
   type: z.literal("application/vnd.openxmlformats-officedocument.wordprocessingml.document", {
-    errorMap: () => ({ message: "Only .docx files are allowed" })
+    errorMap: () => ({ message: i18n.t("file_validation.docx_only") })
   }),
   lastModified: z.number()
 });
@@ -27,7 +28,7 @@ export function validateDocxFile(file: File): {
       const error = result.error.issues[0];
       return {
         isValid: false,
-        error: error?.message || "Invalid file format"
+        error: error?.message || i18n.t("file_validation.invalid_format")
       };
     }
 
@@ -35,7 +36,7 @@ export function validateDocxFile(file: File): {
     if (!file.name.toLowerCase().endsWith('.docx')) {
       return {
         isValid: false,
-        error: "File must have .docx extension"
+        error: i18n.t("file_validation.docx_extension")
       };
     }
 
@@ -43,17 +44,22 @@ export function validateDocxFile(file: File): {
   } catch (error) {
     return {
       isValid: false,
-      error: "File validation failed"
+      error: i18n.t("file_validation.failed")
     };
   }
 }
 
 // Format file size for display
 export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) return `0 ${i18n.t("file_validation.units.bytes")}`;
   
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const sizes = [
+    i18n.t("file_validation.units.bytes"),
+    i18n.t("file_validation.units.kb"),
+    i18n.t("file_validation.units.mb"),
+    i18n.t("file_validation.units.gb"),
+  ];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];

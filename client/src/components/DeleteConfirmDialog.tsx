@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface DeleteConfirmDialogProps {
   isOpen: boolean;
@@ -26,6 +27,8 @@ export function DeleteConfirmDialog({
   isDeleting = false,
   itemName = "resume"
 }: DeleteConfirmDialogProps) {
+  const { t } = useTranslation();
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -42,11 +45,10 @@ export function DeleteConfirmDialog({
                   <AlertTriangle className="w-8 h-8 text-destructive" />
                 </div>
                 <AlertDialogTitle className="text-center text-xl font-display font-bold">
-                  Delete {itemName}?
+                  {t("delete_dialog.title", { itemName })}
                 </AlertDialogTitle>
                 <AlertDialogDescription className="text-center text-base">
-                  This action cannot be undone. This will permanently delete your {itemName} 
-                  and remove all associated data from our servers.
+                  {t("delete_dialog.description", { itemName })}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="gap-3 sm:gap-3">
@@ -54,7 +56,7 @@ export function DeleteConfirmDialog({
                   disabled={isDeleting}
                   className="flex-1 h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:bg-background/80 transition-all duration-200 font-medium"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </AlertDialogCancel>
                 <AlertDialogAction
                   onClick={onConfirm}
@@ -69,12 +71,12 @@ export function DeleteConfirmDialog({
                       >
                         <Trash2 className="w-4 h-4" />
                       </motion.div>
-                      Deleting...
+                      {t("common.deleting")}
                     </>
                   ) : (
                     <>
                       <Trash2 className="w-4 h-4" />
-                      Delete
+                      {t("common.delete")}
                     </>
                   )}
                 </AlertDialogAction>

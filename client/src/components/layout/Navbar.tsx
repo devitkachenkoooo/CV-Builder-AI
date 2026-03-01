@@ -75,11 +75,11 @@ export function Navbar() {
             <div className="hidden sm:flex items-center gap-3 pr-4 border-r border-border/50">
               <div className="flex flex-col items-end">
                 <span className="text-sm font-semibold">{user.firstName || user.email?.split('@')[0]}</span>
-                <span className="text-xs text-muted-foreground">Pro Plan</span>
+                <span className="text-xs text-muted-foreground">{t("nav.plan_pro")}</span>
               </div>
               <img
                 src={user.profileImageUrl || `https://ui-avatars.com/api/?name=${user.firstName || user.email}&background=random`}
-                alt="Profile"
+                alt={t("nav.profile_alt")}
                 className="w-9 h-9 rounded-full ring-2 ring-primary/20"
               />
             </div>
@@ -96,7 +96,7 @@ export function Navbar() {
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="md:hidden p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-secondary/80 focus:outline-none"
-              aria-label="Toggle menu"
+              aria-label={t("nav.toggle_menu")}
             >
               {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -143,17 +143,17 @@ export function Navbar() {
                 <div className="flex items-center gap-3">
                   <img
                     src={user.profileImageUrl || `https://ui-avatars.com/api/?name=${user.firstName || user.email}&background=random`}
-                    alt="Profile"
+                    alt={t("nav.profile_alt")}
                     className="w-10 h-10 rounded-full ring-2 ring-primary/20"
                   />
                   <div className="flex flex-col">
                     <span className="text-sm font-semibold">{user.firstName || user.email?.split('@')[0]}</span>
-                    <span className="text-xs text-muted-foreground">Pro Plan</span>
+                    <span className="text-xs text-muted-foreground">{t("nav.plan_pro")}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between bg-secondary/30 rounded-lg p-2 sm:hidden">
-                  <span className="text-xs font-medium px-2">{t("common.language") || "Language"}</span>
+                  <span className="text-xs font-medium px-2">{t("common.language")}</span>
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => i18n.changeLanguage('ua')}

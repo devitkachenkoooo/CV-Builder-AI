@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
+import { useTranslation } from "react-i18next";
 
 // Pages
 import LandingPage from "@/pages/LandingPage";
@@ -15,12 +16,13 @@ import { Loader2 } from "lucide-react";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAuthenticated, isLoading } = useAuth();
+  const { t } = useTranslation();
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center">
         <Loader2 className="w-12 h-12 animate-spin text-primary" />
-        <p className="mt-4 text-muted-foreground font-medium animate-pulse">Authenticating...</p>
+        <p className="mt-4 text-muted-foreground font-medium animate-pulse">{t("common.authenticating")}</p>
       </div>
     );
   }

@@ -105,7 +105,7 @@ export default function LandingPage() {
                   </div>
                   <img
                     src={template.src}
-                    alt="CV Template"
+                    alt={t("landing.template_alt")}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     onError={(e) => { 
                       e.currentTarget.src = 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400&q=80&fit=crop' 
@@ -125,7 +125,7 @@ export default function LandingPage() {
                 <FileText className="w-6 h-6" />
               </div>
               <div>
-                <p className="font-bold text-sm text-foreground">AI Formatting...</p>
+                <p className="font-bold text-sm text-foreground">{t("landing.ai_formatting")}</p>
                 <div className="w-32 h-1.5 bg-secondary rounded-full mt-2">
                   <div className="w-2/3 h-full bg-primary rounded-full"></div>
                 </div>

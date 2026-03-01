@@ -72,7 +72,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
   };
 
   const templateScreenshot = displayData.template?.screenshotUrl || cv.template?.screenshotUrl;
-  const templateName = displayData.template?.name || cv.template?.name || "Template";
+  const templateName = displayData.template?.name || cv.template?.name || t("common.template");
 
   // Scale calculation for iframe
   useEffect(() => {
@@ -224,7 +224,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
                         width: '210mm',
                         height: iframeHeight
                       }}
-                      title="Generated CV HTML Preview"
+                      title={t("cv_card.iframe_title")}
                     />
                   </div>
                 </div>
