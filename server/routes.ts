@@ -369,12 +369,24 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Generated CV HTML not found" });
       }
 
+      const safeHtml = sanitizeHtml(cv.htmlContent);
+      if (safeHtml.length !== cv.htmlContent.length) {
+        debugLog("CV_RENDER_SANITIZED_ON_READ", {
+          cvId: id,
+          beforeLength: cv.htmlContent.length,
+          afterLength: safeHtml.length,
+        });
+      }
+
       res.setHeader("Content-Type", "text/html");
       res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
       res.setHeader("Pragma", "no-cache");
       res.setHeader("Expires", "0");
-      res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'none'; object-src 'none'; iframe-src 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:;");
-      res.send(cv.htmlContent);
+      res.setHeader(
+        "Content-Security-Policy",
+        "default-src 'self' data:; script-src 'none'; object-src 'none'; frame-src 'none'; frame-ancestors 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https:;"
+      );
+      res.send(safeHtml);
     } catch (error) {
       res.status(500).json({ message: "Failed to render CV" });
     }
@@ -802,6 +814,21 @@ ${cv.htmlContent}`;
     });
     if (!editedHtml) {
       throw new Error("Sanitized edited HTML is empty");
+    }
+
+    if (wasSameAsOriginal) {
+      debugLog("AI_EDIT_ASYNC_NO_CHANGES_DETECTED", {
+        cvId,
+      });
+      await storage.updateGeneratedCvStatus(
+        cvId,
+        "failed",
+        "AI edit produced no visible changes.",
+        undefined,
+        undefined,
+        "AI did not apply visible changes. Try a more specific prompt."
+      );
+      return;
     }
 
     const pdfUrl = buildUrl(api.generatedCv.render.path, { id: cvId });
