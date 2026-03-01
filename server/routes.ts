@@ -2,6 +2,7 @@ import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api, buildUrl } from "@shared/routes";
+import type { OriginalDocLink } from "@shared/schema";
 import { z } from "zod";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { processUploadedFile } from "./lib/file-processor";
@@ -41,6 +42,9 @@ const AI_MODEL = "meta-llama/llama-3.3-70b-instruct";
 const AI_EDIT_PROMPT_MIN_LENGTH = 10;
 const AI_EDIT_PROMPT_MAX_LENGTH = 1000;
 const MAX_GENERATED_HTML_CHARS = appConfig.html.maxGeneratedHtmlChars;
+const MAX_ORIGINAL_DOC_TEXT_CHARS = 200_000;
+const MAX_ORIGINAL_CONTEXT_PROMPT_CHARS = 25_000;
+const MAX_ORIGINAL_CONTEXT_LINKS = 50;
 
 const aiRequestLimiter = rateLimit({
   windowMs: appConfig.rateLimits.aiRequestsWindowMs,
@@ -119,6 +123,8 @@ export async function registerRoutes(
       }
 
       const cvText = fileResult.text;
+      const originalDocText = truncateWithMarker(normalizeDocText(fileResult.text), MAX_ORIGINAL_DOC_TEXT_CHARS);
+      const originalDocLinks = sanitizeOriginalLinks(fileResult.links || []);
       const sourceInfo = `Uploaded file: ${req.file.originalname}`;
 
       // Parse template ID first
@@ -159,6 +165,8 @@ export async function registerRoutes(
         templateId,
         status: "processing",
         progress: userFriendlyStatus,
+        originalDocText,
+        originalDocLinks,
       });
 
       // 3. Start async generation
@@ -280,6 +288,7 @@ export async function registerRoutes(
       }
 
       const prompt = parsedBody.data.prompt.replace(/\u0000/g, "").trim();
+      const useOriginalDocumentContext = parsedBody.data.useOriginalDocumentContext ?? false;
       if (prompt.length < AI_EDIT_PROMPT_MIN_LENGTH) {
         return res.status(400).json({
           message: `Prompt is too short. Minimum ${AI_EDIT_PROMPT_MIN_LENGTH} characters.`,
@@ -304,6 +313,18 @@ export async function registerRoutes(
         });
       }
 
+      if (useOriginalDocumentContext) {
+        const hasOriginalDocText = Boolean(cv.originalDocText?.trim());
+        const hasOriginalDocLinks = Array.isArray(cv.originalDocLinks) && cv.originalDocLinks.length > 0;
+        if (!hasOriginalDocText && !hasOriginalDocLinks) {
+          return res.status(400).json({
+            message: "Original document context is unavailable for this CV.",
+            code: "ORIGINAL_CONTEXT_UNAVAILABLE",
+            field: "useOriginalDocumentContext",
+          });
+        }
+      }
+
       await storage.updateGeneratedCvStatus(
         cv.id,
         "processing",
@@ -313,7 +334,7 @@ export async function registerRoutes(
         null
       );
 
-      editCvAsync(cv.id, prompt).catch(() => {
+      editCvAsync(cv.id, prompt, useOriginalDocumentContext).catch(() => {
         // Failures are handled inside editCvAsync
       });
 
@@ -442,6 +463,70 @@ function cleanModelHtmlResponse(raw: string): string {
     .replace(/```html\s*/gi, "")
     .replace(/```\s*$/g, "")
     .trim();
+}
+
+function normalizeDocText(input: string): string {
+  return input.replace(/\u0000/g, "").replace(/\s+/g, " ").trim();
+}
+
+function truncateWithMarker(input: string, maxChars: number): string {
+  if (input.length <= maxChars) return input;
+  return `${input.slice(0, maxChars)}\n\n[TRUNCATED]`;
+}
+
+function isAllowedContextHref(href: string): boolean {
+  const lowered = href.toLowerCase();
+  if (lowered.startsWith("mailto:") || lowered.startsWith("tel:")) return true;
+  try {
+    const parsed = new URL(href);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeOriginalLinks(rawLinks: unknown): OriginalDocLink[] {
+  if (!Array.isArray(rawLinks)) return [];
+
+  const dedupe = new Set<string>();
+  const sanitized: OriginalDocLink[] = [];
+
+  for (const item of rawLinks) {
+    if (!item || typeof item !== "object") continue;
+    const text = typeof (item as any).text === "string" ? (item as any).text.trim() : "";
+    const href = typeof (item as any).href === "string" ? (item as any).href.trim() : "";
+
+    if (!href || !isAllowedContextHref(href)) continue;
+    const safeText = text.replace(/\s+/g, " ").slice(0, 300);
+    const safeHref = href.slice(0, 2048);
+    const key = `${safeText}|${safeHref}`;
+    if (dedupe.has(key)) continue;
+    dedupe.add(key);
+
+    sanitized.push({ text: safeText, href: safeHref });
+    if (sanitized.length >= MAX_ORIGINAL_CONTEXT_LINKS * 4) {
+      break;
+    }
+  }
+
+  return sanitized;
+}
+
+function buildOriginalContextPromptBlock(originalDocText?: string | null, originalDocLinks?: unknown): string {
+  const safeText = originalDocText ? truncateWithMarker(normalizeDocText(originalDocText), MAX_ORIGINAL_CONTEXT_PROMPT_CHARS) : "";
+  const safeLinks = sanitizeOriginalLinks(originalDocLinks).slice(0, MAX_ORIGINAL_CONTEXT_LINKS);
+
+  const linksSection = safeLinks.length
+    ? safeLinks.map((link, index) => `${index + 1}. ${link.text || "(no anchor text)"} -> ${link.href}`).join("\n")
+    : "No sanitized links available.";
+
+  const combined = `ORIGINAL_DOC_TEXT:
+${safeText || "No original text available."}
+
+ORIGINAL_DOC_LINKS:
+${linksSection}`;
+
+  return truncateWithMarker(combined, MAX_ORIGINAL_CONTEXT_PROMPT_CHARS);
 }
 
 function assertSafeGeneratedHtml(html: string) {
@@ -710,12 +795,16 @@ ${normalizedCvText}`;
   }
 }
 
-async function editCvAsync(cvId: number, userPrompt: string) {
+async function editCvAsync(cvId: number, userPrompt: string, useOriginalDocumentContext: boolean) {
   try {
     const cv = await storage.getGeneratedCv(cvId);
     if (!cv || !cv.htmlContent) {
       throw new Error("Generated CV HTML not found");
     }
+
+    const originalContextBlock = useOriginalDocumentContext
+      ? buildOriginalContextPromptBlock(cv.originalDocText, cv.originalDocLinks)
+      : "Original document context disabled by user.";
 
     const systemMessage = `You are a deterministic HTML CV editor.
 You must return only raw HTML.
@@ -734,9 +823,14 @@ Rules:
 - Keep all unchanged sections intact.
 - If the request is actionable, apply at least one concrete textual/structural change.
 - If the request is unsafe or impossible, keep HTML unchanged.
+- Treat original document context as factual reference only.
+- Never invent facts not present in current CV HTML or original context.
 
 USER EDIT REQUEST:
 ${userPrompt}
+
+ORIGINAL DOCUMENT CONTEXT:
+${originalContextBlock}
 
 CURRENT CV HTML:
 ${cv.htmlContent}`;

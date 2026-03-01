@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, varchar, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, varchar, boolean, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
@@ -17,6 +17,11 @@ export const cvTemplates = pgTable("cv_templates", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+export interface OriginalDocLink {
+  text: string;
+  href: string;
+}
+
 // Generated CVs table
 export const generatedCvs = pgTable("generated_cvs", {
   id: serial("id").primaryKey(),
@@ -26,6 +31,8 @@ export const generatedCvs = pgTable("generated_cvs", {
   progress: text("progress"), // Current step: "Processing DOCX...", "AI Formatting...", "Generating PDF..."
   pdfUrl: text("pdf_url"), // URL to generated PDF
   htmlContent: text("html_content"), // Generated HTML content stored in DB
+  originalDocText: text("original_doc_text"), // Extracted plain text from source DOCX
+  originalDocLinks: jsonb("original_doc_links").$type<OriginalDocLink[]>(), // Sanitized links extracted from DOCX
   errorMessage: text("error_message"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),

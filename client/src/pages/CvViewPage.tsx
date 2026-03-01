@@ -35,6 +35,7 @@ export default function CvViewPage() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isAiDialogOpen, setIsAiDialogOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
+  const [useOriginalDocumentContext, setUseOriginalDocumentContext] = useState(false);
   const [isSubmittingAiEdit, setIsSubmittingAiEdit] = useState(false);
   const [scale, setScale] = useState(1);
   const [iframeHeight, setIframeHeight] = useState("297mm");
@@ -129,6 +130,15 @@ export default function CvViewPage() {
       variant: "destructive",
     });
   }, [cvData, t, toast]);
+
+  useEffect(() => {
+    const hasOriginalContext =
+      Boolean(cvData?.originalDocText?.trim()) ||
+      (Array.isArray(cvData?.originalDocLinks) && cvData.originalDocLinks.length > 0);
+    if (!hasOriginalContext && useOriginalDocumentContext) {
+      setUseOriginalDocumentContext(false);
+    }
+  }, [cvData?.originalDocText, cvData?.originalDocLinks, useOriginalDocumentContext]);
 
   useEffect(() => {
     const updateScale = () => {
@@ -240,7 +250,10 @@ export default function CvViewPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt: trimmedPrompt }),
+        body: JSON.stringify({
+          prompt: trimmedPrompt,
+          useOriginalDocumentContext: hasOriginalDocumentContext ? useOriginalDocumentContext : false,
+        }),
       });
 
       if (!response.ok) {
@@ -357,6 +370,9 @@ export default function CvViewPage() {
   const isProcessing = cvData.status === "pending" || cvData.status === "processing";
   const isFailed = cvData.status === "failed";
   const canEditWithAi = !isProcessing && !isSubmittingAiEdit;
+  const hasOriginalDocumentContext =
+    Boolean(cvData.originalDocText?.trim()) ||
+    (Array.isArray(cvData.originalDocLinks) && cvData.originalDocLinks.length > 0);
   const statusLabel = isProcessing ? t("cv_view.status.processing") : isFailed ? t("cv_view.status.failed") : t("cv_view.status.completed");
 
   return (
@@ -381,7 +397,10 @@ export default function CvViewPage() {
 
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setIsAiDialogOpen(true)}
+                onClick={() => {
+                  setUseOriginalDocumentContext(false);
+                  setIsAiDialogOpen(true);
+                }}
                 disabled={!canEditWithAi}
                 className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
               >
@@ -586,6 +605,25 @@ export default function CvViewPage() {
                     maxLength={AI_EDIT_PROMPT_MAX_LENGTH}
                     disabled={isSubmittingAiEdit}
                   />
+                  <label className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+                      checked={useOriginalDocumentContext}
+                      onChange={(e) => setUseOriginalDocumentContext(e.target.checked)}
+                      disabled={isSubmittingAiEdit || !hasOriginalDocumentContext}
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">
+                        {t("cv_view.ai_panel.use_original_context_label")}
+                      </p>
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        {hasOriginalDocumentContext
+                          ? t("cv_view.ai_panel.use_original_context_hint")
+                          : t("cv_view.ai_panel.use_original_context_unavailable")}
+                      </p>
+                    </div>
+                  </label>
                   <div className="flex items-center justify-between gap-4">
                     <p className="text-xs text-gray-500">
                       {t("cv_view.ai_panel.hint")}

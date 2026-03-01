@@ -93,6 +93,7 @@ export const api = {
       path: '/api/resumes/:id/ai-edit' as const,
       input: z.object({
         prompt: z.string(),
+        useOriginalDocumentContext: z.boolean().optional(),
       }),
       responses: {
         202: z.object({ jobId: z.number() }),

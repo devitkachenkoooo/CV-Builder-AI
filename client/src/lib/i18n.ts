@@ -159,7 +159,10 @@ const resources = {
                     "description": "Keep this panel open while scrolling the document and describe what should be changed.",
                     "close_aria": "Close AI edit panel",
                     "placeholder": "Example: Rewrite the summary into 2 concise sentences and highlight React + TypeScript achievements.",
-                    "hint": "The request should be specific and factual to get visible changes."
+                    "hint": "The request should be specific and factual to get visible changes.",
+                    "use_original_context_label": "Use original document context",
+                    "use_original_context_hint": "Add extracted text and links from the original DOCX as factual context for this edit.",
+                    "use_original_context_unavailable": "Original document context is unavailable for this CV."
                 }
             },
             "toast": {
@@ -340,7 +343,10 @@ const resources = {
                     "description": "Тримайте панель відкритою, прокручуйте документ і опишіть, що потрібно змінити.",
                     "close_aria": "Закрити панель редагування ШІ",
                     "placeholder": "Приклад: Перепиши summary у 2 короткі речення та підкресли досягнення в React + TypeScript.",
-                    "hint": "Запит має бути конкретним і фактичним, щоб зміни були помітні."
+                    "hint": "Запит має бути конкретним і фактичним, щоб зміни були помітні.",
+                    "use_original_context_label": "Використовувати контекст оригінального документа",
+                    "use_original_context_hint": "Додати витягнутий текст і лінки з оригінального DOCX як фактичний контекст.",
+                    "use_original_context_unavailable": "Контекст оригінального документа недоступний для цього CV."
                 }
             },
             "modal": {

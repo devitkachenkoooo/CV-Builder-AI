@@ -1,26 +1,116 @@
-import mammoth from 'mammoth';
-import { docxFileSchema } from '@shared/routes';
-import { Request } from 'express';
+import mammoth from "mammoth";
+import { docxFileSchema } from "@shared/routes";
+import type { OriginalDocLink } from "@shared/schema";
+
+const MAX_LINK_TEXT_LENGTH = 300;
+const MAX_LINK_HREF_LENGTH = 2048;
+const MAX_LINKS_COUNT = 200;
+
+function normalizeWhitespace(input: string): string {
+  return input.replace(/\s+/g, " ").trim();
+}
+
+function stripHtmlTags(input: string): string {
+  return input.replace(/<[^>]+>/g, " ");
+}
+
+function decodeBasicEntities(input: string): string {
+  return input
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, "\"")
+    .replace(/&#39;/gi, "'");
+}
+
+function sanitizeHref(rawHref: string): string | null {
+  const decoded = decodeBasicEntities(rawHref).replace(/[\u0000-\u001F\u007F]/g, "").trim();
+  if (!decoded) return null;
+  if (decoded.length > MAX_LINK_HREF_LENGTH) return null;
+
+  const lowered = decoded.toLowerCase();
+  if (lowered.startsWith("javascript:") || lowered.startsWith("vbscript:") || lowered.startsWith("data:")) {
+    return null;
+  }
+
+  if (lowered.startsWith("mailto:") || lowered.startsWith("tel:")) {
+    return decoded;
+  }
+
+  try {
+    const parsed = new URL(decoded);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return parsed.toString();
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function sanitizeLink(rawText: string, rawHref: string): OriginalDocLink | null {
+  const href = sanitizeHref(rawHref);
+  if (!href) return null;
+
+  const text = normalizeWhitespace(decodeBasicEntities(stripHtmlTags(rawText))).slice(0, MAX_LINK_TEXT_LENGTH);
+  return { text, href };
+}
+
+function extractLinksFromHtml(html: string): OriginalDocLink[] {
+  const links: OriginalDocLink[] = [];
+  const dedupe = new Set<string>();
+  const anchorRegex = /<a\b[^>]*href\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))[^>]*>([\s\S]*?)<\/a>/gi;
+
+  let match: RegExpExecArray | null;
+  while ((match = anchorRegex.exec(html)) !== null) {
+    const href = match[1] || match[2] || match[3] || "";
+    const anchorText = match[4] || "";
+    const sanitized = sanitizeLink(anchorText, href);
+    if (!sanitized) continue;
+
+    const dedupeKey = `${sanitized.text}|${sanitized.href}`;
+    if (dedupe.has(dedupeKey)) continue;
+    dedupe.add(dedupeKey);
+
+    links.push(sanitized);
+    if (links.length >= MAX_LINKS_COUNT) break;
+  }
+
+  return links;
+}
 
 // Extract text from .docx file using mammoth
 export async function extractTextFromDocx(buffer: Buffer): Promise<{
   text: string;
+  links: OriginalDocLink[];
   success: boolean;
   error?: string;
 }> {
   try {
-    const result = await mammoth.extractRawText({ buffer });
+    const textResult = await mammoth.extractRawText({ buffer });
+    let links: OriginalDocLink[] = [];
+
+    try {
+      const htmlResult = await mammoth.convertToHtml({ buffer });
+      links = extractLinksFromHtml(htmlResult.value || "");
+    } catch (linksError) {
+      // Link extraction is best-effort and must not fail full processing
+      links = [];
+    }
 
     return {
-      text: result.value,
-      success: true
+      text: textResult.value,
+      links,
+      success: true,
     };
   } catch (error) {
-    console.error('Error extracting text from docx:', error);
+    console.error("Error extracting text from docx:", error);
     return {
-      text: '',
+      text: "",
+      links: [],
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to extract text from file'
+      error: error instanceof Error ? error.message : "Failed to extract text from file",
     };
   }
 }
@@ -48,37 +138,38 @@ export function validateUploadedFile(file: UploadedFile): {
       name: file.originalname,
       size: file.size,
       type: file.mimetype,
-      lastModified: Date.now()
+      lastModified: Date.now(),
     });
 
     if (!result.success) {
-      const error = result.error.issues[0];
+      const issue = result.error.issues[0];
       return {
         isValid: false,
-        error: error?.message || "Invalid file format"
+        error: issue?.message || "Invalid file format",
       };
     }
 
     // Additional check: file extension
-    if (!file.originalname.toLowerCase().endsWith('.docx')) {
+    if (!file.originalname.toLowerCase().endsWith(".docx")) {
       return {
         isValid: false,
-        error: "File must have .docx extension"
+        error: "File must have .docx extension",
       };
     }
 
     return { isValid: true };
-  } catch (error) {
+  } catch {
     return {
       isValid: false,
-      error: "File validation failed"
+      error: "File validation failed",
     };
   }
 }
 
-// Process uploaded file and extract text
+// Process uploaded file and extract text + links
 export async function processUploadedFile(file: UploadedFile): Promise<{
   text: string;
+  links: OriginalDocLink[];
   success: boolean;
   error?: string;
 }> {
@@ -86,12 +177,13 @@ export async function processUploadedFile(file: UploadedFile): Promise<{
   const validation = validateUploadedFile(file);
   if (!validation.isValid) {
     return {
-      text: '',
+      text: "",
+      links: [],
       success: false,
-      error: validation.error
+      error: validation.error,
     };
   }
 
-  // Extract text from the file
-  return await extractTextFromDocx(file.buffer);
+  return extractTextFromDocx(file.buffer);
 }
+
