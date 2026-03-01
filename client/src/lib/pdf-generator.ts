@@ -180,19 +180,46 @@ function fillLastPageBackground(
   container: HTMLElement,
   bgColor: string,
 ): void {
+  // Measure AFTER page breaks are inserted — this is the true content height
   const totalHeight = container.scrollHeight;
   const pageCount = Math.ceil(totalHeight / A4_HEIGHT_PX);
-  // +2px buffer prevents a hairline white strip at the very bottom caused
-  // by subpixel rounding when html2canvas captures the container.
-  const targetHeight = pageCount * A4_HEIGHT_PX + 2;
+  const targetHeight = pageCount * A4_HEIGHT_PX;
+  const gap = targetHeight - totalHeight;
 
-  // Always paint globally
+  console.log('[PDF] fillLastPageBackground', { totalHeight, pageCount, targetHeight, gap, bgColor });
+
+  // Always paint html / body so html2canvas captures no white edges
   container.style.setProperty('background-color', bgColor, 'important');
   doc.documentElement.style.setProperty('background-color', bgColor, 'important');
   doc.body.style.setProperty('background-color', bgColor, 'important');
 
-  // Stretch container to fill the last page
-  container.style.setProperty('min-height', `${targetHeight}px`, 'important');
+  // WHY a real div instead of min-height:
+  // html2canvas renders the actual pixel content of the DOM, not CSS sizing hints.
+  // `min-height` is often ignored during canvas capture, leaving a white strip.
+  // By inserting a real <div> with explicit height and bgColor, we guarantee the
+  // background fills all the way to the page bottom on every template.
+  //
+  // We only add the filler if there's a visible gap (> 2px to avoid extra blank pages).
+  if (gap > 2) {
+    // Remove any previously inserted filler so calling this twice is idempotent
+    const existing = container.querySelector('.pdf-bottom-filler');
+    if (existing) existing.remove();
+
+    const filler = doc.createElement('div');
+    filler.className = 'pdf-bottom-filler';
+    filler.style.cssText =
+      `height:${gap}px !important;` +
+      `min-height:${gap}px !important;` +
+      `background-color:${bgColor} !important;` +
+      `display:block !important;` +
+      `width:100% !important;` +
+      `margin:0 !important;` +
+      `padding:0 !important;` +
+      `box-sizing:border-box !important;`;
+
+    container.appendChild(filler);
+    console.log(`[PDF] bottom-filler added: ${gap}px`);
+  }
 }
 
 // ─── PDF options ──────────────────────────────────────────────────────────────
