@@ -364,17 +364,21 @@ Output requirements:
     const generationPrompt = `Inject CV data into the provided HTML template.
 
 Requirements:
-- Detect language from CV content and keep output in that same language.
-- Preserve template visual style exactly: CSS, classes, typography, spacing, and overall look.
-- Adapt structure to CV content:
-  - remove template sections that have no matching source data;
-  - do not invent sections that are not in source CV.
-- Keep data in correct semantic blocks:
-  - do not place soft skills/languages into unrelated blocks (for example interests) unless source CV explicitly has such block and data.
-- Extract all important data from CV: personal info, experience, education, skills, soft skills, languages, links, tools, grouped skill lists.
-- Do not drop grouped items (if source has "Category: a, b, c", keep all items).
-- Keep brand and technology names unchanged.
-- Remove placeholders and empty content blocks.
+Detect language from CV content and keep output in that same language.
+Preserve template visual style exactly: CSS, classes, typography, spacing, and overall look.
+Adapt structure to CV content:
+Do not remove sections that have data; if a section has more items than the template, clone/add blocks as needed.
+Do not invent sections or content not present in the source CV.
+Keep data in correct semantic blocks:
+Do not place soft skills, languages, or other data into unrelated blocks unless the source CV explicitly has such block and data.
+Extract all important data from CV: personal info, experience, education, skills, soft skills, languages, links, tools, grouped skill lists.
+Keep grouped items intact (if source has "Category: a, b, c", keep all items).
+Keep brand and technology names unchanged.
+Remove placeholders and empty content blocks.
+Skills ratings and progress indicators:
+Do not add progress bars, points, stars, percentages, or other visual indicators if they are not explicitly present in the source CV.
+Only display skills levels or ratings if they exist in the CV; otherwise, leave plain text or remove visual indicators entirely.
+Ensure CV is 100% accurate and truthfully represents the source information.
 
 Output:
 - Return only raw HTML.
