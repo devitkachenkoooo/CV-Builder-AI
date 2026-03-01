@@ -291,72 +291,14 @@ async function seedTemplates() {
     const templateNumber = fileName.replace('.html', '');
     const templateId = parseInt(templateNumber.split('-')[1]); // Extract number from template-X
     
-    // Map template numbers to names and descriptions
-    const templateInfo: { [key: string]: { name: string; description: string; screenshotUrl: string } } = {
-      'template-1': { 
-        name: "Classic Minimalist", 
-        description: "Clean and professional layout with traditional styling", 
-        screenshotUrl: "/images/templates/template-1.png" 
-      },
-      'template-2': { 
-        name: "Modern Professional", 
-        description: "Contemporary design with clear sections", 
-        screenshotUrl: "/images/templates/template-2.png" 
-      },
-      'template-3': { 
-        name: "Tech Developer", 
-        description: "Perfect for software engineers and developers", 
-        screenshotUrl: "/images/templates/template-3.png" 
-      },
-      'template-4': { 
-        name: "Creative Designer", 
-        description: "Stylish design for creative professionals", 
-        screenshotUrl: "/images/templates/template-4.png" 
-      },
-      'template-5': { 
-        name: "Executive Bold", 
-        description: "Bold and impactful for senior positions", 
-        screenshotUrl: "/images/templates/template-5.png" 
-      },
-      'template-6': { 
-        name: "Elegant Profile", 
-        description: "Elegant with profile photo section", 
-        screenshotUrl: "/images/templates/template-6.png" 
-      },
-      'template-8': { 
-        name: "Game Industry", 
-        description: "Tailored for game industry professionals", 
-        screenshotUrl: "/images/templates/template-8.png" 
-      },
-      'template-9': { 
-        name: "Modern Accent", 
-        description: "Modern with accent colors", 
-        screenshotUrl: "/images/templates/template-9.png" 
-      },
-      'template-10': { 
-        name: "Dark Professional", 
-        description: "Professional dark theme design", 
-        screenshotUrl: "/images/templates/template-10.png" 
-      },
-      'template-11': { 
-        name: "Terminal Style", 
-        description: "Retro terminal hacker style with green text on black background", 
-        screenshotUrl: "/images/templates/template-11.png" 
-      }
-    };
-
-    const info = templateInfo[templateNumber] || { 
-      name: `Template ${templateId}`, 
-      description: `Template ${templateId} description`, 
-      screenshotUrl: `/images/templates/template-${templateId}.png` 
-    };
+    console.log(`Processing ${fileName} -> templateId: ${templateId}`);
 
     return {
       id: templateId,
-      name: info.name,
+      name: `Template ${templateId}`,
       fileName: fileName, // Use actual filename without hash
-      screenshotUrl: info.screenshotUrl,
-      description: info.description
+      screenshotUrl: `/images/templates/${fileName.replace('.html', '.png')}`,
+      description: `Template ${templateId} description`
     };
   });
 
@@ -394,11 +336,16 @@ function cleanModelHtmlResponse(raw: string): string {
 }
 
 async function generateCvAsync(jobId: number, templateId: number, cvText: string, sourceInfo?: string) {
+  console.log(`Generating CV with templateId: ${templateId}`);
+  
   try {
     const template = await storage.getTemplate(templateId);
     if (!template) {
+      console.log(`Template not found in DB for ID: ${templateId}`);
       throw new Error("Template not found in DB");
     }
+
+    console.log(`Found template: ${template.name}, fileName: ${template.fileName}`);
 
     const templatePath = path.join(process.cwd(), "client", "public", "templates", template.fileName);
 
