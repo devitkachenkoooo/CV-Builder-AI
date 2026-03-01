@@ -278,8 +278,11 @@ export async function registerRoutes(
 
 async function seedTemplates() {
   const existing = await storage.getTemplates();
-  if (existing.length > 0) return;
-
+  console.log('Existing templates count:', existing.length);
+  
+  // Clear all templates and recreate
+  await storage.clearTemplates();
+  console.log('Templates cleared, recreating...');
 
   const templates = [
     { name: "Classic Minimalist", fileName: "template-1_1771944300652.html", screenshotUrl: "/images/templates/template-1.png", description: "Clean and professional layout with traditional styling" },
@@ -296,8 +299,10 @@ async function seedTemplates() {
 
   for (const template of templates) {
     await storage.createTemplate(template);
+    console.log('Created template:', template.name);
   }
 
+  console.log('All templates seeded successfully');
 }
 
 function cleanModelHtmlResponse(raw: string): string {

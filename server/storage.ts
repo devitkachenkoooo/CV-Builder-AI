@@ -16,6 +16,7 @@ export interface IStorage {
   getTemplates(): Promise<CvTemplate[]>;
   getTemplate(id: number): Promise<CvTemplate | undefined>;
   createTemplate(template: InsertCvTemplate): Promise<CvTemplate>;
+  clearTemplates(): Promise<void>;
   
   // Generated CVs
   getGeneratedCv(id: number): Promise<GeneratedCv | undefined>;
@@ -53,6 +54,10 @@ export class DatabaseStorage implements IStorage {
       .values(template)
       .returning();
     return created;
+  }
+
+  async clearTemplates(): Promise<void> {
+    await db.delete(cvTemplates);
   }
 
   // Generated CVs
