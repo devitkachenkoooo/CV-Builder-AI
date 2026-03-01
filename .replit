@@ -41,3 +41,10 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_log_in_with_replit:2.0.0", "javascript_openrouter_ai_integrations:2.0.0"]
+
+[userenv]
+
+[userenv.shared]
+AI_REQUESTS_PER_HOUR = "20"
+AI_REQUEST_WINDOW_MS = "3600000"
+AI_MAX_GENERATED_HTML_CHARS = "500000"
