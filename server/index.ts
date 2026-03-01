@@ -32,16 +32,7 @@ const apiLimiter = rateLimit({
   message: { message: "Too many requests, please try again later." },
 });
 
-const generateStartLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: "Too many generation attempts, please try again later." },
-});
-
 app.use("/api", apiLimiter);
-app.use("/api/generate/start", generateStartLimiter);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {

@@ -35,15 +35,6 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
   const isFailed = displayData.status === "failed";
   const isComplete = displayData.status === "complete";
 
-  useEffect(() => {
-    console.log("[CV_CARD] Status updated", {
-      cvId: cv.id,
-      initialStatus: cv.status,
-      displayStatus: displayData.status,
-      progress: displayData.progress,
-    });
-  }, [cv.id, cv.status, displayData.status, displayData.progress]);
-
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [scale, setScale] = useState(1);
@@ -304,7 +295,7 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
               </div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-3">
                 <Calendar className="w-3.5 h-3.5" />
-                {format(new Date(cv.createdAt), 'MMM d, yyyy, HH:mm')}
+                {format(new Date(cv.updatedAt || cv.createdAt), 'MMM d, yyyy, HH:mm')}
               </div>
               {isComplete && (
                 <div className="flex items-center gap-1.5 text-xs text-primary mt-2">

@@ -1,21 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useLocation } from "wouter";
-import { motion } from "framer-motion";
-import { ArrowLeft, Download, Loader2, FileText, CheckCircle, Sparkles, AlertCircle } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowLeft, Download, Loader2, FileText, CheckCircle, Sparkles, AlertCircle, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { api, buildUrl } from "@shared/routes";
 import { GeneratedCvResponse } from "@shared/schema";
 import { generatePdfFromUrl } from "@/lib/pdf-generator";
 import { usePollingJob } from "@/hooks/use-generate";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 
 const AI_EDIT_PROMPT_MIN_LENGTH = 10;
@@ -53,7 +45,6 @@ export default function CvViewPage() {
     if (!id) return;
 
     try {
-      console.log("[CV_VIEW] Fetching CV data", { id });
       setIsLoading(true);
       setError(null);
 
@@ -62,7 +53,6 @@ export default function CvViewPage() {
       });
 
       if (!response.ok) {
-        console.error("[CV_VIEW] CV fetch failed", { id, status: response.status });
         if (response.status === 404) {
           setError("CV not found");
         } else {
@@ -72,13 +62,6 @@ export default function CvViewPage() {
       }
 
       const data: GeneratedCvResponse = await response.json();
-      console.log("[CV_VIEW] CV fetched", {
-        id: data.id,
-        status: data.status,
-        progress: data.progress,
-        hasPdfUrl: Boolean(data.pdfUrl),
-        updatedAt: data.updatedAt,
-      });
       setCvData(data);
       setPdfUrl(withCacheBust(data.pdfUrl, data.updatedAt || Date.now()));
 
@@ -103,12 +86,6 @@ export default function CvViewPage() {
 
   useEffect(() => {
     if (!polledJob) return;
-    console.log("[CV_VIEW] Polled job update", {
-      id: polledJob.id,
-      status: polledJob.status,
-      progress: polledJob.progress,
-      hasPdfUrl: Boolean(polledJob.pdfUrl),
-    });
 
     setCvData((prev) => {
       if (!prev) return prev;
@@ -129,10 +106,6 @@ export default function CvViewPage() {
 
     if (polledJob.status === "complete" || polledJob.status === "failed") {
       if (syncedTerminalStatusRef.current !== polledJob.status) {
-        console.log("[CV_VIEW] Terminal status received, refreshing full CV data", {
-          status: polledJob.status,
-          id: polledJob.id,
-        });
         syncedTerminalStatusRef.current = polledJob.status;
         fetchCvData();
       }
@@ -238,10 +211,6 @@ export default function CvViewPage() {
     if (!cvData) return;
 
     const trimmedPrompt = aiPrompt.replace(/\u0000/g, "").trim();
-    console.log("[CV_VIEW] Submitting AI edit prompt", {
-      cvId: cvData.id,
-      promptLength: trimmedPrompt.length,
-    });
     if (trimmedPrompt.length < AI_EDIT_PROMPT_MIN_LENGTH) {
       toast({
         title: "Prompt is too short",
@@ -263,7 +232,6 @@ export default function CvViewPage() {
     try {
       setIsSubmittingAiEdit(true);
       const url = buildUrl(api.resumes.aiEdit.path, { id: cvData.id });
-      console.log("[CV_VIEW] Sending AI edit request", { url, method: api.resumes.aiEdit.method, cvId: cvData.id });
       const response = await fetch(url, {
         method: api.resumes.aiEdit.method,
         credentials: "include",
@@ -277,24 +245,15 @@ export default function CvViewPage() {
         let message = "Failed to start AI edit";
         try {
           const errorBody = await response.json();
-          console.error("[CV_VIEW] AI edit rejected by server", {
-            cvId: cvData.id,
-            status: response.status,
-            errorBody,
-          });
           if (typeof errorBody?.message === "string" && errorBody.message) {
             message = errorBody.message;
           }
         } catch {
-          console.error("[CV_VIEW] AI edit rejected with non-JSON error body", {
-            cvId: cvData.id,
-            status: response.status,
-          });
           // Ignore JSON parse errors
         }
 
         toast({
-          title: "AI edit rejected",
+          title: response.status === 429 ? "Rate limit exceeded" : "AI edit rejected",
           description: message,
           variant: "destructive",
         });
@@ -302,11 +261,7 @@ export default function CvViewPage() {
       }
 
       const startPayload = await response.json();
-      console.log("[CV_VIEW] AI edit accepted", {
-        cvId: cvData.id,
-        status: response.status,
-        payload: startPayload,
-      });
+      void startPayload;
 
       setCvData((prev) =>
         prev
@@ -341,7 +296,7 @@ export default function CvViewPage() {
         );
       });
       queryClient.invalidateQueries({ queryKey: [api.resumes.list.path] });
-      queryClient.invalidateQueries({ queryKey: [api.generate.status.path, cvData.id] });
+      queryClient.invalidateQueries({ queryKey: [api.generate.status.path, cvData.id, "active"] });
 
       setIsAiDialogOpen(false);
       setAiPrompt("");
@@ -572,10 +527,10 @@ export default function CvViewPage() {
                 <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                   <CheckCircle className="w-5 h-5 text-purple-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900">Created</h3>
+                <h3 className="font-semibold text-gray-900">Updated</h3>
               </div>
               <p className="text-gray-600 text-sm">
-                {new Date(cvData.createdAt).toLocaleString("uk-UA", {
+                {new Date(cvData.updatedAt || cvData.createdAt).toLocaleString("uk-UA", {
                   day: "numeric",
                   month: "long",
                   year: "numeric",
@@ -588,56 +543,84 @@ export default function CvViewPage() {
         </div>
       </main>
 
-      <Dialog open={isAiDialogOpen} onOpenChange={setIsAiDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit CV with AI</DialogTitle>
-            <DialogDescription>
-              Describe what should be updated in your existing CV. We will preserve the current template style.
-            </DialogDescription>
-          </DialogHeader>
+      <AnimatePresence>
+        {isAiDialogOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -18 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -18 }}
+            transition={{ duration: 0.2 }}
+            className="fixed top-20 left-0 right-0 z-50 pointer-events-none px-3 sm:px-6 lg:px-8"
+          >
+            <div className="max-w-5xl mx-auto pointer-events-auto">
+              <div className="rounded-2xl border border-gray-200 bg-white/95 backdrop-blur-sm shadow-2xl overflow-hidden">
+                <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Edit CV with AI</h2>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Keep this panel open while scrolling the document and describe what should be changed.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsAiDialogOpen(false)}
+                    disabled={isSubmittingAiEdit}
+                    className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
+                    aria-label="Close AI edit panel"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
 
-          <div className="space-y-2">
-            <Textarea
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              placeholder="Example: Make my summary more concise and emphasize React + TypeScript achievements."
-              className="min-h-[140px]"
-              maxLength={AI_EDIT_PROMPT_MAX_LENGTH}
-              disabled={isSubmittingAiEdit}
-            />
-            <p className="text-xs text-muted-foreground text-right">
-              {aiPrompt.length}/{AI_EDIT_PROMPT_MAX_LENGTH}
-            </p>
-          </div>
+                <div className="px-4 sm:px-6 py-4 space-y-3">
+                  <Textarea
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    placeholder="Example: Rewrite the summary into 2 concise sentences and highlight React + TypeScript achievements."
+                    className="min-h-[120px] max-h-[260px] resize-y"
+                    maxLength={AI_EDIT_PROMPT_MAX_LENGTH}
+                    disabled={isSubmittingAiEdit}
+                  />
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-xs text-gray-500">
+                      The request should be specific and factual to get visible changes.
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {aiPrompt.length}/{AI_EDIT_PROMPT_MAX_LENGTH}
+                    </p>
+                  </div>
+                </div>
 
-          <DialogFooter>
-            <button
-              type="button"
-              onClick={() => setIsAiDialogOpen(false)}
-              className="px-4 py-2 rounded-md border border-input bg-background hover:bg-accent"
-              disabled={isSubmittingAiEdit}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmitAiEdit}
-              className="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
-              disabled={isSubmittingAiEdit}
-            >
-              {isSubmittingAiEdit ? (
-                <span className="inline-flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Sending...
-                </span>
-              ) : (
-                "Send"
-              )}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                <div className="px-4 sm:px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsAiDialogOpen(false)}
+                    className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100"
+                    disabled={isSubmittingAiEdit}
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSubmitAiEdit}
+                    className="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                    disabled={isSubmittingAiEdit}
+                  >
+                    {isSubmittingAiEdit ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Sending...
+                      </span>
+                    ) : (
+                      "Send"
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <style
         dangerouslySetInnerHTML={{

@@ -104,7 +104,7 @@ export class DatabaseStorage implements IStorage {
       .from(generatedCvs)
       .leftJoin(cvTemplates, eq(generatedCvs.templateId, cvTemplates.id))
       .where(eq(generatedCvs.userId, userId))
-      .orderBy(desc(generatedCvs.createdAt));
+      .orderBy(desc(generatedCvs.updatedAt));
 
     return results.map((r) => ({
       ...r.cv,

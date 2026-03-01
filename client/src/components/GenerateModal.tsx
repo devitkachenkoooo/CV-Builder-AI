@@ -25,7 +25,6 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  // Log when onClose is called
   const handleClose = () => {
     onClose();
   };
@@ -71,7 +70,6 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
           setLocation("/my-resumes");
         },
         onError: (error) => {
-          console.error("[GenerateModal] Generation failed:", error);
           toast({
             title: t("toast.gen_failed_title"),
             description: error instanceof Error ? error.message : t("toast.gen_failed_fallback"),
@@ -80,7 +78,11 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
         }
       });
     } catch (error) {
-      console.error("[GenerateModal] Unexpected error:", error);
+      toast({
+        title: t("toast.gen_failed_title"),
+        description: t("toast.gen_failed_fallback"),
+        variant: "destructive",
+      });
     }
   };
 

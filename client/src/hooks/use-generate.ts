@@ -39,7 +39,7 @@ export function useGenerateCv() {
       });
 
       if (!res.ok) {
-        if (res.status === 400) {
+        if (res.status === 400 || res.status === 429) {
           const error = await res.json();
           throw new Error(error.message || "Validation failed");
         }
@@ -64,29 +64,19 @@ export function usePollingJob(jobId: number, initialStatus: string) {
   const pollingScope = isJobActive ? "active" : "inactive";
   const queryClient = useQueryClient();
 
-  console.log("[POLL] Hook init", {
-    jobId,
-    initialStatus,
-    isJobActive,
-  });
-
   const query = useQuery({
     queryKey: [api.generate.status.path, jobId, pollingScope],
     queryFn: async () => {
       const url = buildUrl(api.generate.status.path, { jobId });
-      console.log("[POLL] Fetching job status", { jobId, url });
 
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) {
-        console.error("[POLL] Failed to fetch job status", { jobId, status: res.status });
         throw new Error("Failed to fetch job status");
       }
 
       const data = await res.json();
-      console.log("[POLL] Raw status payload", { jobId, data });
 
       const parsed = parseWithLogging(api.generate.status.responses[200], data, "generate.status");
-      console.log("[POLL] Parsed status payload", { jobId, status: parsed.status, progress: parsed.progress });
 
       return parsed;
     },
@@ -96,12 +86,6 @@ export function usePollingJob(jobId: number, initialStatus: string) {
     // Poll every 2 seconds if status is still pending or processing
     refetchInterval: (query) => {
       const currentStatus = query.state.data?.status || initialStatus;
-      console.log("[POLL] refetchInterval decision", {
-        jobId,
-        initialStatus,
-        currentStatus,
-        hasData: Boolean(query.state.data),
-      });
       if (currentStatus === "pending" || currentStatus === "processing") {
         return 2000;
       }
@@ -113,10 +97,6 @@ export function usePollingJob(jobId: number, initialStatus: string) {
   // Handle side effects (like invalidating queries) in useEffect, not in queryFn
   useEffect(() => {
     if (query.data?.status === "complete" || query.data?.status === "failed") {
-      console.log("[POLL] Job reached terminal status, invalidating resumes list", {
-        jobId,
-        status: query.data.status,
-      });
       queryClient.invalidateQueries({ queryKey: [api.resumes.list.path] });
     }
   }, [query.data?.status, queryClient, jobId]);

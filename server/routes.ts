@@ -7,8 +7,10 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { processUploadedFile } from "./lib/file-processor";
 import { validateCVContent, generateUserFriendlyMessage, formatSuggestionsForUser } from "./lib/cv-validator";
 import { sanitizeHtml } from "./lib/html-sanitizer";
+import { appConfig } from "./config/app-config";
 import multer from "multer";
 import OpenAI from "openai";
+import rateLimit from "express-rate-limit";
 import fs from "fs/promises";
 import fsSync from "fs";
 import path from "path";
@@ -38,14 +40,19 @@ const openrouter = new OpenAI({
 const AI_MODEL = "meta-llama/llama-3.3-70b-instruct";
 const AI_EDIT_PROMPT_MIN_LENGTH = 10;
 const AI_EDIT_PROMPT_MAX_LENGTH = 1000;
+const MAX_GENERATED_HTML_CHARS = appConfig.html.maxGeneratedHtmlChars;
 
-function debugLog(scope: string, details?: Record<string, unknown>) {
-  if (details) {
-    console.log(`[DEBUG][${scope}]`, details);
-    return;
-  }
-  console.log(`[DEBUG][${scope}]`);
-}
+const aiRequestLimiter = rateLimit({
+  windowMs: appConfig.rateLimits.aiRequestsWindowMs,
+  max: appConfig.rateLimits.aiRequestsPerHour,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: any) => req.user?.claims?.sub || req.ip,
+  message: {
+    message: `You have reached the hourly AI request limit (${appConfig.rateLimits.aiRequestsPerHour}). Please try again later.`,
+    code: "RATE_LIMIT_EXCEEDED",
+  },
+});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -74,7 +81,7 @@ export async function registerRoutes(
   });
 
   // Start CV generation
-  app.post(api.generate.start.path, isAuthenticated, upload.single('file'), async (req: any, res) => {
+  app.post(api.generate.start.path, isAuthenticated, aiRequestLimiter, upload.single('file'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
 
@@ -237,35 +244,25 @@ export async function registerRoutes(
   });
 
   // Start AI edit for existing generated CV
-  app.post(api.resumes.aiEdit.path, isAuthenticated, async (req: any, res) => {
+  app.post(api.resumes.aiEdit.path, isAuthenticated, aiRequestLimiter, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id, 10);
-      debugLog("AI_EDIT_ROUTE_RECEIVED", {
-        cvIdRaw: req.params.id,
-        hasBody: Boolean(req.body),
-      });
       if (Number.isNaN(id)) {
-        debugLog("AI_EDIT_ROUTE_INVALID_ID", { cvIdRaw: req.params.id });
         return res.status(400).json({ message: "Invalid CV id" });
       }
 
       const userId = req.user.claims.sub;
-      debugLog("AI_EDIT_ROUTE_USER", { cvId: id, userId });
       const cv = await storage.getGeneratedCv(id);
       if (!cv) {
-        debugLog("AI_EDIT_ROUTE_NOT_FOUND", { cvId: id });
         return res.status(404).json({ message: "CV not found" });
       }
       if (cv.userId !== userId) {
-        debugLog("AI_EDIT_ROUTE_FORBIDDEN", { cvId: id, ownerId: cv.userId, userId });
         return res.status(403).json({ message: "Forbidden" });
       }
       if (cv.status === "pending" || cv.status === "processing") {
-        debugLog("AI_EDIT_ROUTE_CONFLICT", { cvId: id, currentStatus: cv.status });
         return res.status(409).json({ message: "CV is already processing" });
       }
       if (!cv.htmlContent) {
-        debugLog("AI_EDIT_ROUTE_NO_HTML", { cvId: id });
         return res.status(400).json({
           message: "This CV is not ready for AI editing yet.",
           code: "PROMPT_REJECTED",
@@ -275,10 +272,6 @@ export async function registerRoutes(
 
       const parsedBody = api.resumes.aiEdit.input.safeParse(req.body);
       if (!parsedBody.success) {
-        debugLog("AI_EDIT_ROUTE_BAD_BODY", {
-          cvId: id,
-          issues: parsedBody.error.issues.map((issue) => issue.message),
-        });
         return res.status(400).json({
           message: "Prompt is required",
           code: "PROMPT_REJECTED",
@@ -287,13 +280,7 @@ export async function registerRoutes(
       }
 
       const prompt = parsedBody.data.prompt.replace(/\u0000/g, "").trim();
-      debugLog("AI_EDIT_ROUTE_PROMPT_PARSED", {
-        cvId: id,
-        promptLength: prompt.length,
-        promptPreview: prompt.slice(0, 150),
-      });
       if (prompt.length < AI_EDIT_PROMPT_MIN_LENGTH) {
-        debugLog("AI_EDIT_ROUTE_PROMPT_TOO_SHORT", { cvId: id, promptLength: prompt.length });
         return res.status(400).json({
           message: `Prompt is too short. Minimum ${AI_EDIT_PROMPT_MIN_LENGTH} characters.`,
           code: "PROMPT_TOO_SHORT",
@@ -301,7 +288,6 @@ export async function registerRoutes(
         });
       }
       if (prompt.length > AI_EDIT_PROMPT_MAX_LENGTH) {
-        debugLog("AI_EDIT_ROUTE_PROMPT_TOO_LONG", { cvId: id, promptLength: prompt.length });
         return res.status(400).json({
           message: `Prompt is too long. Maximum ${AI_EDIT_PROMPT_MAX_LENGTH} characters.`,
           code: "PROMPT_TOO_LONG",
@@ -310,11 +296,6 @@ export async function registerRoutes(
       }
 
       const safetyCheck = await validateAiEditPrompt(prompt);
-      debugLog("AI_EDIT_ROUTE_SAFETY_RESULT", {
-        cvId: id,
-        allowed: safetyCheck.allowed,
-        reason: safetyCheck.reason,
-      });
       if (!safetyCheck.allowed) {
         return res.status(400).json({
           message: safetyCheck.userMessage,
@@ -331,20 +312,14 @@ export async function registerRoutes(
         undefined,
         null
       );
-      debugLog("AI_EDIT_ROUTE_STATUS_SET_PROCESSING", {
-        cvId: cv.id,
-      });
 
       editCvAsync(cv.id, prompt).catch(() => {
         // Failures are handled inside editCvAsync
       });
-      debugLog("AI_EDIT_ROUTE_ASYNC_STARTED", {
-        cvId: cv.id,
-      });
 
       return res.status(202).json({ jobId: cv.id });
     } catch (error) {
-      console.error("[DEBUG][AI_EDIT_ROUTE_ERROR]", error);
+      console.error("AI Edit Route Error:", error);
       return res.status(500).json({ message: "Failed to start AI edit" });
     }
   });
@@ -370,13 +345,7 @@ export async function registerRoutes(
       }
 
       const safeHtml = sanitizeHtml(cv.htmlContent);
-      if (safeHtml.length !== cv.htmlContent.length) {
-        debugLog("CV_RENDER_SANITIZED_ON_READ", {
-          cvId: id,
-          beforeLength: cv.htmlContent.length,
-          afterLength: safeHtml.length,
-        });
-      }
+      assertSafeGeneratedHtml(safeHtml);
 
       res.setHeader("Content-Type", "text/html");
       res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
@@ -475,6 +444,34 @@ function cleanModelHtmlResponse(raw: string): string {
     .trim();
 }
 
+function assertSafeGeneratedHtml(html: string) {
+  if (!html || !html.trim()) {
+    throw new Error("Generated HTML is empty");
+  }
+
+  if (html.length > MAX_GENERATED_HTML_CHARS) {
+    throw new Error("Generated HTML exceeds maximum allowed size");
+  }
+
+  const blockedPatterns = [
+    /<script\b/i,
+    /\son[a-z0-9_-]+\s*=/i,
+    /javascript:/i,
+    /vbscript:/i,
+    /<iframe\b/i,
+    /<object\b/i,
+    /<embed\b/i,
+    /<form\b/i,
+    /<meta[^>]*http-equiv=["']?refresh/i,
+  ];
+
+  for (const pattern of blockedPatterns) {
+    if (pattern.test(html)) {
+      throw new Error("Generated HTML failed security validation");
+    }
+  }
+}
+
 interface PromptSafetyResult {
   allowed: boolean;
   reason: string;
@@ -482,10 +479,6 @@ interface PromptSafetyResult {
 }
 
 function extractFirstJsonObject(raw: string): string {
-  debugLog("AI_EDIT_MODERATION_RAW_RESPONSE", {
-    contentLength: raw.length,
-    preview: raw.slice(0, 200),
-  });
   const startIndex = raw.indexOf("{");
   const endIndex = raw.lastIndexOf("}");
   if (startIndex === -1 || endIndex === -1 || startIndex >= endIndex) {
@@ -496,10 +489,6 @@ function extractFirstJsonObject(raw: string): string {
 
 function runLocalPromptSafetyChecks(prompt: string): PromptSafetyResult {
   const lowered = prompt.toLowerCase();
-  debugLog("AI_EDIT_LOCAL_SAFETY_START", {
-    promptLength: prompt.length,
-    promptPreview: prompt.slice(0, 150),
-  });
 
   const blockedRuleChecks: Array<{ pattern: RegExp; reason: string; userMessage: string }> = [
     {
@@ -531,9 +520,6 @@ function runLocalPromptSafetyChecks(prompt: string): PromptSafetyResult {
 
   for (const check of blockedRuleChecks) {
     if (check.pattern.test(lowered)) {
-      debugLog("AI_EDIT_LOCAL_SAFETY_BLOCKED", {
-        reason: check.reason,
-      });
       return {
         allowed: false,
         reason: check.reason,
@@ -550,9 +536,6 @@ function runLocalPromptSafetyChecks(prompt: string): PromptSafetyResult {
 }
 
 async function runAiPromptModeration(prompt: string): Promise<PromptSafetyResult> {
-  debugLog("AI_EDIT_AI_MODERATION_START", {
-    promptLength: prompt.length,
-  });
   const moderationPrompt = `Classify if this CV edit request is safe.
 
 Return ONLY JSON in this format:
@@ -580,9 +563,6 @@ ${prompt}`;
     max_tokens: 512,
     temperature: 0,
   });
-  debugLog("AI_EDIT_AI_MODERATION_RESPONSE", {
-    hasChoices: Boolean(response.choices?.length),
-  });
 
   const rawContent = response.choices[0]?.message?.content || "";
   const json = extractFirstJsonObject(rawContent);
@@ -604,26 +584,15 @@ ${prompt}`;
 }
 
 async function validateAiEditPrompt(prompt: string): Promise<PromptSafetyResult> {
-  debugLog("AI_EDIT_VALIDATE_PROMPT_START", {
-    promptLength: prompt.length,
-  });
   const localSafety = runLocalPromptSafetyChecks(prompt);
   if (!localSafety.allowed) {
-    debugLog("AI_EDIT_VALIDATE_PROMPT_BLOCKED_LOCAL", {
-      reason: localSafety.reason,
-    });
     return localSafety;
   }
 
   try {
-    const moderation = await runAiPromptModeration(prompt);
-    debugLog("AI_EDIT_VALIDATE_PROMPT_AI_RESULT", {
-      allowed: moderation.allowed,
-      reason: moderation.reason,
-    });
-    return moderation;
+    return await runAiPromptModeration(prompt);
   } catch (error) {
-    console.error("[DEBUG][AI_EDIT_VALIDATE_PROMPT_AI_ERROR]", error);
+    console.error("AI moderation error:", error);
     return {
       allowed: false,
       reason: "moderation_unavailable",
@@ -711,7 +680,8 @@ ${normalizedCvText}`;
       }
 
       // Sanitize HTML before saving
-      generatedHtml = sanitizeHtml(generatedHtml);
+      generatedHtml = sanitizeHtml(generatedHtml).trim();
+      assertSafeGeneratedHtml(generatedHtml);
 
       const pdfUrl = buildUrl(api.generatedCv.render.path, { id: jobId });
       await storage.updateGeneratedCvStatus(
@@ -742,20 +712,10 @@ ${normalizedCvText}`;
 
 async function editCvAsync(cvId: number, userPrompt: string) {
   try {
-    debugLog("AI_EDIT_ASYNC_START", {
-      cvId,
-      promptLength: userPrompt.length,
-      promptPreview: userPrompt.slice(0, 150),
-    });
     const cv = await storage.getGeneratedCv(cvId);
     if (!cv || !cv.htmlContent) {
       throw new Error("Generated CV HTML not found");
     }
-    debugLog("AI_EDIT_ASYNC_LOADED_CV", {
-      cvId,
-      htmlLength: cv.htmlContent.length,
-      currentStatus: cv.status,
-    });
 
     const systemMessage = `You are a deterministic HTML CV editor.
 You must return only raw HTML.
@@ -790,36 +750,21 @@ ${cv.htmlContent}`;
       max_tokens: 8192,
       temperature: 0.1,
     });
-    debugLog("AI_EDIT_ASYNC_MODEL_RESPONSE", {
-      cvId,
-      hasChoices: Boolean(response.choices?.length),
-    });
 
     let editedHtml = cleanModelHtmlResponse(response.choices[0]?.message?.content || "");
-    debugLog("AI_EDIT_ASYNC_CLEANED_HTML", {
-      cvId,
-      cleanedLength: editedHtml.length,
-      cleanedPreview: editedHtml.slice(0, 200),
-    });
     if (!editedHtml) {
       throw new Error("AI returned empty HTML during edit");
     }
 
     const wasSameAsOriginal = editedHtml.trim() === cv.htmlContent.trim();
     editedHtml = sanitizeHtml(editedHtml).trim();
-    debugLog("AI_EDIT_ASYNC_SANITIZED_HTML", {
-      cvId,
-      sanitizedLength: editedHtml.length,
-      wasSameAsOriginal,
-    });
     if (!editedHtml) {
       throw new Error("Sanitized edited HTML is empty");
     }
 
+    assertSafeGeneratedHtml(editedHtml);
+
     if (wasSameAsOriginal) {
-      debugLog("AI_EDIT_ASYNC_NO_CHANGES_DETECTED", {
-        cvId,
-      });
       await storage.updateGeneratedCvStatus(
         cvId,
         "failed",
@@ -840,13 +785,8 @@ ${cv.htmlContent}`;
       editedHtml,
       null
     );
-    debugLog("AI_EDIT_ASYNC_COMPLETE", {
-      cvId,
-      pdfUrl,
-      wasSameAsOriginal,
-    });
   } catch (error: any) {
-    console.error("[DEBUG][AI_EDIT_ASYNC_ERROR]", error);
+    console.error("AI Edit Error:", error);
     await storage.updateGeneratedCvStatus(
       cvId,
       "failed",

@@ -64,6 +64,7 @@ export const api = {
       responses: {
         202: z.object({ jobId: z.number() }),
         400: errorSchemas.validation,
+        429: errorSchemas.validation,
         401: errorSchemas.unauthorized,
       },
     },
@@ -96,6 +97,7 @@ export const api = {
       responses: {
         202: z.object({ jobId: z.number() }),
         400: errorSchemas.validation,
+        429: errorSchemas.validation,
         403: errorSchemas.unauthorized,
         404: errorSchemas.notFound,
         409: errorSchemas.validation,
