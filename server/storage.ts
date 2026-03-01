@@ -17,11 +17,13 @@ export interface IStorage {
   getTemplate(id: number): Promise<CvTemplate | undefined>;
   createTemplate(template: InsertCvTemplate): Promise<CvTemplate>;
   clearTemplates(): Promise<void>;
+  deleteTemplate(id: number): Promise<void>;
   
   // Generated CVs
   getGeneratedCv(id: number): Promise<GeneratedCv | undefined>;
   getGeneratedCvWithTemplate(id: number): Promise<GeneratedCvResponse | undefined>;
   getUserGeneratedCvs(userId: string): Promise<GeneratedCvResponse[]>;
+  getGeneratedCvsByTemplateId(templateId: number): Promise<GeneratedCv[]>;
   createGeneratedCv(cv: InsertGeneratedCv): Promise<GeneratedCv>;
   updateGeneratedCvStatus(
     id: number,
@@ -58,6 +60,10 @@ export class DatabaseStorage implements IStorage {
 
   async clearTemplates(): Promise<void> {
     await db.delete(cvTemplates);
+  }
+
+  async deleteTemplate(id: number): Promise<void> {
+    await db.delete(cvTemplates).where(eq(cvTemplates.id, id));
   }
 
   // Generated CVs
@@ -102,6 +108,13 @@ export class DatabaseStorage implements IStorage {
       ...r.cv,
       template: r.template || undefined,
     }));
+  }
+
+  async getGeneratedCvsByTemplateId(templateId: number): Promise<GeneratedCv[]> {
+    return await db
+      .select()
+      .from(generatedCvs)
+      .where(eq(generatedCvs.templateId, templateId));
   }
 
   async createGeneratedCv(cv: InsertGeneratedCv): Promise<GeneratedCv> {

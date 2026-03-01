@@ -281,10 +281,7 @@ export async function registerRoutes(
 async function seedTemplates() {
   const existing = await storage.getTemplates();
   console.log('Existing templates count:', existing.length);
-  
-  // Clear all templates and recreate
-  await storage.clearTemplates();
-  console.log('Templates cleared, recreating...');
+  console.log('Existing template names:', existing.map(t => t.name));
 
   const templates = [
     { name: "Classic Minimalist", fileName: "template-1_1771944300652.html", screenshotUrl: "/images/templates/template-1.png", description: "Clean and professional layout with traditional styling" },
@@ -299,12 +296,36 @@ async function seedTemplates() {
     { name: "Terminal Style", fileName: "template-11_1771944300657.html", screenshotUrl: "/images/templates/template-11.png", description: "Retro terminal hacker style with green text on black background" },
   ];
 
-  for (const template of templates) {
+  // Find templates that need to be added
+  const existingFileNames = existing.map(t => t.fileName);
+  const templatesToAdd = templates.filter(t => !existingFileNames.includes(t.fileName));
+  
+  // Find templates that should be removed (not in our list anymore)
+  const requiredFileNames = templates.map(t => t.fileName);
+  const templatesToRemove = existing.filter(t => !requiredFileNames.includes(t.fileName));
+
+  console.log('Templates to add:', templatesToAdd.length);
+  console.log('Templates to remove:', templatesToRemove.length);
+
+  // Add new templates
+  for (const template of templatesToAdd) {
     await storage.createTemplate(template);
-    console.log('Created template:', template.name);
+    console.log('Added template:', template.name);
   }
 
-  console.log('All templates seeded successfully');
+  // Remove obsolete templates (only if not referenced by generated CVs)
+  for (const template of templatesToRemove) {
+    // Check if any generated CVs reference this template
+    const generatedCvs = await storage.getGeneratedCvsByTemplateId(template.id);
+    if (generatedCvs.length === 0) {
+      await storage.deleteTemplate(template.id);
+      console.log('Removed template:', template.name);
+    } else {
+      console.log('Cannot remove template', template.name, '- referenced by', generatedCvs.length, 'generated CVs');
+    }
+  }
+
+  console.log('Template synchronization completed');
 }
 
 function cleanModelHtmlResponse(raw: string): string {
