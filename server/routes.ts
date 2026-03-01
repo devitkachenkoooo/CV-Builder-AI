@@ -291,6 +291,7 @@ async function seedTemplates() {
     { name: "Game Industry", fileName: "template-8_1771944300656.html", screenshotUrl: "/images/templates/template-8.png", description: "Tailored for game industry professionals" },
     { name: "Modern Accent", fileName: "template-9_1771944300656.html", screenshotUrl: "/images/templates/template-9.png", description: "Modern with accent colors" },
     { name: "Dark Professional", fileName: "template-10_1771944300656.html", screenshotUrl: "/images/templates/template-10.png", description: "Professional dark theme design" },
+    { name: "Terminal Style", fileName: "template-11_1771944300657.html", screenshotUrl: "/images/templates/template-11.png", description: "Retro terminal hacker style with green text on black background" },
   ];
 
   for (const template of templates) {
