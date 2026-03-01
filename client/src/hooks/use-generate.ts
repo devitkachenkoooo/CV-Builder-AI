@@ -60,42 +60,66 @@ export function useGenerateCv() {
 
 // Hook for polling an individual CV's status
 export function usePollingJob(jobId: number, initialStatus: string) {
-  const isPolling = (initialStatus === "pending" || initialStatus === "processing") && jobId > 0;
+  const isJobActive = initialStatus === "pending" || initialStatus === "processing";
+  const pollingScope = isJobActive ? "active" : "inactive";
   const queryClient = useQueryClient();
 
+  console.log("[POLL] Hook init", {
+    jobId,
+    initialStatus,
+    isJobActive,
+  });
+
   const query = useQuery({
-    queryKey: [api.generate.status.path, jobId],
+    queryKey: [api.generate.status.path, jobId, pollingScope],
     queryFn: async () => {
       const url = buildUrl(api.generate.status.path, { jobId });
+      console.log("[POLL] Fetching job status", { jobId, url });
 
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) {
+        console.error("[POLL] Failed to fetch job status", { jobId, status: res.status });
         throw new Error("Failed to fetch job status");
       }
 
       const data = await res.json();
+      console.log("[POLL] Raw status payload", { jobId, data });
 
       const parsed = parseWithLogging(api.generate.status.responses[200], data, "generate.status");
+      console.log("[POLL] Parsed status payload", { jobId, status: parsed.status, progress: parsed.progress });
 
       return parsed;
     },
+    // Override global staleTime Infinity so polling can restart from cached complete state
+    staleTime: 0,
+    refetchOnMount: "always",
     // Poll every 2 seconds if status is still pending or processing
     refetchInterval: (query) => {
       const currentStatus = query.state.data?.status || initialStatus;
+      console.log("[POLL] refetchInterval decision", {
+        jobId,
+        initialStatus,
+        currentStatus,
+        hasData: Boolean(query.state.data),
+      });
       if (currentStatus === "pending" || currentStatus === "processing") {
         return 2000;
       }
       return false;
     },
-    enabled: isPolling, // Only enable if we're polling AND have a valid jobId
+    enabled: jobId > 0 && isJobActive,
   });
 
   // Handle side effects (like invalidating queries) in useEffect, not in queryFn
   useEffect(() => {
     if (query.data?.status === "complete" || query.data?.status === "failed") {
+      console.log("[POLL] Job reached terminal status, invalidating resumes list", {
+        jobId,
+        status: query.data.status,
+      });
       queryClient.invalidateQueries({ queryKey: [api.resumes.list.path] });
     }
-  }, [query.data?.status, queryClient]);
+  }, [query.data?.status, queryClient, jobId]);
 
   return query;
 }

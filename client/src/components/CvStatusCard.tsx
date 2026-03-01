@@ -35,6 +35,15 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
   const isFailed = displayData.status === "failed";
   const isComplete = displayData.status === "complete";
 
+  useEffect(() => {
+    console.log("[CV_CARD] Status updated", {
+      cvId: cv.id,
+      initialStatus: cv.status,
+      displayStatus: displayData.status,
+      progress: displayData.progress,
+    });
+  }, [cv.id, cv.status, displayData.status, displayData.progress]);
+
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [scale, setScale] = useState(1);

@@ -72,6 +72,7 @@ export const api = {
       path: '/api/generate/:jobId' as const,
       responses: {
         200: z.custom<JobStatusResponse>(),
+        403: errorSchemas.unauthorized,
         404: errorSchemas.notFound,
         401: errorSchemas.unauthorized,
       },

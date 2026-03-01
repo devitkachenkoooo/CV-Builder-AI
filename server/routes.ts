@@ -39,6 +39,14 @@ const AI_MODEL = "meta-llama/llama-3.3-70b-instruct";
 const AI_EDIT_PROMPT_MIN_LENGTH = 10;
 const AI_EDIT_PROMPT_MAX_LENGTH = 1000;
 
+function debugLog(scope: string, details?: Record<string, unknown>) {
+  if (details) {
+    console.log(`[DEBUG][${scope}]`, details);
+    return;
+  }
+  console.log(`[DEBUG][${scope}]`);
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -163,16 +171,20 @@ export async function registerRoutes(
   });
 
   // Get generation status
-  app.get(api.generate.status.path, isAuthenticated, async (req, res) => {
+  app.get(api.generate.status.path, isAuthenticated, async (req: any, res) => {
     try {
       const jobId = parseInt(req.params.jobId as string);
       if (Number.isNaN(jobId)) {
         return res.status(400).json({ message: "Invalid job id" });
       }
+      const userId = req.user.claims.sub;
       const cv = await storage.getGeneratedCvWithTemplate(jobId);
 
       if (!cv) {
         return res.status(404).json({ message: 'Job not found' });
+      }
+      if (cv.userId !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
       }
 
       const response = {
@@ -228,22 +240,32 @@ export async function registerRoutes(
   app.post(api.resumes.aiEdit.path, isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id, 10);
+      debugLog("AI_EDIT_ROUTE_RECEIVED", {
+        cvIdRaw: req.params.id,
+        hasBody: Boolean(req.body),
+      });
       if (Number.isNaN(id)) {
+        debugLog("AI_EDIT_ROUTE_INVALID_ID", { cvIdRaw: req.params.id });
         return res.status(400).json({ message: "Invalid CV id" });
       }
 
       const userId = req.user.claims.sub;
+      debugLog("AI_EDIT_ROUTE_USER", { cvId: id, userId });
       const cv = await storage.getGeneratedCv(id);
       if (!cv) {
+        debugLog("AI_EDIT_ROUTE_NOT_FOUND", { cvId: id });
         return res.status(404).json({ message: "CV not found" });
       }
       if (cv.userId !== userId) {
+        debugLog("AI_EDIT_ROUTE_FORBIDDEN", { cvId: id, ownerId: cv.userId, userId });
         return res.status(403).json({ message: "Forbidden" });
       }
       if (cv.status === "pending" || cv.status === "processing") {
+        debugLog("AI_EDIT_ROUTE_CONFLICT", { cvId: id, currentStatus: cv.status });
         return res.status(409).json({ message: "CV is already processing" });
       }
       if (!cv.htmlContent) {
+        debugLog("AI_EDIT_ROUTE_NO_HTML", { cvId: id });
         return res.status(400).json({
           message: "This CV is not ready for AI editing yet.",
           code: "PROMPT_REJECTED",
@@ -253,6 +275,10 @@ export async function registerRoutes(
 
       const parsedBody = api.resumes.aiEdit.input.safeParse(req.body);
       if (!parsedBody.success) {
+        debugLog("AI_EDIT_ROUTE_BAD_BODY", {
+          cvId: id,
+          issues: parsedBody.error.issues.map((issue) => issue.message),
+        });
         return res.status(400).json({
           message: "Prompt is required",
           code: "PROMPT_REJECTED",
@@ -261,7 +287,13 @@ export async function registerRoutes(
       }
 
       const prompt = parsedBody.data.prompt.replace(/\u0000/g, "").trim();
+      debugLog("AI_EDIT_ROUTE_PROMPT_PARSED", {
+        cvId: id,
+        promptLength: prompt.length,
+        promptPreview: prompt.slice(0, 150),
+      });
       if (prompt.length < AI_EDIT_PROMPT_MIN_LENGTH) {
+        debugLog("AI_EDIT_ROUTE_PROMPT_TOO_SHORT", { cvId: id, promptLength: prompt.length });
         return res.status(400).json({
           message: `Prompt is too short. Minimum ${AI_EDIT_PROMPT_MIN_LENGTH} characters.`,
           code: "PROMPT_TOO_SHORT",
@@ -269,6 +301,7 @@ export async function registerRoutes(
         });
       }
       if (prompt.length > AI_EDIT_PROMPT_MAX_LENGTH) {
+        debugLog("AI_EDIT_ROUTE_PROMPT_TOO_LONG", { cvId: id, promptLength: prompt.length });
         return res.status(400).json({
           message: `Prompt is too long. Maximum ${AI_EDIT_PROMPT_MAX_LENGTH} characters.`,
           code: "PROMPT_TOO_LONG",
@@ -277,6 +310,11 @@ export async function registerRoutes(
       }
 
       const safetyCheck = await validateAiEditPrompt(prompt);
+      debugLog("AI_EDIT_ROUTE_SAFETY_RESULT", {
+        cvId: id,
+        allowed: safetyCheck.allowed,
+        reason: safetyCheck.reason,
+      });
       if (!safetyCheck.allowed) {
         return res.status(400).json({
           message: safetyCheck.userMessage,
@@ -293,13 +331,20 @@ export async function registerRoutes(
         undefined,
         null
       );
+      debugLog("AI_EDIT_ROUTE_STATUS_SET_PROCESSING", {
+        cvId: cv.id,
+      });
 
       editCvAsync(cv.id, prompt).catch(() => {
         // Failures are handled inside editCvAsync
       });
+      debugLog("AI_EDIT_ROUTE_ASYNC_STARTED", {
+        cvId: cv.id,
+      });
 
       return res.status(202).json({ jobId: cv.id });
     } catch (error) {
+      console.error("[DEBUG][AI_EDIT_ROUTE_ERROR]", error);
       return res.status(500).json({ message: "Failed to start AI edit" });
     }
   });
@@ -325,6 +370,9 @@ export async function registerRoutes(
       }
 
       res.setHeader("Content-Type", "text/html");
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
       res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'none'; object-src 'none'; iframe-src 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:;");
       res.send(cv.htmlContent);
     } catch (error) {
@@ -422,6 +470,10 @@ interface PromptSafetyResult {
 }
 
 function extractFirstJsonObject(raw: string): string {
+  debugLog("AI_EDIT_MODERATION_RAW_RESPONSE", {
+    contentLength: raw.length,
+    preview: raw.slice(0, 200),
+  });
   const startIndex = raw.indexOf("{");
   const endIndex = raw.lastIndexOf("}");
   if (startIndex === -1 || endIndex === -1 || startIndex >= endIndex) {
@@ -432,6 +484,10 @@ function extractFirstJsonObject(raw: string): string {
 
 function runLocalPromptSafetyChecks(prompt: string): PromptSafetyResult {
   const lowered = prompt.toLowerCase();
+  debugLog("AI_EDIT_LOCAL_SAFETY_START", {
+    promptLength: prompt.length,
+    promptPreview: prompt.slice(0, 150),
+  });
 
   const blockedRuleChecks: Array<{ pattern: RegExp; reason: string; userMessage: string }> = [
     {
@@ -463,6 +519,9 @@ function runLocalPromptSafetyChecks(prompt: string): PromptSafetyResult {
 
   for (const check of blockedRuleChecks) {
     if (check.pattern.test(lowered)) {
+      debugLog("AI_EDIT_LOCAL_SAFETY_BLOCKED", {
+        reason: check.reason,
+      });
       return {
         allowed: false,
         reason: check.reason,
@@ -479,6 +538,9 @@ function runLocalPromptSafetyChecks(prompt: string): PromptSafetyResult {
 }
 
 async function runAiPromptModeration(prompt: string): Promise<PromptSafetyResult> {
+  debugLog("AI_EDIT_AI_MODERATION_START", {
+    promptLength: prompt.length,
+  });
   const moderationPrompt = `Classify if this CV edit request is safe.
 
 Return ONLY JSON in this format:
@@ -506,31 +568,50 @@ ${prompt}`;
     max_tokens: 512,
     temperature: 0,
   });
+  debugLog("AI_EDIT_AI_MODERATION_RESPONSE", {
+    hasChoices: Boolean(response.choices?.length),
+  });
 
   const rawContent = response.choices[0]?.message?.content || "";
   const json = extractFirstJsonObject(rawContent);
   const parsed = JSON.parse(json) as Partial<PromptSafetyResult>;
 
-  if (typeof parsed.allowed !== "boolean" || typeof parsed.reason !== "string" || typeof parsed.userMessage !== "string") {
-    throw new Error("Invalid moderation JSON schema");
+  if (typeof parsed.allowed !== "boolean") {
+    throw new Error("Invalid moderation JSON schema: missing 'allowed'");
   }
 
   return {
     allowed: parsed.allowed,
-    reason: parsed.reason,
-    userMessage: parsed.userMessage,
+    reason: typeof parsed.reason === "string" ? parsed.reason : parsed.allowed ? "allowed_by_moderation" : "blocked_by_moderation",
+    userMessage: typeof parsed.userMessage === "string"
+      ? parsed.userMessage
+      : parsed.allowed
+        ? "Request accepted."
+        : "Your request cannot be processed due to safety policy.",
   };
 }
 
 async function validateAiEditPrompt(prompt: string): Promise<PromptSafetyResult> {
+  debugLog("AI_EDIT_VALIDATE_PROMPT_START", {
+    promptLength: prompt.length,
+  });
   const localSafety = runLocalPromptSafetyChecks(prompt);
   if (!localSafety.allowed) {
+    debugLog("AI_EDIT_VALIDATE_PROMPT_BLOCKED_LOCAL", {
+      reason: localSafety.reason,
+    });
     return localSafety;
   }
 
   try {
-    return await runAiPromptModeration(prompt);
+    const moderation = await runAiPromptModeration(prompt);
+    debugLog("AI_EDIT_VALIDATE_PROMPT_AI_RESULT", {
+      allowed: moderation.allowed,
+      reason: moderation.reason,
+    });
+    return moderation;
   } catch (error) {
+    console.error("[DEBUG][AI_EDIT_VALIDATE_PROMPT_AI_ERROR]", error);
     return {
       allowed: false,
       reason: "moderation_unavailable",
@@ -649,10 +730,20 @@ ${normalizedCvText}`;
 
 async function editCvAsync(cvId: number, userPrompt: string) {
   try {
+    debugLog("AI_EDIT_ASYNC_START", {
+      cvId,
+      promptLength: userPrompt.length,
+      promptPreview: userPrompt.slice(0, 150),
+    });
     const cv = await storage.getGeneratedCv(cvId);
     if (!cv || !cv.htmlContent) {
       throw new Error("Generated CV HTML not found");
     }
+    debugLog("AI_EDIT_ASYNC_LOADED_CV", {
+      cvId,
+      htmlLength: cv.htmlContent.length,
+      currentStatus: cv.status,
+    });
 
     const systemMessage = `You are a deterministic HTML CV editor.
 You must return only raw HTML.
@@ -669,6 +760,8 @@ Rules:
 - Edit only what the user asked.
 - Keep the output as a complete HTML document.
 - Keep all unchanged sections intact.
+- If the request is actionable, apply at least one concrete textual/structural change.
+- If the request is unsafe or impossible, keep HTML unchanged.
 
 USER EDIT REQUEST:
 ${userPrompt}
@@ -685,13 +778,28 @@ ${cv.htmlContent}`;
       max_tokens: 8192,
       temperature: 0.1,
     });
+    debugLog("AI_EDIT_ASYNC_MODEL_RESPONSE", {
+      cvId,
+      hasChoices: Boolean(response.choices?.length),
+    });
 
     let editedHtml = cleanModelHtmlResponse(response.choices[0]?.message?.content || "");
+    debugLog("AI_EDIT_ASYNC_CLEANED_HTML", {
+      cvId,
+      cleanedLength: editedHtml.length,
+      cleanedPreview: editedHtml.slice(0, 200),
+    });
     if (!editedHtml) {
       throw new Error("AI returned empty HTML during edit");
     }
 
+    const wasSameAsOriginal = editedHtml.trim() === cv.htmlContent.trim();
     editedHtml = sanitizeHtml(editedHtml).trim();
+    debugLog("AI_EDIT_ASYNC_SANITIZED_HTML", {
+      cvId,
+      sanitizedLength: editedHtml.length,
+      wasSameAsOriginal,
+    });
     if (!editedHtml) {
       throw new Error("Sanitized edited HTML is empty");
     }
@@ -705,8 +813,13 @@ ${cv.htmlContent}`;
       editedHtml,
       null
     );
+    debugLog("AI_EDIT_ASYNC_COMPLETE", {
+      cvId,
+      pdfUrl,
+      wasSameAsOriginal,
+    });
   } catch (error: any) {
-    console.error("AI Edit Error:", error.message);
+    console.error("[DEBUG][AI_EDIT_ASYNC_ERROR]", error);
     await storage.updateGeneratedCvStatus(
       cvId,
       "failed",

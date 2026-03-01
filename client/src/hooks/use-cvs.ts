@@ -15,13 +15,20 @@ function parseWithLogging<T>(schema: z.ZodSchema<T>, data: unknown, label: strin
 export function useMyResumes() {
   return useQuery({
     queryKey: [api.resumes.list.path],
+    staleTime: 0,
+    refetchOnMount: "always",
     queryFn: async () => {
+      console.log("[MY_RESUMES] Fetching resumes list");
       const res = await fetch(api.resumes.list.path, { credentials: "include" });
       if (!res.ok) {
+        console.error("[MY_RESUMES] Failed to fetch resumes", { status: res.status });
         if (res.status === 401) throw new Error("Unauthorized");
         throw new Error("Failed to fetch resumes");
       }
       const data = await res.json();
+      console.log("[MY_RESUMES] Resumes list fetched", {
+        count: Array.isArray(data) ? data.length : 0,
+      });
       return parseWithLogging(api.resumes.list.responses[200], data, "resumes.list");
     },
   });
