@@ -287,9 +287,9 @@ async function seedTemplates() {
   const templatesDir = path.join(process.cwd(), "client", "public", "templates");
   const templateFiles = fsSync.readdirSync(templatesDir).filter(file => file.endsWith('.html'));
   
-  const templates = templateFiles.map((fileName, index) => {
+  const templates = templateFiles.map((fileName) => {
     const templateNumber = fileName.replace('.html', '');
-    const templateId = index + 1;
+    const templateId = parseInt(templateNumber.split('-')[1]); // Extract number from template-X
     
     // Map template numbers to names and descriptions
     const templateInfo: { [key: string]: { name: string; description: string; screenshotUrl: string } } = {
@@ -354,19 +354,19 @@ async function seedTemplates() {
     return {
       id: templateId,
       name: info.name,
-      fileName: `${templateNumber}_177194430065${50 + templateId}.html`,
+      fileName: fileName, // Use actual filename without hash
       screenshotUrl: info.screenshotUrl,
       description: info.description
     };
   });
 
   // Find templates that need to be added
-  const existingFileNames = existing.map(t => t.fileName.split("_")[0] + ".html");
-  const templatesToAdd = templates.filter(t => !existingFileNames.includes(t.fileName.split("_")[0] + ".html"));
+  const existingFileNames = existing.map(t => t.fileName);
+  const templatesToAdd = templates.filter(t => !existingFileNames.includes(t.fileName));
   
   // Find templates that should be removed (not in files anymore)
-  const requiredFileNames = templates.map(t => t.fileName.split("_")[0] + ".html");
-  const templatesToRemove = existing.filter(t => !requiredFileNames.includes(t.fileName.split("_")[0] + ".html"));
+  const requiredFileNames = templates.map(t => t.fileName);
+  const templatesToRemove = existing.filter(t => !requiredFileNames.includes(t.fileName));
 
   console.log('Templates to add:', templatesToAdd.length);
   console.log('Templates to remove:', templatesToRemove.length);
@@ -400,10 +400,9 @@ async function generateCvAsync(jobId: number, templateId: number, cvText: string
       throw new Error("Template not found in DB");
     }
 
-    const cleanFileName = template.fileName.split("_")[0] + ".html";
-    const templatePath = path.join(process.cwd(), "client", "public", "templates", cleanFileName);
+    const templatePath = path.join(process.cwd(), "client", "public", "templates", template.fileName);
 
-    console.log('Looking for template file:', cleanFileName);
+    console.log('Looking for template file:', template.fileName);
     console.log('Template path:', templatePath);
     console.log('File exists:', fsSync.existsSync(templatePath));
 

@@ -21,7 +21,7 @@ export const cvTemplates = pgTable("cv_templates", {
 export const generatedCvs = pgTable("generated_cvs", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  templateId: integer("template_id").notNull().references(() => cvTemplates.id),
+  templateId: integer("template_id").notNull().references(() => cvTemplates.id, { onDelete: "cascade" }),
   status: text("status").notNull().default("pending"), // pending, processing, complete, failed
   progress: text("progress"), // Current step: "Processing DOCX...", "AI Formatting...", "Generating PDF..."
   pdfUrl: text("pdf_url"), // URL to generated PDF
