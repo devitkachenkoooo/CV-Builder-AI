@@ -313,16 +313,10 @@ async function seedTemplates() {
     console.log('Added template:', template.name);
   }
 
-  // Remove obsolete templates (only if not referenced by generated CVs)
+  // Remove obsolete templates (will also delete related CVs)
   for (const template of templatesToRemove) {
-    // Check if any generated CVs reference this template
-    const generatedCvs = await storage.getGeneratedCvsByTemplateId(template.id);
-    if (generatedCvs.length === 0) {
-      await storage.deleteTemplate(template.id);
-      console.log('Removed template:', template.name);
-    } else {
-      console.log('Cannot remove template', template.name, '- referenced by', generatedCvs.length, 'generated CVs');
-    }
+    await storage.deleteTemplate(template.id);
+    console.log('Removed template:', template.name, '(and related CVs)');
   }
 
   console.log('Template synchronization completed');
