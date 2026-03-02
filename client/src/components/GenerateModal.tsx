@@ -273,6 +273,8 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
         }
         .custom-scrollbar::-webkit-scrollbar-track {
           background: transparent;
+          margin-top: 12px;
+          margin-bottom: 12px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
           background-color: rgba(0,0,0,0.35);
