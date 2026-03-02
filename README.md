@@ -104,17 +104,4 @@ html2pdf.js renders the final PDF with correct page breaks and backgrounds
 
 See **[docs/PDF_GENERATOR.md](docs/PDF_GENERATOR.md)** for a detailed explanation of how the PDF pagination engine works and how to customise it.
 
----
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Commit your changes
-4. Open a Pull Request
-
----
-
-## 📝 License
-
-MIT
