@@ -1,11 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Sparkles, Loader2, FileText, AlertCircle } from "lucide-react";
-import { useGenerateCv, usePollingJob } from "@/hooks/use-generate";
+import { useGenerateCv } from "@/hooks/use-generate";
 import { useToast } from "@/hooks/use-toast";
 import { Dropzone } from "@/components/ui/dropzone";
-import { validateDocxFile } from "@/lib/file-validation";
 import type { CvTemplate } from "@shared/routes";
 import { useTranslation } from "react-i18next";
 
@@ -20,12 +19,16 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [useGenerationPrompt, setUseGenerationPrompt] = useState(false);
+  const [generationPrompt, setGenerationPrompt] = useState("");
 
   const { mutate: generateCv, isPending } = useGenerateCv();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
   const handleClose = () => {
+    setUseGenerationPrompt(false);
+    setGenerationPrompt("");
     onClose();
   };
 
@@ -58,6 +61,7 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
       generateCv({
         templateId: template.id,
         file: selectedFile,
+        generationPrompt: useGenerationPrompt ? generationPrompt : undefined,
       }, {
         onSuccess: (response) => {
           toast({
@@ -174,6 +178,37 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
                     <span className="hidden sm:inline">{t("modal.ai_processing")}</span>
                     <span className="sm:hidden">{t("modal.ai_processing_mobile")}</span>
                   </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-start gap-3 p-3 rounded-lg border border-border bg-secondary/40">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50"
+                    checked={useGenerationPrompt}
+                    onChange={(e) => setUseGenerationPrompt(e.target.checked)}
+                    disabled={isPending}
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {t("modal.use_generation_prompt_label")}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {t("modal.use_generation_prompt_hint")}
+                    </p>
+                  </div>
+                </label>
+
+                {useGenerationPrompt && (
+                  <textarea
+                    value={generationPrompt}
+                    onChange={(e) => setGenerationPrompt(e.target.value)}
+                    placeholder={t("modal.generation_prompt_placeholder")}
+                    maxLength={600}
+                    disabled={isPending}
+                    className="w-full min-h-[90px] max-h-[180px] resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30"
+                  />
                 )}
               </div>
 

@@ -60,6 +60,7 @@ export const api = {
       input: z.object({
         templateId: z.number().int().positive("Template ID must be a positive integer"),
         file: docxFileSchema,
+        generationPrompt: z.string().optional(),
       }),
       responses: {
         202: z.object({ jobId: z.number() }),

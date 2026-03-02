@@ -17,6 +17,7 @@ function parseWithLogging<T>(schema: z.ZodSchema<T>, data: unknown, label: strin
 type GenerateCvInput = {
   templateId: number;
   file: File;
+  generationPrompt?: string;
 };
 
 export function useGenerateCv() {
@@ -28,6 +29,9 @@ export function useGenerateCv() {
       const formData = new FormData();
       formData.append('file', data.file);
       formData.append('templateId', data.templateId.toString());
+      if (data.generationPrompt?.trim()) {
+        formData.append('generationPrompt', data.generationPrompt.trim());
+      }
 
       const res = await fetch(api.generate.start.path, {
         method: api.generate.start.method,

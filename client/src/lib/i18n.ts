@@ -97,7 +97,10 @@ const resources = {
                 "error_file_required": "File Required",
                 "error_file_desc": "Please select a .docx file to upload.",
                 "error_no_template": "No template selected",
-                "error_no_template_desc": "Please select a template to generate your CV."
+                "error_no_template_desc": "Please select a template to generate your CV.",
+                "use_generation_prompt_label": "Add generation preferences",
+                "use_generation_prompt_hint": "Enable to describe extra wishes for the initial CV generation.",
+                "generation_prompt_placeholder": "Example: keep tone concise, prioritize achievements, and make skills section more compact."
             },
             "cv_view": {
                 "title": "CV Viewer",
@@ -366,7 +369,10 @@ const resources = {
                 "error_file_required": "Потрібен файл",
                 "error_file_desc": "Будь ласка, виберіть файл .docx для завантаження.",
                 "error_no_template": "Шаблон не вибрано",
-                "error_no_template_desc": "Будь ласка, виберіть шаблон для створення вашого резюме."
+                "error_no_template_desc": "Будь ласка, виберіть шаблон для створення вашого резюме.",
+                "use_generation_prompt_label": "Додати побажання до генерації",
+                "use_generation_prompt_hint": "Увімкніть, щоб вказати додаткові побажання для первинної генерації CV.",
+                "generation_prompt_placeholder": "Приклад: зроби стиль лаконічним, акцентуй досягнення і скороти блок навичок."
             },
             "toast": {
                 "gen_started_title": "Генерацію розпочато! 🎉",
