@@ -585,15 +585,24 @@ export default function CvViewPage() {
 
       <AnimatePresence>
         {isAiDialogOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -18 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -18 }}
-            transition={{ duration: 0.2 }}
-            className="fixed top-20 left-0 right-0 z-50 pointer-events-none px-3 sm:px-6 lg:px-8"
-          >
-            <div className="max-w-5xl mx-auto pointer-events-auto">
-              <div className="rounded-2xl border border-gray-200 bg-white/95 backdrop-blur-sm shadow-2xl overflow-hidden">
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-[1px]"
+              onClick={!isSubmittingAiEdit ? () => setIsAiDialogOpen(false) : undefined}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: -14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -14 }}
+              transition={{ duration: 0.18 }}
+              className="fixed top-16 left-0 right-0 z-50 pointer-events-none px-3 sm:px-6 lg:px-8"
+            >
+              <div className="max-w-3xl mx-auto pointer-events-auto">
+                <div className="rounded-2xl border border-gray-200 bg-white/95 backdrop-blur-sm shadow-2xl overflow-hidden">
                 <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-lg sm:text-xl font-semibold text-gray-900">{t("cv_view.ai_panel.title")}</h2>
@@ -617,7 +626,7 @@ export default function CvViewPage() {
                     value={aiPrompt}
                     onChange={(e) => setAiPrompt(e.target.value)}
                     placeholder={t("cv_view.ai_panel.placeholder")}
-                    className="min-h-[120px] max-h-[260px] resize-y"
+                    className="min-h-[96px] max-h-[220px] resize-y"
                     maxLength={AI_EDIT_PROMPT_MAX_LENGTH}
                     disabled={isSubmittingAiEdit}
                   />
@@ -693,8 +702,9 @@ export default function CvViewPage() {
                   </button>
                 </div>
               </div>
-            </div>
-          </motion.div>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
