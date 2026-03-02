@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Sparkles, Loader2, FileText, AlertCircle } from "lucide-react";
@@ -34,6 +34,15 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
     setGenerationTemperature(DEFAULT_GENERATION_TEMPERATURE);
     onClose();
   };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen]);
 
   if (!template || !isOpen) {
     return null;
