@@ -5,7 +5,6 @@ import { X, Sparkles, Loader2, FileText, AlertCircle } from "lucide-react";
 import { useGenerateCv } from "@/hooks/use-generate";
 import { useToast } from "@/hooks/use-toast";
 import { Dropzone } from "@/components/ui/dropzone";
-import { InsetScrollArea } from "@/components/ui/inset-scroll-area";
 import type { CvTemplate } from "@shared/routes";
 import { DEFAULT_GENERATION_TEMPERATURE, MODEL_TEMPERATURE_MAX, MODEL_TEMPERATURE_MIN } from "@shared/config";
 import { useTranslation } from "react-i18next";
@@ -149,9 +148,7 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
 
           {/* Right: Form */}
           <div className="w-full md:w-3/5 p-4 sm:p-6 lg:p-8 flex flex-col max-h-[58vh] md:max-h-[85vh]">
-            <InsetScrollArea
-              className="flex-1 [&_[data-slot=viewport]]:pr-4 [&_[data-slot=scrollbar]]:top-12 [&_[data-slot=scrollbar]]:bottom-3 [&_[data-slot=scrollbar]]:right-1"
-            >
+            <div className="flex-1 overflow-y-auto pr-4 no-scrollbar">
               <div className="mb-6 sm:mb-8">
                 <h2 className="font-display font-bold text-lg sm:text-xl lg:text-2xl mb-2 text-foreground">{t("modal.import_content")}</h2>
                 <p className="text-muted-foreground text-sm">
@@ -262,10 +259,19 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
                 </button>
               </div>
               </form>
-            </InsetScrollArea>
+            </div>
           </div>
         </motion.div>
       </div>
+      <style>{`
+        .no-scrollbar {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </AnimatePresence>
   );
 }
