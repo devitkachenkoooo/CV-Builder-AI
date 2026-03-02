@@ -115,7 +115,7 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          className="relative w-full max-w-2xl mx-2 sm:mx-4 bg-card rounded-2xl shadow-2xl border border-border/50 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden max-h-[95vh] md:max-h-[85vh] my-auto"
+          className="relative w-full max-w-2xl mx-2 sm:mx-4 bg-card rounded-2xl shadow-2xl border border-border/50 flex flex-col md:flex-row overflow-hidden max-h-[95vh] md:max-h-[85vh] my-auto"
         >
           {/* Close Button */}
           <button
@@ -143,7 +143,7 @@ export function GenerateModal({ template, isOpen, onClose }: GenerateModalProps)
           </div>
 
           {/* Right: Form */}
-          <div className="w-full md:w-3/5 p-4 sm:p-6 lg:p-8 flex flex-col justify-center">
+          <div className="w-full md:w-3/5 p-4 sm:p-6 lg:p-8 flex flex-col justify-center overflow-y-auto max-h-[58vh] md:max-h-[85vh]">
             <div className="mb-6 sm:mb-8">
               <h2 className="font-display font-bold text-lg sm:text-xl lg:text-2xl mb-2 text-foreground">{t("modal.import_content")}</h2>
               <p className="text-muted-foreground text-sm">
