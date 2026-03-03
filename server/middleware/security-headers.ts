@@ -54,9 +54,9 @@ export const securityConfig = {
         "ws://localhost:*" // Development WebSocket
       ],
       
-      // Фрейми - забороняємо (clickjacking protection)
-      frameSrc: ["'none'"],
-      childSrc: ["'none'"],
+      // Фрейми - дозволяємо тільки з нашого домену (для CV preview)
+      frameSrc: ["'self'"],
+      childSrc: ["'self'"],
       
       // Об'єкти та embeds
       objectSrc: ["'none'"],
@@ -68,8 +68,8 @@ export const securityConfig = {
       // Форми - тільки на наш домен
       formAction: ["'self'"],
       
-      // Frame ancestors - забороняємо iframe
-      frameAncestors: ["'none'"]
+      // Frame ancestors - дозволяємо same-origin (для CV preview)
+      frameAncestors: ["'self'"]
     },
   },
 
@@ -80,9 +80,9 @@ export const securityConfig = {
     preload: false // Replit не підтримує preload list
   } : false,
 
-  // X-Frame-Options - захист від clickjacking (важливо для CV)
+  // X-Frame-Options - захист від clickjacking (дозволяємо same-origin)
   frameguard: {
-    action: 'deny' as const // DENY - повна заборона iframe
+    action: 'sameorigin' as const // SAMEORIGIN - дозволяє iframe з нашого домену
   },
 
   // X-Content-Type-Options - захист від MIME sniffing
