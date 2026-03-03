@@ -452,10 +452,22 @@ export async function registerRoutes(
 
 // === HELPER FUNCTIONS ===
 
-// Function to extract title from HTML template
+// Function to extract title and description from HTML template
 function extractTemplateTitle(htmlContent: string): string {
   const titleMatch = htmlContent.match(/<title[^>]*>([^<]+)<\/title>/i);
-  return titleMatch ? titleMatch[1].trim() : 'Untitled Template';
+  if (!titleMatch) return 'Untitled Template';
+  
+  let title = titleMatch[1].trim();
+  // Remove "CV - " prefix if present
+  if (title.startsWith('CV - ')) {
+    title = title.replace('CV - ', '');
+  }
+  return title;
+}
+
+function extractTemplateDescription(htmlContent: string): string | null {
+  const descMatch = htmlContent.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i);
+  return descMatch ? descMatch[1].trim() : null;
 }
 
 async function seedTemplates() {
@@ -470,17 +482,18 @@ async function seedTemplates() {
     const templateNumber = fileName.replace('.html', '');
     const templateId = parseInt(templateNumber.split('-')[1]); // Extract number from template-X
     
-    // Read HTML content to extract title
+    // Read HTML content to extract title and description
     const templatePath = path.join(templatesDir, fileName);
     const htmlContent = fsSync.readFileSync(templatePath, 'utf-8');
     const templateTitle = extractTemplateTitle(htmlContent);
+    const templateDescription = extractTemplateDescription(htmlContent);
 
     return {
       id: templateId,
       name: templateTitle,
       fileName: fileName, // Use actual filename without hash
       screenshotUrl: `/images/templates/${fileName.replace('.html', '.png')}`,
-      description: `${templateTitle} description`
+      description: templateDescription || `${templateTitle} description`
     };
   });
 
