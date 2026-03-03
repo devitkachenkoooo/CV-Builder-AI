@@ -406,7 +406,7 @@ export default function CvViewPage() {
               <div className="hidden sm:block h-6 w-px bg-gray-300" />
               <div className="hidden sm:block">
                 <h1 className="text-lg font-semibold text-gray-900">{t("cv_view.title")}</h1>
-                <p className="text-sm text-gray-500">{cvData.template?.name || t("cv_view.professional_cv")}</p>
+                <p className="text-sm text-gray-500">{cvData.name || cvData.template?.name || t("cv_view.professional_cv")}</p>
               </div>
             </div>
 
