@@ -2,20 +2,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-
-function parseWithLogging<T>(schema: z.ZodSchema<T>, data: unknown, label: string): T {
-  const result = schema.safeParse(data);
-  if (!result.success) {
-    console.error(`[Zod] ${label} validation failed:`, result.error.format());
-    throw result.error;
-  }
-  return result.data;
-}
+import i18n from "@/lib/i18n";
+import { parseWithLogging } from "@/utils/validation";
 
 export function useMyResumes() {
   return useQuery({
     queryKey: [api.resumes.list.path],
-    staleTime: 0,
+    staleTime: 2 * 60 * 1000, // 2 minutes - resumes change frequently
     refetchOnMount: "always",
     queryFn: async () => {
       const res = await fetch(api.resumes.list.path, { credentials: "include" });
@@ -26,6 +19,7 @@ export function useMyResumes() {
       const data = await res.json();
       return parseWithLogging(api.resumes.list.responses[200], data, "resumes.list");
     },
+    retry: 2, // Retry 2 times for resume list
   });
 }
 
@@ -42,19 +36,22 @@ export function useDeleteResume() {
       });
       
       if (!res.ok) {
-        throw new Error("Failed to delete resume");
+        if (res.status === 404) {
+          throw new Error(i18n.t("errors.resume_not_found") || "Resume not found");
+        }
+        throw new Error(i18n.t("errors.delete_resume_failed") || "Failed to delete resume");
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.resumes.list.path] });
       toast({
-        title: "Resume Deleted",
-        description: "Your generated CV has been removed.",
+        title: i18n.t("toast.resume_deleted_title") || "Resume Deleted",
+        description: i18n.t("toast.resume_deleted_desc") || "Your generated CV has been removed.",
       });
     },
     onError: (error) => {
       toast({
-        title: "Deletion Failed",
+        title: i18n.t("toast.deletion_failed_title") || "Deletion Failed",
         description: error.message,
         variant: "destructive",
       });

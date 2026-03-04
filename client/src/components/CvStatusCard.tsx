@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePollingJob } from "@/hooks/use-generate";
+import { useDeleteResume } from "@/hooks/use-cvs";
 import { FileText, Loader2, CheckCircle2, AlertCircle, Calendar, Eye, Download, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
@@ -35,40 +36,21 @@ export function CvStatusCard({ cv }: { cv: GeneratedCvResponse }) {
   const isFailed = displayData.status === "failed";
   const isComplete = displayData.status === "complete";
 
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [scale, setScale] = useState(1);
   const [iframeHeight, setIframeHeight] = useState('297mm');
   const containerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  
+  // Use the centralized delete hook instead of manual implementation
+  const { mutate: deleteCv, isPending: isDeleting } = useDeleteResume();
 
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
-      const response = await fetch(`/api/resumes/${cv.id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        toast({
-          title: t("toast.cv_deleted_title"),
-          description: t("toast.cv_deleted_desc"),
-        });
+  const handleDelete = () => {
+    deleteCv(cv.id, {
+      onSuccess: () => {
         setIsDeleteDialogOpen(false);
-        // Refresh the resumes list without page reload
-        queryClient.invalidateQueries({ queryKey: [api.resumes.list.path] });
-      } else {
-        throw new Error('Failed to delete CV');
       }
-    } catch (error) {
-      toast({
-        title: t("toast.delete_failed_title"),
-        description: t("toast.delete_failed_desc"),
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleting(false);
-    }
+    });
   };
 
   const templateScreenshot = displayData.template?.screenshotUrl || cv.template?.screenshotUrl;

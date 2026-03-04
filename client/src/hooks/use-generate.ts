@@ -3,15 +3,7 @@ import { useEffect } from "react";
 import { api, buildUrl } from "@shared/routes";
 import { z } from "zod";
 import i18n from "@/lib/i18n";
-
-function parseWithLogging<T>(schema: z.ZodSchema<T>, data: unknown, label: string): T {
-  const result = schema.safeParse(data);
-  if (!result.success) {
-    console.error(`[Zod] ${label} validation failed:`, result.error.format());
-    throw result.error;
-  }
-  return result.data;
-}
+import { parseWithLogging } from "@/utils/validation";
 
 // Input type for file upload
 type GenerateCvInput = {
@@ -57,6 +49,8 @@ export function useGenerateCv() {
       const responseData = await res.json();
       return parseWithLogging(api.generate.start.responses[202], responseData, "generate.start");
     },
+    retry: 1, // Retry once for generation failures
+    retryDelay: 2000, // Wait 2 seconds before retry
     onSuccess: () => {
       // Invalidate the resumes list to show the new pending CV
       queryClient.invalidateQueries({ queryKey: [api.resumes.list.path] });
@@ -91,6 +85,19 @@ export function usePollingJob(jobId: number, initialStatus: string) {
     // Override global staleTime Infinity so polling can restart from cached complete state
     staleTime: 0,
     refetchOnMount: "always",
+    // Retry logic for polling
+    retry: (failureCount, error) => {
+      // Aggressive retry for polling since it's critical
+      if (failureCount < 5) {
+        console.warn(`Job status poll attempt ${failureCount + 1} failed:`, error);
+        return true;
+      }
+      return false;
+    },
+    retryDelay: (attemptIndex) => {
+      // Faster retry for polling (1s, 2s, 4s, 8s, 16s max)
+      return Math.min(1000 * 2 ** attemptIndex, 16000);
+    },
     // Poll every 2 seconds if status is still pending or processing
     refetchInterval: (query) => {
       const currentStatus = query.state.data?.status || initialStatus;
@@ -110,32 +117,4 @@ export function usePollingJob(jobId: number, initialStatus: string) {
   }, [query.data?.status, queryClient, jobId]);
 
   return query;
-}
-
-// Hook for deleting a resume
-export function useDeleteResume() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (id: number) => {
-      const url = buildUrl(api.resumes.delete.path, { id });
-      const res = await fetch(url, {
-        method: api.resumes.delete.method,
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        if (res.status === 404) {
-          throw new Error(i18n.t("errors.resume_not_found"));
-        }
-        throw new Error(i18n.t("errors.delete_resume_failed"));
-      }
-
-      return;
-    },
-    onSuccess: () => {
-      // Invalidate the resumes list to remove the deleted item
-      queryClient.invalidateQueries({ queryKey: [api.resumes.list.path] });
-    }
-  });
 }
