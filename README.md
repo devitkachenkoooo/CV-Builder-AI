@@ -10,7 +10,7 @@ An AI-powered web app that generates polished, professional resumes from any upl
 
 - **AI Content Extraction** — Upload a DOCX. file. The AI reads your raw content, understands it as a resume, and adapts it to the selected template.
 - **10 Professional Templates** — Carefully crafted HTML/CSS templates ranging from minimalist to two-column designs, with full color backgrounds.
-- **Smart PDF Generation** — Custom PDF engine that handles multi-page layouts, consistent margins, background fills, and never splits a content block mid-element.
+- **Smart PDF Generation** — Browser print-based PDF flow with preserved styles, colors, and predictable A4 output.
 - **Multi-language UI** — Interface available in English and Ukrainian (i18n via i18next).
 - **Resume Management** — Save, view, and re-download all previously generated resumes from your dashboard.
 - **Responsive Design** — Works on desktop and mobile, including collapsible navigation for smaller screens.
@@ -25,7 +25,7 @@ An AI-powered web app that generates polished, professional resumes from any upl
 | **Backend** | Node.js, Express 5, TypeScript (tsx) |
 | **Database** | PostgreSQL + Drizzle ORM |
 | **AI** | OpenAI API (GPT-4o) |
-| **PDF** | html2pdf.js + custom pagination engine |
+| **PDF** | Native browser print flow |
 | **Auth** | Passport.js (local strategy) + express-session |
 | **File Parsing** | mammoth (DOCX), native PDF text extraction |
 | **Routing** | wouter (client), Express (server) |
@@ -60,7 +60,7 @@ Replit handles the rest automatically on every run.
 │       ├── components/       # Reusable UI components
 │       ├── hooks/            # Custom React hooks (use-generate, use-resumes, …)
 │       ├── lib/
-│       │   ├── pdf-generator.ts   # Custom PDF pagination engine ← see docs/PDF_GENERATOR.md
+│       │   ├── pdf-generator-fixed.ts   # Browser print-based PDF generation
 │       │   └── i18n.ts            # Internationalization setup
 │       └── pages/            # Route-level page components
 ├── server/
@@ -71,7 +71,7 @@ Replit handles the rest automatically on every run.
 ├── shared/
 │   └── schema.ts             # Drizzle schema + Zod validation types
 └── docs/
-    └── PDF_GENERATOR.md      # PDF engine deep-dive & customisation guide
+    └── PDF_GENERATOR.md      # PDF generation flow documentation
 ```
 
 ---
@@ -93,15 +93,15 @@ Generated HTML is saved to the database (resumes table)
         ↓
 CvViewPage fetches the HTML and renders it in an iframe
         ↓
-User clicks "Download PDF" → pdf-generator.ts runs the custom pagination logic
+User clicks "Download PDF" → pdf-generator-fixed.ts opens a print-ready document
         ↓
-html2pdf.js renders the final PDF with correct page breaks and backgrounds
+Browser Save-to-PDF renders the final document with preserved styles
 ```
 
 ---
 
 ## 📄 PDF Generation
 
-See **[docs/PDF_GENERATOR.md](docs/PDF_GENERATOR.md)** for a detailed explanation of how the PDF pagination engine works and how to customise it.
+See **[docs/PDF_GENERATOR.md](docs/PDF_GENERATOR.md)** for implementation details of the current PDF generation flow.
 
 
