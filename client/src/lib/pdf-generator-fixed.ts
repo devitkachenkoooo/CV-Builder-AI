@@ -5,13 +5,19 @@ interface PdfFromUrlOptions {
   onLoadingChange?: (loading: boolean) => void;
   windowWidth?: number;
   contentWidthMm?: number;
+  autoPrint?: boolean;
 }
 
 interface PdfFromElementOptions {
   element: HTMLElement;
   filename?: string;
   onLoadingChange?: (loading: boolean) => void;
+  autoPrint?: boolean;
 }
+
+const A4_HEIGHT_PX = 1123;
+const PAGE_BOTTOM_SAFE_PX = 80;
+const PAGE_TOP_PADDING_PX = 90;
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -19,6 +25,88 @@ function delay(ms: number): Promise<void> {
 
 function sanitizeTitle(filename: string): string {
   return filename.replace(/[\\/:*?"<>|]/g, "").trim() || "document.pdf";
+}
+
+function getOffsetTopFromContainer(element: HTMLElement, container: HTMLElement): number {
+  let top = 0;
+  let current: HTMLElement | null = element;
+  while (current && current !== container) {
+    top += current.offsetTop;
+    current = current.offsetParent as HTMLElement | null;
+  }
+  return top;
+}
+
+function getBreakCandidates(container: HTMLElement): HTMLElement[] {
+  const main = container.querySelector("main") as HTMLElement | null;
+  if (!main) return [];
+
+  const skipTags = new Set(["script", "style", "link", "meta", "noscript"]);
+  const candidates: HTMLElement[] = [];
+
+  for (const parent of Array.from(main.children)) {
+    if (skipTags.has(parent.tagName.toLowerCase())) continue;
+    for (const child of Array.from(parent.children)) {
+      if (skipTags.has(child.tagName.toLowerCase())) continue;
+      candidates.push(child as HTMLElement);
+    }
+  }
+
+  return candidates;
+}
+
+function clearPageMarkers(doc: Document): void {
+  const markers = doc.querySelectorAll(".cv-print-bottom-spacer, .cv-print-top-spacer");
+  markers.forEach((marker) => marker.remove());
+}
+
+function applyPrintPagination(win: Window): void {
+  const doc = win.document;
+  const container =
+    (doc.querySelector(".container") as HTMLElement | null) ?? (doc.body as HTMLElement | null);
+  if (!container) return;
+
+  clearPageMarkers(doc);
+  void container.offsetHeight;
+
+  const bgColor = win.getComputedStyle(container).backgroundColor || "#ffffff";
+  const candidates = getBreakCandidates(container);
+
+  for (const block of candidates) {
+    const blockTop = getOffsetTopFromContainer(block, container);
+    const blockBottom = blockTop + block.offsetHeight;
+    const pageIndex = Math.floor(blockTop / A4_HEIGHT_PX);
+    const currentPageEnd = (pageIndex + 1) * A4_HEIGHT_PX;
+    const safeEnd = currentPageEnd - PAGE_BOTTOM_SAFE_PX;
+    const relTop = blockTop - pageIndex * A4_HEIGHT_PX;
+    const isAlreadyAtTop = relTop < PAGE_TOP_PADDING_PX + 10;
+
+    if (blockBottom <= safeEnd || isAlreadyAtTop) continue;
+
+    const bottomSpacerHeight = Math.max(0, currentPageEnd - blockTop);
+
+    const bottomSpacer = doc.createElement("div");
+    bottomSpacer.className = "cv-print-bottom-spacer";
+    bottomSpacer.style.cssText =
+      `height:${bottomSpacerHeight}px !important;` +
+      `min-height:${bottomSpacerHeight}px !important;` +
+      `background:${bgColor} !important;` +
+      "display:block !important;width:100% !important;margin:0 !important;padding:0 !important;";
+
+    const topSpacer = doc.createElement("div");
+    topSpacer.className = "cv-print-top-spacer";
+    topSpacer.style.cssText =
+      `height:${PAGE_TOP_PADDING_PX}px !important;` +
+      `min-height:${PAGE_TOP_PADDING_PX}px !important;` +
+      `background:${bgColor} !important;` +
+      "display:block !important;width:100% !important;margin:0 !important;padding:0 !important;" +
+      "box-sizing:border-box !important;overflow:hidden !important;line-height:0 !important;font-size:0 !important;";
+    topSpacer.innerHTML = "&nbsp;";
+
+    block.parentNode?.insertBefore(bottomSpacer, block);
+    block.parentNode?.insertBefore(topSpacer, block);
+    void container.offsetHeight;
+  }
 }
 
 function injectPrintStyle(doc: Document): void {
@@ -111,7 +199,7 @@ function createPrintWindow(): Window {
   return printWindow;
 }
 
-async function printElement(element: HTMLElement, filename: string): Promise<void> {
+async function printElement(element: HTMLElement, filename: string, autoPrint: boolean): Promise<void> {
   const printWindow = createPrintWindow();
   const printDoc = printWindow.document;
 
@@ -124,7 +212,10 @@ async function printElement(element: HTMLElement, filename: string): Promise<voi
   printDoc.title = sanitizeTitle(filename);
   printDoc.body.appendChild(element.cloneNode(true));
   void waitForResources(printWindow).then(() => {
-    triggerPrint(printWindow);
+    applyPrintPagination(printWindow);
+    if (autoPrint) {
+      triggerPrint(printWindow);
+    }
   });
 }
 
@@ -177,14 +268,14 @@ export class FixedPdfGenerator {
     element: HTMLElement,
     filename: string = "document.pdf",
   ): Promise<void> {
-    await printElement(element, filename);
+    await printElement(element, filename, false);
   }
 
   static async generatePdfFromElementIframe(
     element: HTMLElement,
     filename: string = "document.pdf",
   ): Promise<void> {
-    await printElement(element, filename);
+    await printElement(element, filename, false);
   }
 }
 
@@ -194,6 +285,7 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
     htmlContent,
     filename = "document.pdf",
     onLoadingChange,
+    autoPrint = false,
   } = options;
 
   if (!url && !htmlContent) {
@@ -206,7 +298,10 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
     const printWindow = createPrintWindow();
     mountHtmlIntoPrintDocument(printWindow.document, html, filename, url);
     void waitForResources(printWindow).then(() => {
-      triggerPrint(printWindow);
+      applyPrintPagination(printWindow);
+      if (autoPrint) {
+        triggerPrint(printWindow);
+      }
     });
   } finally {
     onLoadingChange?.(false);
@@ -216,11 +311,11 @@ export async function generatePdfFromUrl(options: PdfFromUrlOptions): Promise<vo
 export async function generatePdfFromElement(
   options: PdfFromElementOptions,
 ): Promise<void> {
-  const { element, filename = "document.pdf", onLoadingChange } = options;
+  const { element, filename = "document.pdf", onLoadingChange, autoPrint = false } = options;
 
   onLoadingChange?.(true);
   try {
-    await printElement(element, filename);
+    await printElement(element, filename, autoPrint);
   } finally {
     onLoadingChange?.(false);
   }
