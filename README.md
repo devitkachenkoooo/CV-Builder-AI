@@ -10,7 +10,7 @@ An AI-powered web app that generates polished, professional resumes from any upl
 
 - **AI Content Extraction** — Upload a DOCX. file. The AI reads your raw content, understands it as a resume, and adapts it to the selected template.
 - **10 Professional Templates** — Carefully crafted HTML/CSS templates ranging from minimalist to two-column designs, with full color backgrounds.
-- **Smart PDF Generation** — Browser print-based PDF flow with preserved styles, colors, and predictable A4 output.
+- **PDF Generation** — Browser print-based PDF flow with preserved styles, colors, and predictable A4 output.
 - **Multi-language UI** — Interface available in English and Ukrainian (i18n via i18next).
 - **Resume Management** — Save, view, and re-download all previously generated resumes from your dashboard.
 - **Responsive Design** — Works on desktop and mobile, including collapsible navigation for smaller screens.
